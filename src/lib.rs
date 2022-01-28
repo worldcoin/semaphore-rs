@@ -1,0 +1,15 @@
+use std::os::raw::{c_char};
+use std::ffi::{CString, CStr};
+mod identity;
+
+#[no_mangle]
+pub extern fn generate_identity_commitment(seed: *const c_char) -> *mut c_char {
+    let c_str = unsafe { CStr::from_ptr(seed) };
+    let seed = match c_str.to_str() {
+        Err(_) => "there",
+        Ok(string) => string,
+    };
+    let id = identity::Identity::new(seed.as_bytes());
+
+    CString::new(id.identity_commitment().to_str_radix(10)).unwrap().into_raw()
+}
