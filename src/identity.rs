@@ -32,8 +32,8 @@ fn fr_to_bigint(fr: Fr) -> BigInt {
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Identity {
-    identity_trapdoor: BigInt,
-    identity_nullifier: BigInt,
+    pub identity_trapdoor: BigInt,
+    pub identity_nullifier: BigInt,
 }
 
 // todo: improve

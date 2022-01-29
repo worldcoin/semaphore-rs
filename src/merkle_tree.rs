@@ -9,6 +9,7 @@ use std::{
     iter::{once, repeat, successors},
 };
 
+use num_bigint::{BigInt, Sign};
 use serde::Serialize;
 
 /// Hash types, values and algorithms for a Merkle tree

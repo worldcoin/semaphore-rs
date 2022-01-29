@@ -1,4 +1,5 @@
 use ethers::types::U256;
+use num_bigint::{BigInt, Sign};
 use serde::{
     de::{Error as DeError, Visitor},
     ser::Error as _,
@@ -52,6 +53,28 @@ impl From<U256> for Hash {
         let mut bytes = [0_u8; 32];
         u256.to_big_endian(&mut bytes);
         Self::from_bytes_be(bytes)
+    }
+}
+
+/// Conversion from vec
+impl From<Vec<u8>> for Hash {
+    fn from(vec: Vec<u8>) -> Self {
+        let mut bytes = [0_u8; 32];
+        bytes.copy_from_slice(&vec[0..32]);
+        Self::from_bytes_be(bytes)
+    }
+}
+
+/// Conversion to BigInt
+impl From<Hash> for BigInt {
+    fn from(hash: Hash) -> Self {
+        Self::from_bytes_be(Sign::Plus, hash.as_bytes_be())
+    }
+}
+
+impl From<&Hash> for BigInt {
+    fn from(hash: &Hash) -> Self {
+        Self::from_bytes_be(Sign::Plus, hash.as_bytes_be())
     }
 }
 

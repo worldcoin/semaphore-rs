@@ -4,9 +4,10 @@ mod merkle_tree;
 mod poseidon_tree;
 mod hash;
 
+use num_bigint::BigInt;
 use poseidon_rs::Poseidon;
 use hex_literal::hex;
-use {identity::*, poseidon_tree::*, hash::*};
+use {identity::*, poseidon_tree::*, hash::*, proof::*};
 
 fn main() {
 
@@ -21,12 +22,25 @@ fn main() {
     ));
 
     let mut tree = PoseidonTree::new(3, LEAF);
-    tree.set(0, id.identity_commitment_leaf());
 
-    dbg!(tree.root());
+    let (_, leaf) = id.identity_commitment().to_bytes_be();
+    dbg!(&leaf);
+
+    tree.set(0, leaf.into());
+
+    let root: BigInt = tree.root().into();
+    dbg!(root);
+
     let proof = tree.proof(0).expect("proof should exist");
-    dbg!(proof);
+    // let proof: Vec<BigInt> = proof.0.iter().map(|x| {
+    //     match x {
+    //         Branch::Left(value) => value.into(),
+    //         Branch::Right(value) => value.into(),
+    //     }
+    // }).collect();
 
-    
+    // dbg!(proof);
+
+    proof_signal(&id, &proof);
 
 }
