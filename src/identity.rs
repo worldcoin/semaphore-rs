@@ -5,24 +5,10 @@ use once_cell::sync::Lazy;
 use poseidon_rs::{Fr, FrRepr, Poseidon};
 use sha2::{Digest, Sha256};
 
+use crate::{hash::Hash};
+
 static POSEIDON: Lazy<Poseidon> = Lazy::new(Poseidon::new);
 
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Identity {
-    identity_trapdoor: BigInt,
-    identity_nullifier: BigInt,
-}
-
-// todo: improve
-fn sha(msg: &[u8]) -> [u8; 32] {
-    let mut hasher = Sha256::new();
-    hasher.update(msg);
-    let result = hasher.finalize();
-    let res: [u8; 32] = result.into();
-    res
-}
-
-// todo: improve
 fn bigint_to_fr(bi: &BigInt) -> Fr {
     // dirty: have to force the point into the field manually, otherwise you get an error if bi not in field
     let q = BigInt::parse_bytes(
@@ -42,6 +28,21 @@ fn fr_to_bigint(fr: Fr) -> BigInt {
     let mut bytes = [0_u8; 32];
     fr.into_repr().write_be(&mut bytes[..]).unwrap();
     BigInt::from_bytes_be(Sign::Plus, &bytes)
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Identity {
+    identity_trapdoor: BigInt,
+    identity_nullifier: BigInt,
+}
+
+// todo: improve
+fn sha(msg: &[u8]) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(msg);
+    let result = hasher.finalize();
+    let res: [u8; 32] = result.into();
+    res
 }
 
 impl Identity {
@@ -79,5 +80,13 @@ impl Identity {
             .hash(vec![bigint_to_fr(&self.secret_hash())])
             .unwrap();
         fr_to_bigint(res)
+    }
+
+    pub fn identity_commitment_leaf(&self) -> Hash {
+        let res = POSEIDON
+            .hash(vec![bigint_to_fr(&self.identity_commitment())])
+            .unwrap();
+
+        res.into()
     }
 }

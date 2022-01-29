@@ -1,6 +1,11 @@
+mod identity;
+mod proof;
+mod merkle_tree;
+mod poseidon_tree;
+mod hash;
 use std::os::raw::{c_char};
 use std::ffi::{CString, CStr};
-mod identity;
+
 
 #[no_mangle]
 pub extern fn generate_identity_commitment(seed: *const c_char) -> *mut c_char {
