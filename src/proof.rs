@@ -1,31 +1,16 @@
-use ark_circom::{CircomConfig, CircomBuilder};
+use ark_circom::{CircomConfig, CircomBuilder, read_zkey, WitnessCalculator, CircomReduction};
 use ark_std::rand::thread_rng;
 use ark_bn254::Bn254;
 use color_eyre::Result;
 use num_bigint::BigInt;
 
+use std::{collections::HashMap, fs::File};
+
 use crate::{identity::*, poseidon_tree::{Proof}, merkle_tree::Branch};
 
 use ark_groth16::{
-    create_random_proof as prove, generate_random_parameters, prepare_verifying_key, verify_proof,
+    create_random_proof as prove, generate_random_parameters, prepare_verifying_key, verify_proof, create_proof_with_reduction_and_matrices,
 };
-
-// fn to_array32(s: &BigInt, size: usize) -> Vec<i32> {
-//     let mut res = vec![0; size as usize];
-//     let mut rem = s.clone();
-//     let radix = BigInt::from(0x100000000u64);
-//     let mut c = size - 1;
-//     while !rem.is_zero() {
-//         !dbg(&rem);
-//         !dbg(&radix);
-//         !dbg((&rem % &radix));
-//         res[c] = (&rem % &radix).to_i32().unwrap();
-//         rem /= &radix;
-//         c -= 1;
-//     }
-
-//     res
-// }
 
 // WIP: uses dummy proofs for now
 pub fn proof_signal(identity: &Identity, proof: &Proof) -> Result<()> {
@@ -38,69 +23,95 @@ pub fn proof_signal(identity: &Identity, proof: &Proof) -> Result<()> {
         }
     }).collect::<Vec<BigInt>>();
 
-    let cfg = CircomConfig::<Bn254>::new(
-        "./snarkfiles/circom2_multiplier2.wasm",
-        "./snarkfiles/circom2_multiplier2.r1cs",
-    )?;
+    let mut file = File::open("./snarkfiles/semaphore.zkey").unwrap();
+    let (params, matrices) = read_zkey(&mut file).unwrap();
+    let num_inputs = matrices.num_instance_variables;
+    let num_constraints = matrices.num_constraints;
 
-    // identity_nullifier: identityNullifier,
-    // identity_trapdoor: identityTrapdoor,
-    // identity_path_index: merkleProof.pathIndices,
-    // path_elements: merkleProof.siblings,
-    // external_nullifier: externalNullifier,
-    // signal_hash: shouldHash ? genSignalHash(signal) : signal
+    let inputs = {
+        let mut inputs: HashMap<String, Vec<num_bigint::BigInt>> = HashMap::new();
 
-    let mut builder = CircomBuilder::new(cfg);
+        let values = inputs.entry("identity_nullifier".to_string()).or_insert_with(Vec::new);
+        values.push(BigInt::parse_bytes(
+            b"4344141139294650952352150677542411196253771789435022697920397562624821372579",
+            10,
+        )
+        .unwrap());
 
-    let tmp = BigInt::parse_bytes(
-        b"4344141139294650952352150677542411196253771789435022697920397562624821372579",
-        10,
-    )
+        //
+
+        let values = inputs.entry("identity_trapdoor".to_string()).or_insert_with(Vec::new);
+        values.push(BigInt::parse_bytes(
+            b"57215223214535428002775309386374815284773502419290683020798284477163412139477",
+            10,
+        )
+        .unwrap());
+
+        //
+
+        let values = inputs.entry("identity_path_index".to_string()).or_insert_with(Vec::new);
+        values.push(BigInt::from(0 as i32));
+        values.push(BigInt::from(0 as i32));
+
+        //
+        let values = inputs.entry("path_elements".to_string()).or_insert_with(Vec::new);
+        for el in proof {
+            values.push(el);
+        }
+
+        //
+
+        let values = inputs.entry("external_nullifier".to_string()).or_insert_with(Vec::new);
+        values.push(BigInt::from(123 as i32));
+
+        //
+         
+        let values = inputs.entry("signal_hash".to_string()).or_insert_with(Vec::new);
+        values.push(BigInt::parse_bytes(
+            b"426814738191208581806614072441429636075448095566621754358249936829881365458",
+            10,
+        )
+        .unwrap());
+
+        inputs
+    };
+
+    let mut wtns = WitnessCalculator::new("./snarkfiles/semaphore.wasm")
     .unwrap();
-    builder.push_input("identity_nullifier", tmp);
 
-    // dbg!(&tmp % BigInt::from(0x100000000u64));
-    // builder.push_input("identity_trapdoor", BigInt::parse_bytes(
-    //     b"57215223214535428002775309386374815284773502419290683020798284477163412139477",
-    //     10,
-    // )
-    // .unwrap());
-
-    // // TODO: calculate vec
-    // builder.push_input("identity_path_index", BigInt::from(0 as i32));
-    // builder.push_input("identity_path_index", BigInt::from(0 as i32));
-
-    // for el in proof {
-    //     builder.push_input("path_elements", el);
-    // }
-
-    // builder.push_input("external_nullifier", BigInt::from(123 as i32));
-    // builder.push_input("signal_hash", BigInt::parse_bytes(
-    //     b"426814738191208581806614072441429636075448095566621754358249936829881365458n",
-    //     10,
-    // )
-    // .unwrap());
-
-    // builder.push_input("nullifierHash", BigInt::from(0 as i32));
-    // builder.push_input("root", BigInt::from(0 as i32));
-
-    // create an empty instance for setting it up
-    let circom = builder.setup();
+    let full_assignment = wtns
+        .calculate_witness_element::<Bn254, _>(inputs, false)
+        .unwrap();
 
     let mut rng = thread_rng();
-    let params = generate_random_parameters::<Bn254, _, _>(circom, &mut rng)?;
+    use ark_std::UniformRand;
+    let rng = &mut rng;
 
-    let circom = builder.build()?;
+    let r = ark_bn254::Fr::rand(rng);
+    let s = ark_bn254::Fr::rand(rng);
 
-    let inputs = circom.get_public_inputs().unwrap();
+    use std::time::Instant;
+    let now = Instant::now();
 
-    dbg!(&inputs);
+    let proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
+        &params,
+        r,
+        s,
+        &matrices,
+        num_inputs,
+        num_constraints,
+        full_assignment.as_slice(),
+    )
+    .unwrap();
 
-    let proof = prove(circom, &params, &mut rng)?;
+    let elapsed = now.elapsed();
+    println!("proof generation took: {:.2?}", elapsed);
+
+    dbg!(&proof);
 
     let pvk = prepare_verifying_key(&params.vk);
-
-    let verified = verify_proof(&pvk, &proof, &inputs)?;
+    let inputs = &full_assignment[1..num_inputs];
+    let verified = verify_proof(&pvk, &proof, inputs).unwrap();
 
     assert!(verified);
 
