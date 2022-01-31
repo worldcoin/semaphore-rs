@@ -44,6 +44,6 @@ fn main() {
 
     // dbg!(proof);
 
-    proof_signal(&id, &proof);
+    generate(&id, &proof, BigInt::from(123), b"xxx");
 
 }
