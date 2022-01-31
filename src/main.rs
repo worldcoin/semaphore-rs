@@ -26,12 +26,15 @@ fn main() {
     let (_, leaf) = id.identity_commitment().to_bytes_be();
     dbg!(&leaf);
 
-    tree.set(0, leaf.into());
+    tree.set(2, leaf.into());
 
     let root: BigInt = tree.root().into();
     dbg!(root);
 
-    let proof = tree.proof(0).expect("proof should exist");
+    let proof = tree.proof(2).expect("proof should exist");
+
+    dbg!(proof.path_index());
+
     // let proof: Vec<BigInt> = proof.0.iter().map(|x| {
     //     match x {
     //         Branch::Left(value) => value.into(),

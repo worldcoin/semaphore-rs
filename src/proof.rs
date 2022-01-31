@@ -1,4 +1,4 @@
-use ark_circom::{CircomConfig, CircomBuilder, read_zkey, WitnessCalculator, CircomReduction};
+use ark_circom::{read_zkey, WitnessCalculator, CircomReduction};
 use ark_std::rand::thread_rng;
 use ark_bn254::Bn254;
 use color_eyre::Result;
@@ -9,19 +9,21 @@ use std::{collections::HashMap, fs::File};
 use crate::{identity::*, poseidon_tree::{Proof}, merkle_tree::Branch};
 
 use ark_groth16::{
-    create_random_proof as prove, generate_random_parameters, prepare_verifying_key, verify_proof, create_proof_with_reduction_and_matrices,
+    prepare_verifying_key, verify_proof, create_proof_with_reduction_and_matrices,
 };
 
-// WIP: uses dummy proofs for now
-pub fn proof_signal(identity: &Identity, proof: &Proof) -> Result<()> {
-
-    // TODO: we should create a From trait for this
-    let proof = proof.0.iter().map(|x| {
+// TODO: we should create a From trait for this
+fn proof_to_vec(proof: &Proof) -> Vec<BigInt> {
+    proof.0.iter().map(|x| {
         match x {
             Branch::Left(value) => value.into(),
             Branch::Right(value) => value.into(),
         }
-    }).collect::<Vec<BigInt>>();
+    }).collect::<Vec<BigInt>>()
+}
+
+// WIP: uses dummy proofs for now
+pub fn proof_signal(identity: &Identity, merkle_proof: &Proof, external_nullifier: BigInt) -> Result<()> {
 
     let mut file = File::open("./snarkfiles/semaphore.zkey").unwrap();
     let (params, matrices) = read_zkey(&mut file).unwrap();
@@ -29,40 +31,13 @@ pub fn proof_signal(identity: &Identity, proof: &Proof) -> Result<()> {
     let num_constraints = matrices.num_constraints;
 
     let inputs = {
-        let mut inputs: HashMap<String, Vec<num_bigint::BigInt>> = HashMap::new();
+        let mut inputs: HashMap<String, Vec<BigInt>> = HashMap::new();
 
-        let values = inputs.entry("identity_nullifier".to_string()).or_insert_with(Vec::new);
-        values.push(BigInt::parse_bytes(
-            b"4344141139294650952352150677542411196253771789435022697920397562624821372579",
-            10,
-        )
-        .unwrap());
-
-        //
-
-        let values = inputs.entry("identity_trapdoor".to_string()).or_insert_with(Vec::new);
-        values.push(BigInt::parse_bytes(
-            b"57215223214535428002775309386374815284773502419290683020798284477163412139477",
-            10,
-        )
-        .unwrap());
-
-        //
-
-        let values = inputs.entry("identity_path_index".to_string()).or_insert_with(Vec::new);
-        values.push(BigInt::from(0 as i32));
-        values.push(BigInt::from(0 as i32));
-
-        //
-        let values = inputs.entry("path_elements".to_string()).or_insert_with(Vec::new);
-        for el in proof {
-            values.push(el);
-        }
-
-        //
-
-        let values = inputs.entry("external_nullifier".to_string()).or_insert_with(Vec::new);
-        values.push(BigInt::from(123 as i32));
+        inputs.insert("identity_nullifier".to_string(), vec![identity.nullifier.clone()]);
+        inputs.insert("identity_trapdoor".to_string(), vec![identity.trapdoor.clone()]);
+        inputs.insert("identity_path_index".to_string(), merkle_proof.path_index());
+        inputs.insert("path_elements".to_string(), proof_to_vec(merkle_proof));
+        inputs.insert("external_nullifier".to_string(), vec![external_nullifier]);
 
         //
          

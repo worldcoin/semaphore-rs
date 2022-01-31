@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ark-circom = { git = "https://github.com/gakonst/ark-circom", features=["circom-2"] }
+ark-circom = { git = "https://github.com/philsippl/ark-circom", features=["circom-2"] }
 ark-std = { version = "0.3.0", default-features = false, features = ["parallel"] }
 ark-bn254 = { version = "0.3.0" }
 ark-groth16 = { git = "https://github.com/arkworks-rs/groth16", rev = "765817f", features = ["parallel"] }

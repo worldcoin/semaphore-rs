@@ -173,6 +173,15 @@ impl<H: Hasher> Proof<H> {
         })
     }
 
+    /// Compute path index (TODO: do we want to keep this here?)
+    #[allow(dead_code)]
+    pub fn path_index(&self) -> Vec<BigInt> {
+        self.0.iter().map(|branch| match branch {
+            Branch::Left(_) => BigInt::from(0),
+            Branch::Right(_) => BigInt::from(1),
+        }).collect()
+    }
+
     /// Compute the Merkle root given a leaf hash
     #[allow(dead_code)]
     pub fn root(&self, hash: H::Hash) -> H::Hash {
