@@ -5,6 +5,10 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+name = "semaphore"
+crate-type = ["staticlib", "cdylib"]
+
 [dependencies]
 ark-circom = { git = "https://github.com/philsippl/ark-circom", features=["circom-2"] }
 ark-std = { version = "0.3.0", default-features = false, features = ["parallel"] }
@@ -24,3 +28,16 @@ serde = "1.0"
 ethers = "0.6"
 hex-literal = "0.3"
 proptest = { version = "1.0", optional = true }
+rayon = "1.5.1"
+
+[profile.release]
+codegen-units = 1
+lto = true
+panic = "abort"
+opt-level = 3
+
+# Compilation profile for any non-workspace member.
+# Dependencies are optimized, even in a dev build. This improves dev performance
+# while having neglible impact on incremental build times.
+[profile.dev.package."*"]
+opt-level = 3
