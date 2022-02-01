@@ -2161,7 +2161,10 @@ version = "0.1.0"
 dependencies = [
  "ark-bn254",
  "ark-circom",
+ "ark-ec",
+ "ark-ff",
  "ark-groth16",
+ "ark-relations",
  "ark-std",
  "color-eyre",
  "ethers",

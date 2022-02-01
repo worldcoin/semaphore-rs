@@ -1,4 +1,4 @@
-mod proof;
+mod protocol;
 mod identity;
 mod merkle_tree;
 mod poseidon_tree;
@@ -7,7 +7,7 @@ mod hash;
 use num_bigint::BigInt;
 use poseidon_rs::Poseidon;
 use hex_literal::hex;
-use {identity::*, poseidon_tree::*, hash::*, proof::*};
+use {identity::*, poseidon_tree::*, hash::*, protocol::*};
 
 fn main() {
 
@@ -21,29 +21,22 @@ fn main() {
         "0000000000000000000000000000000000000000000000000000000000000000"
     ));
 
-    let mut tree = PoseidonTree::new(3, LEAF);
+    let mut tree = PoseidonTree::new(21, LEAF);
 
     let (_, leaf) = id.identity_commitment().to_bytes_be();
     dbg!(&leaf);
 
-    tree.set(2, leaf.into());
+    tree.set(0, leaf.into());
 
     let root: BigInt = tree.root().into();
     dbg!(root);
 
-    let proof = tree.proof(2).expect("proof should exist");
+    let proof = tree.proof(0).expect("proof should exist");
 
-    dbg!(proof.path_index());
+    dbg!(&proof);
 
-    // let proof: Vec<BigInt> = proof.0.iter().map(|x| {
-    //     match x {
-    //         Branch::Left(value) => value.into(),
-    //         Branch::Right(value) => value.into(),
-    //     }
-    // }).collect();
+    dbg!(&proof.path_index());
 
-    // dbg!(proof);
-
-    generate(&id, &proof, BigInt::from(123), b"xxx");
+    generate_proof(&id, &proof, BigInt::from(123), b"xxx");
 
 }

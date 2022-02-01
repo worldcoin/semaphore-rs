@@ -10,6 +10,9 @@ ark-circom = { git = "https://github.com/philsippl/ark-circom", features=["circo
 ark-std = { version = "0.3.0", default-features = false, features = ["parallel"] }
 ark-bn254 = { version = "0.3.0" }
 ark-groth16 = { git = "https://github.com/arkworks-rs/groth16", rev = "765817f", features = ["parallel"] }
+ark-ec = { version = "0.3.0", default-features = false, features = ["parallel"] }
+ark-ff = { version = "0.3.0", default-features = false, features = ["parallel", "asm"] }
+ark-relations = { version = "0.3.0", default-features = false }
 num-bigint = { version = "0.4", default-features = false, features = ["rand"] }
 ff = { package="ff_ce", version="0.11"}
 poseidon-rs = "0.0.8"

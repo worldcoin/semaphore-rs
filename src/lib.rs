@@ -1,5 +1,5 @@
 mod identity;
-mod proof;
+mod protocol;
 mod merkle_tree;
 mod poseidon_tree;
 mod hash;
