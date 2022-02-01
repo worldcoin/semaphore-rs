@@ -31,12 +31,15 @@ fn main() {
     let merkle_proof = tree.proof(0).expect("proof should exist");
     let root = tree.root().into();
 
-    let signal = b"xxx";
-    let external_nullifier = b"appId";
-    let nullifier_hash = generate_nullifier_hash(&external_nullifier[..], &id.nullifier);
+    // change signal and external_nullifier here
+    let signal = "xxx".as_bytes();
+    let external_nullifier = "appId".as_bytes();
 
-    let proof = generate_proof(&id, &merkle_proof, &external_nullifier[..], &signal[..]).unwrap();
-    let res = verify_proof(&root, &nullifier_hash, &signal[..], &external_nullifier[..], &proof).unwrap();
+    let nullifier_hash = generate_nullifier_hash(&external_nullifier, &id.nullifier);
+    dbg!(&nullifier_hash);
 
-    dbg!(res);
+    let proof = generate_proof(&id, &merkle_proof, &external_nullifier, &signal).unwrap();
+    let success = verify_proof(&root, &nullifier_hash, &signal, &external_nullifier, &proof).unwrap();
+
+    dbg!(success);
 }

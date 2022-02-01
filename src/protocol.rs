@@ -97,11 +97,16 @@ pub fn generate_proof(
         inputs
     };
 
+    use std::time::Instant;
+    let now = Instant::now();
+
     let mut wtns = WitnessCalculator::new(format!("{}{}", SNARK_FILES, WASM_FILE)).unwrap();
 
     let full_assignment = wtns
         .calculate_witness_element::<Bn254, _>(inputs, false)
         .unwrap();
+
+    println!("witness generation took: {:.2?}", now.elapsed());
 
     let mut rng = thread_rng();
     use ark_std::UniformRand;
@@ -110,7 +115,6 @@ pub fn generate_proof(
     let r = ark_bn254::Fr::rand(rng);
     let s = ark_bn254::Fr::rand(rng);
 
-    use std::time::Instant;
     let now = Instant::now();
 
     let proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
@@ -123,8 +127,7 @@ pub fn generate_proof(
         full_assignment.as_slice(),
     );
 
-    let elapsed = now.elapsed();
-    println!("proof generation took: {:.2?}", elapsed);
+    println!("proof generation took: {:.2?}", now.elapsed());
 
     proof
 }
