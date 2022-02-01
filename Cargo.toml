@@ -1,9 +1,19 @@
 [package]
-name = "libsemaphore-rs"
+name = "semaphore"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = [
+    "Remco Bloemen <remco@worldcoin.org>",
+    "Philipp Sippl <philipp@worldcoin.org>"]
+edition = "2021"
+build = "build.rs"
+homepage = "https://github.com/worldcoin/semaphore-rs"
+repository = "https://github.com/worldcoin/semaphore-rs"
+description = "Rust support library for Semaphore"
+keywords = ["worldcoin", "protocol", "signup"]
+categories = ["cryptography"]
+readme = "Readme.md"
+license-file = "mit-license.md"
 
 [lib]
 name = "semaphore"
