@@ -3,6 +3,8 @@ mod protocol;
 mod merkle_tree;
 mod poseidon_tree;
 mod hash;
+mod util;
+
 use std::os::raw::{c_char};
 use std::ffi::{CString, CStr};
 

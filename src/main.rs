@@ -1,20 +1,19 @@
-mod protocol;
+mod hash;
 mod identity;
 mod merkle_tree;
 mod poseidon_tree;
-mod hash;
+mod protocol;
+mod util;
 
+use hex_literal::hex;
 use num_bigint::BigInt;
 use poseidon_rs::Poseidon;
-use hex_literal::hex;
-use {identity::*, poseidon_tree::*, hash::*, protocol::*};
+use {hash::*, identity::*, poseidon_tree::*, protocol::*};
 
 fn main() {
-
     // generate identity
     let id = Identity::new(b"hello");
     dbg!(&id);
-    dbg!(id.identity_commitment());
 
     // generate merkle tree
     const LEAF: Hash = Hash::from_bytes_be(hex!(
@@ -22,21 +21,21 @@ fn main() {
     ));
 
     let mut tree = PoseidonTree::new(21, LEAF);
-
     let (_, leaf) = id.identity_commitment().to_bytes_be();
-    dbg!(&leaf);
-
     tree.set(0, leaf.into());
 
     let root: BigInt = tree.root().into();
     dbg!(root);
 
-    let proof = tree.proof(0).expect("proof should exist");
+    let merkle_proof = tree.proof(0).expect("proof should exist");
+    let root = tree.root().into();
 
-    dbg!(&proof);
+    let signal = b"xxx";
+    let external_nullifier = BigInt::from(123 as i32);
+    let nullifier_hash = generate_nullifier_hash(&external_nullifier, &id.nullifier);
 
-    dbg!(&proof.path_index());
+    let proof = generate_proof(&id, &merkle_proof, &external_nullifier, &signal[..]).unwrap();
+    let res = verify_proof(&root, &nullifier_hash, &signal[..], &external_nullifier, &proof).unwrap();
 
-    generate_proof(&id, &proof, BigInt::from(123), b"xxx");
-
+    dbg!(res);
 }

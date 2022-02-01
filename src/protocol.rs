@@ -1,17 +1,27 @@
-use ark_bn254::{Bn254};
+use ark_bn254::{Bn254, Parameters};
 use ark_circom::{read_zkey, CircomReduction, WitnessCalculator};
-use ark_ff::{Fp256};
+use ark_ec::bn::Bn;
+use ark_ff::Fp256;
+use ark_groth16::{create_proof_with_reduction_and_matrices, prepare_verifying_key, Proof};
 use ark_relations::r1cs::SynthesisError;
 use ark_std::rand::thread_rng;
 use color_eyre::Result;
 use ethers::utils::keccak256;
 use num_bigint::{BigInt, Sign};
 use std::{collections::HashMap, fs::File, ops::Shr};
-use ark_groth16::{create_proof_with_reduction_and_matrices, prepare_verifying_key, Proof};
+use once_cell::sync::Lazy;
+use poseidon_rs::{Fr, FrRepr, Poseidon};
 
-use crate::{identity::*, merkle_tree::{Branch, self}, poseidon_tree::{PoseidonHash}};
+use crate::{
+    identity::*,
+    merkle_tree::{self, Branch},
+    poseidon_tree::PoseidonHash, util::{fr_to_bigint, bigint_to_fr},
+};
 
-// TODO: we should create a From trait for this
+static POSEIDON: Lazy<Poseidon> = Lazy::new(Poseidon::new);
+
+/// Helper to merkle proof into a bigint vector
+/// TODO: we should create a From trait for this
 fn merkle_proof_to_vec(proof: &merkle_tree::Proof<PoseidonHash>) -> Vec<BigInt> {
     proof
         .0
@@ -23,18 +33,26 @@ fn merkle_proof_to_vec(proof: &merkle_tree::Proof<PoseidonHash>) -> Vec<BigInt> 
         .collect::<Vec<BigInt>>()
 }
 
+/// Internal helper to hash the signal to make sure it's in the field
 fn hash_signal(signal: &[u8]) -> BigInt {
     BigInt::from_bytes_be(Sign::Plus, &keccak256(signal)).shr(8)
 }
 
-// WIP: uses dummy proofs for now
+/// Generates the nullifier hash
+pub fn generate_nullifier_hash(external_nullifier: &BigInt, identity_nullifier: &BigInt) -> BigInt {
+    let res = POSEIDON
+            .hash(vec![bigint_to_fr(external_nullifier), bigint_to_fr(identity_nullifier)])
+            .unwrap();
+    fr_to_bigint(res)
+}
+
+/// Generates a semaphore proof
 pub fn generate_proof(
     identity: &Identity,
     merkle_proof: &merkle_tree::Proof<PoseidonHash>,
-    external_nullifier: BigInt,
+    external_nullifier: &BigInt,
     signal: &[u8],
-) -> Result<()> {
-// ) -> Result<Proof<Bn<Parameters>>, SynthesisError> {
+) -> Result<Proof<Bn<Parameters>>, SynthesisError> {
     let mut file = File::open("./snarkfiles/semaphore.zkey").unwrap();
     let (params, matrices) = read_zkey(&mut file).unwrap();
     let num_inputs = matrices.num_instance_variables;
@@ -52,28 +70,15 @@ pub fn generate_proof(
             vec![identity.trapdoor.clone()],
         );
         inputs.insert("identity_path_index".to_string(), merkle_proof.path_index());
-        inputs.insert("path_elements".to_string(), merkle_proof_to_vec(merkle_proof));
-        inputs.insert("external_nullifier".to_string(), vec![external_nullifier]);
+        inputs.insert(
+            "path_elements".to_string(),
+            merkle_proof_to_vec(merkle_proof),
+        );
+        inputs.insert("external_nullifier".to_string(), vec![external_nullifier.clone()]);
         inputs.insert("signal_hash".to_string(), vec![hash_signal(signal)]);
 
         inputs
     };
-
-    dbg!(&inputs);
-
-    let nullifier = BigInt::parse_bytes(
-        b"2073423254391230197488930967618194527029511360562414420050239137722181518699",
-        10,
-    )
-    .unwrap();
-
-    let root = BigInt::parse_bytes(
-        b"9194628565321423830640339892337438998798131617576196335312343809896770847079",
-        10,
-    )
-    .unwrap();
-
-    dbg!(nullifier.sign(), root.sign());
 
     let mut wtns = WitnessCalculator::new("./snarkfiles/semaphore.wasm").unwrap();
 
@@ -104,35 +109,27 @@ pub fn generate_proof(
     let elapsed = now.elapsed();
     println!("proof generation took: {:.2?}", elapsed);
 
-    dbg!(&proof);
+    proof
+}
+
+/// Verifies a given semaphore proof
+pub fn verify_proof(
+    root: &BigInt,
+    nullifier_hash: &BigInt,
+    signal: &[u8],
+    external_nullifier: &BigInt,
+    proof: &Proof<Bn<Parameters>>,
+) -> Result<bool, SynthesisError> {
+    let mut file = File::open("./snarkfiles/semaphore.zkey").unwrap();
+    let (params, _) = read_zkey(&mut file).unwrap();
 
     let pvk = prepare_verifying_key(&params.vk);
 
     let public_inputs = vec![
         Fp256::from(root.to_biguint().unwrap()),
-        Fp256::from(nullifier.to_biguint().unwrap()),
-        full_assignment[3],
-        full_assignment[4]
+        Fp256::from(nullifier_hash.to_biguint().unwrap()),
+        Fp256::from(hash_signal(signal).to_biguint().unwrap()),
+        Fp256::from(external_nullifier.to_biguint().unwrap()),
     ];
-
-    dbg!(&public_inputs);
-
-    let verified = ark_groth16::verify_proof(&pvk, &proof.unwrap(), &public_inputs).unwrap();
-
-    dbg!(verified);
-
-    // proof
-    Ok(())
+    ark_groth16::verify_proof(&pvk, proof, &public_inputs)
 }
-
-// fn verify_proof(nullifier_hash: BigInt, root: BigInt, proof: &Proof<Bn<Parameters>>) -> Result<()> {
-//     let mut file = File::open("./snarkfiles/semaphore.zkey").unwrap();
-//     let (params, matrices) = read_zkey(&mut file).unwrap();
-
-//     let pvk = prepare_verifying_key(&params.vk);
-//     // let inputs = &full_assignment[1..num_inputs];
-//     let verified = ark_groth16::verify_proof(&pvk, proof, inputs).unwrap();
-
-//     // assert!(verified);
-//     Ok(())
-// }
