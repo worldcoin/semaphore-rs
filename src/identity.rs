@@ -4,13 +4,13 @@ use once_cell::sync::Lazy;
 use poseidon_rs::{Fr, FrRepr, Poseidon};
 use sha2::{Digest, Sha256};
 
-use crate::util::{fr_to_bigint, bigint_to_fr};
+use crate::util::{bigint_to_fr, fr_to_bigint};
 
 static POSEIDON: Lazy<Poseidon> = Lazy::new(Poseidon::new);
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Identity {
-    pub trapdoor: BigInt,
+    pub trapdoor:  BigInt,
     pub nullifier: BigInt,
 }
 
@@ -59,5 +59,4 @@ impl Identity {
             .unwrap();
         fr_to_bigint(res)
     }
-
 }

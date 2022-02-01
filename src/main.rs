@@ -5,10 +5,13 @@ mod poseidon_tree;
 mod protocol;
 mod util;
 
+use hash::*;
 use hex_literal::hex;
+use identity::*;
 use num_bigint::BigInt;
 use poseidon_rs::Poseidon;
-use {hash::*, identity::*, poseidon_tree::*, protocol::*};
+use poseidon_tree::*;
+use protocol::*;
 
 fn main() {
     // generate identity
@@ -39,7 +42,8 @@ fn main() {
     dbg!(&nullifier_hash);
 
     let proof = generate_proof(&id, &merkle_proof, &external_nullifier, &signal).unwrap();
-    let success = verify_proof(&root, &nullifier_hash, &signal, &external_nullifier, &proof).unwrap();
+    let success =
+        verify_proof(&root, &nullifier_hash, &signal, &external_nullifier, &proof).unwrap();
 
     dbg!(success);
 }

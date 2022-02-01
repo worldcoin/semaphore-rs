@@ -9,7 +9,7 @@ use std::{
     iter::{once, repeat, successors},
 };
 
-use num_bigint::{BigInt};
+use num_bigint::BigInt;
 use serde::Serialize;
 
 /// Hash types, values and algorithms for a Merkle tree
@@ -176,10 +176,13 @@ impl<H: Hasher> Proof<H> {
     /// Compute path index (TODO: do we want to keep this here?)
     #[allow(dead_code)]
     pub fn path_index(&self) -> Vec<BigInt> {
-        self.0.iter().map(|branch| match branch {
-            Branch::Left(_) => BigInt::from(0),
-            Branch::Right(_) => BigInt::from(1),
-        }).collect()
+        self.0
+            .iter()
+            .map(|branch| match branch {
+                Branch::Left(_) => BigInt::from(0),
+                Branch::Right(_) => BigInt::from(1),
+            })
+            .collect()
     }
 
     /// Compute the Merkle root given a leaf hash
