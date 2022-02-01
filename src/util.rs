@@ -18,7 +18,13 @@ pub fn bigint_to_fr(bi: &BigInt) -> Fr {
     let m = bi.modpow(&BigInt::from(1), &q);
 
     let mut repr = FrRepr::default();
-    let (_, res) = m.to_bytes_be();
+    let (_, mut res) = m.to_bytes_be();
+
+    //prepend zeros
+    res.reverse();
+    res.resize(32, 0);
+    res.reverse();
+
     repr.read_be(&res[..]).unwrap();
     Fr::from_repr(repr).unwrap()
 }
