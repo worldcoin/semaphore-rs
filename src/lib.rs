@@ -18,5 +18,5 @@ pub extern fn generate_identity_commitment(seed: *const c_char) -> *mut c_char {
     };
     let id = identity::Identity::new(seed.as_bytes());
 
-    CString::new(id.identity_commitment().to_str_radix(10)).unwrap().into_raw()
+    CString::new(id.commitment().to_str_radix(10)).unwrap().into_raw()
 }

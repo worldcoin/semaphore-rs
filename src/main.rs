@@ -14,6 +14,7 @@ fn main() {
     // generate identity
     let id = Identity::new(b"hello");
     dbg!(&id);
+    dbg!(id.commitment());
 
     // generate merkle tree
     const LEAF: Hash = Hash::from_bytes_be(hex!(
@@ -21,7 +22,7 @@ fn main() {
     ));
 
     let mut tree = PoseidonTree::new(21, LEAF);
-    let (_, leaf) = id.identity_commitment().to_bytes_be();
+    let (_, leaf) = id.commitment().to_bytes_be();
     tree.set(0, leaf.into());
 
     let root: BigInt = tree.root().into();
@@ -31,11 +32,11 @@ fn main() {
     let root = tree.root().into();
 
     let signal = b"xxx";
-    let external_nullifier = BigInt::from(123 as i32);
-    let nullifier_hash = generate_nullifier_hash(&external_nullifier, &id.nullifier);
+    let external_nullifier = b"appId";
+    let nullifier_hash = generate_nullifier_hash(&external_nullifier[..], &id.nullifier);
 
-    let proof = generate_proof(&id, &merkle_proof, &external_nullifier, &signal[..]).unwrap();
-    let res = verify_proof(&root, &nullifier_hash, &signal[..], &external_nullifier, &proof).unwrap();
+    let proof = generate_proof(&id, &merkle_proof, &external_nullifier[..], &signal[..]).unwrap();
+    let res = verify_proof(&root, &nullifier_hash, &signal[..], &external_nullifier[..], &proof).unwrap();
 
     dbg!(res);
 }

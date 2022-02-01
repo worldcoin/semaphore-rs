@@ -8,16 +8,20 @@ use ark_std::rand::thread_rng;
 use color_eyre::Result;
 use ethers::utils::keccak256;
 use num_bigint::{BigInt, Sign};
-use std::{collections::HashMap, fs::File, ops::Shr};
 use once_cell::sync::Lazy;
 use poseidon_rs::{Fr, FrRepr, Poseidon};
+use std::{collections::HashMap, fs::File, ops::Shr};
 
 use crate::{
     identity::*,
     merkle_tree::{self, Branch},
-    poseidon_tree::PoseidonHash, util::{fr_to_bigint, bigint_to_fr},
+    poseidon_tree::PoseidonHash,
+    util::{bigint_to_fr, fr_to_bigint},
 };
 
+static SNARK_FILES: &str = "./snarkfiles/";
+static ZKEY_FILE: &str = "semaphore.zkey";
+static WASM_FILE: &str = "semaphore.wasm";
 static POSEIDON: Lazy<Poseidon> = Lazy::new(Poseidon::new);
 
 /// Helper to merkle proof into a bigint vector
@@ -38,11 +42,21 @@ fn hash_signal(signal: &[u8]) -> BigInt {
     BigInt::from_bytes_be(Sign::Plus, &keccak256(signal)).shr(8)
 }
 
+/// Internal helper to hash the external nullifier
+pub fn hash_external_nullifier(nullifier: &[u8]) -> BigInt {
+    let mut hash = keccak256(nullifier).to_vec();
+    hash.splice(..3, vec![0; 4]);
+    BigInt::from_bytes_be(Sign::Plus, &hash)
+}
+
 /// Generates the nullifier hash
-pub fn generate_nullifier_hash(external_nullifier: &BigInt, identity_nullifier: &BigInt) -> BigInt {
+pub fn generate_nullifier_hash(external_nullifier: &[u8], identity_nullifier: &BigInt) -> BigInt {
     let res = POSEIDON
-            .hash(vec![bigint_to_fr(external_nullifier), bigint_to_fr(identity_nullifier)])
-            .unwrap();
+        .hash(vec![
+            bigint_to_fr(&hash_external_nullifier(external_nullifier)),
+            bigint_to_fr(identity_nullifier),
+        ])
+        .unwrap();
     fr_to_bigint(res)
 }
 
@@ -50,10 +64,10 @@ pub fn generate_nullifier_hash(external_nullifier: &BigInt, identity_nullifier: 
 pub fn generate_proof(
     identity: &Identity,
     merkle_proof: &merkle_tree::Proof<PoseidonHash>,
-    external_nullifier: &BigInt,
+    external_nullifier: &[u8],
     signal: &[u8],
 ) -> Result<Proof<Bn<Parameters>>, SynthesisError> {
-    let mut file = File::open("./snarkfiles/semaphore.zkey").unwrap();
+    let mut file = File::open(format!("{}{}", SNARK_FILES, ZKEY_FILE)).unwrap();
     let (params, matrices) = read_zkey(&mut file).unwrap();
     let num_inputs = matrices.num_instance_variables;
     let num_constraints = matrices.num_constraints;
@@ -74,13 +88,16 @@ pub fn generate_proof(
             "path_elements".to_string(),
             merkle_proof_to_vec(merkle_proof),
         );
-        inputs.insert("external_nullifier".to_string(), vec![external_nullifier.clone()]);
+        inputs.insert(
+            "external_nullifier".to_string(),
+            vec![hash_external_nullifier(external_nullifier)],
+        );
         inputs.insert("signal_hash".to_string(), vec![hash_signal(signal)]);
 
         inputs
     };
 
-    let mut wtns = WitnessCalculator::new("./snarkfiles/semaphore.wasm").unwrap();
+    let mut wtns = WitnessCalculator::new(format!("{}{}", SNARK_FILES, WASM_FILE)).unwrap();
 
     let full_assignment = wtns
         .calculate_witness_element::<Bn254, _>(inputs, false)
@@ -117,10 +134,10 @@ pub fn verify_proof(
     root: &BigInt,
     nullifier_hash: &BigInt,
     signal: &[u8],
-    external_nullifier: &BigInt,
+    external_nullifier: &[u8],
     proof: &Proof<Bn<Parameters>>,
 ) -> Result<bool, SynthesisError> {
-    let mut file = File::open("./snarkfiles/semaphore.zkey").unwrap();
+    let mut file = File::open(format!("{}{}", SNARK_FILES, ZKEY_FILE)).unwrap();
     let (params, _) = read_zkey(&mut file).unwrap();
 
     let pvk = prepare_verifying_key(&params.vk);
@@ -129,7 +146,7 @@ pub fn verify_proof(
         Fp256::from(root.to_biguint().unwrap()),
         Fp256::from(nullifier_hash.to_biguint().unwrap()),
         Fp256::from(hash_signal(signal).to_biguint().unwrap()),
-        Fp256::from(external_nullifier.to_biguint().unwrap()),
+        Fp256::from(hash_external_nullifier(external_nullifier).to_biguint().unwrap()),
     ];
     ark_groth16::verify_proof(&pvk, proof, &public_inputs)
 }

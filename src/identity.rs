@@ -53,7 +53,7 @@ impl Identity {
         fr_to_bigint(res)
     }
 
-    pub fn identity_commitment(&self) -> BigInt {
+    pub fn commitment(&self) -> BigInt {
         let res = POSEIDON
             .hash(vec![bigint_to_fr(&self.secret_hash())])
             .unwrap();
