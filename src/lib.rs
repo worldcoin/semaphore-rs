@@ -68,7 +68,7 @@ pub unsafe extern "C" fn generate_nullifier_hash(
     .into_raw()
 }
 
-/// Generates nullifier hash based on identity and external nullifier
+/// Initializes new poseidon tree of given depth
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn create_poseidon_tree(depth: c_int) -> *mut PoseidonTree {
@@ -82,7 +82,7 @@ pub unsafe extern "C" fn create_poseidon_tree(depth: c_int) -> *mut PoseidonTree
     Box::into_raw(boxed)
 }
 
-/// Generates nullifier hash based on identity and external nullifier
+/// Insert leaf into given poseidon tree
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn insert_leaf(tree: *mut PoseidonTree, identity: *mut identity::Identity) {
@@ -96,7 +96,7 @@ pub unsafe extern "C" fn insert_leaf(tree: *mut PoseidonTree, identity: *mut ide
     tree.set(0, leaf.into());
 }
 
-/// Generates nullifier hash based on identity and external nullifier
+/// Returns root for given tree
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn get_root(tree: *mut PoseidonTree) -> *mut c_char {
@@ -109,7 +109,7 @@ pub unsafe extern "C" fn get_root(tree: *mut PoseidonTree) -> *mut c_char {
     CString::new(root.to_str_radix(10)).unwrap().into_raw()
 }
 
-/// Generates nullifier hash based on identity and external nullifier
+/// Generates merkle proof for given leaf index
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn get_merkle_proof(
@@ -127,7 +127,7 @@ pub unsafe extern "C" fn get_merkle_proof(
     Box::into_raw(boxed)
 }
 
-/// Generates nullifier hash based on identity and external nullifier
+/// Generates semaphore proof
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn generate_proof(
@@ -182,6 +182,7 @@ pub unsafe extern "C" fn generate_proof(
     Box::into_raw(boxed)
 }
 
+/// Verifies semaphore proof
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn verify_proof(
