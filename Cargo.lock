@@ -2156,31 +2156,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "libsemaphore-rs"
-version = "0.1.0"
-dependencies = [
- "ark-bn254",
- "ark-circom",
- "ark-ec",
- "ark-ff",
- "ark-groth16",
- "ark-relations",
- "ark-std",
- "color-eyre",
- "ethers",
- "ff_ce",
- "hex",
- "hex-literal",
- "num-bigint 0.4.3",
- "once_cell",
- "poseidon-rs",
- "proptest",
- "rayon",
- "serde",
- "sha2 0.10.1",
-]
-
-[[package]]
 name = "lock_api"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3338,6 +3313,31 @@ checksum = "a57321bf8bc2362081b2599912d2961fe899c0efadf1b4b2f8d48b3e253bb96c"
 dependencies = [
  "core-foundation-sys",
  "libc",
+]
+
+[[package]]
+name = "semaphore"
+version = "0.1.0"
+dependencies = [
+ "ark-bn254",
+ "ark-circom",
+ "ark-ec",
+ "ark-ff",
+ "ark-groth16",
+ "ark-relations",
+ "ark-std",
+ "color-eyre",
+ "ethers",
+ "ff_ce",
+ "hex",
+ "hex-literal",
+ "num-bigint 0.4.3",
+ "once_cell",
+ "poseidon-rs",
+ "proptest",
+ "rayon",
+ "serde",
+ "sha2 0.10.1",
 ]
 
 [[package]]

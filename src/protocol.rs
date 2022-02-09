@@ -19,10 +19,12 @@ use crate::{
     util::{bigint_to_fr, fr_to_bigint},
 };
 
-static SNARK_FILES: &str = "./snarkfiles/";
-static ZKEY_FILE: &str = "semaphore.zkey";
-static WASM_FILE: &str = "semaphore.wasm";
 static POSEIDON: Lazy<Poseidon> = Lazy::new(Poseidon::new);
+
+pub struct SnarkFileConfig {
+    pub zkey: String,
+    pub wasm: String,
+}
 
 /// Helper to merkle proof into a bigint vector
 /// TODO: we should create a From trait for this
@@ -50,11 +52,11 @@ pub fn hash_external_nullifier(nullifier: &[u8]) -> BigInt {
 }
 
 /// Generates the nullifier hash
-pub fn generate_nullifier_hash(external_nullifier: &[u8], identity_nullifier: &BigInt) -> BigInt {
+pub fn generate_nullifier_hash(identity: &Identity, external_nullifier: &[u8]) -> BigInt {
     let res = POSEIDON
         .hash(vec![
             bigint_to_fr(&hash_external_nullifier(external_nullifier)),
-            bigint_to_fr(identity_nullifier),
+            bigint_to_fr(&identity.nullifier),
         ])
         .unwrap();
     fr_to_bigint(res)
@@ -62,12 +64,13 @@ pub fn generate_nullifier_hash(external_nullifier: &[u8], identity_nullifier: &B
 
 /// Generates a semaphore proof
 pub fn generate_proof(
+    config: &SnarkFileConfig,
     identity: &Identity,
     merkle_proof: &merkle_tree::Proof<PoseidonHash>,
     external_nullifier: &[u8],
     signal: &[u8],
 ) -> Result<Proof<Bn<Parameters>>, SynthesisError> {
-    let mut file = File::open(format!("{}{}", SNARK_FILES, ZKEY_FILE)).unwrap();
+    let mut file = File::open(&config.zkey).unwrap();
     let (params, matrices) = read_zkey(&mut file).unwrap();
     let num_inputs = matrices.num_instance_variables;
     let num_constraints = matrices.num_constraints;
@@ -97,7 +100,7 @@ pub fn generate_proof(
     use std::time::Instant;
     let now = Instant::now();
 
-    let mut wtns = WitnessCalculator::new(format!("{}{}", SNARK_FILES, WASM_FILE)).unwrap();
+    let mut wtns = WitnessCalculator::new(&config.wasm).unwrap();
 
     let full_assignment = wtns
         .calculate_witness_element::<Bn254, _>(inputs, false)
@@ -131,13 +134,14 @@ pub fn generate_proof(
 
 /// Verifies a given semaphore proof
 pub fn verify_proof(
+    config: &SnarkFileConfig,
     root: &BigInt,
     nullifier_hash: &BigInt,
     signal: &[u8],
     external_nullifier: &[u8],
     proof: &Proof<Bn<Parameters>>,
 ) -> Result<bool, SynthesisError> {
-    let mut file = File::open(format!("{}{}", SNARK_FILES, ZKEY_FILE)).unwrap();
+    let mut file = File::open(&config.zkey).unwrap();
     let (params, _) = read_zkey(&mut file).unwrap();
 
     let pvk = prepare_verifying_key(&params.vk);

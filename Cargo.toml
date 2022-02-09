@@ -5,8 +5,6 @@ edition = "2021"
 authors = [
     "Remco Bloemen <remco@worldcoin.org>",
     "Philipp Sippl <philipp@worldcoin.org>"]
-edition = "2021"
-build = "build.rs"
 homepage = "https://github.com/worldcoin/semaphore-rs"
 repository = "https://github.com/worldcoin/semaphore-rs"
 description = "Rust support library for Semaphore"

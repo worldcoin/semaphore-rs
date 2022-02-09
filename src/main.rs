@@ -8,7 +8,7 @@ mod util;
 use hash::*;
 use hex_literal::hex;
 use identity::*;
-use num_bigint::BigInt;
+use num_bigint::{BigInt, Sign};
 use poseidon_rs::Poseidon;
 use poseidon_tree::*;
 use protocol::*;
@@ -38,12 +38,17 @@ fn main() {
     let signal = "xxx".as_bytes();
     let external_nullifier = "appId".as_bytes();
 
-    let nullifier_hash = generate_nullifier_hash(&external_nullifier, &id.nullifier);
+    let nullifier_hash = generate_nullifier_hash(&id, external_nullifier);
     dbg!(&nullifier_hash);
 
-    let proof = generate_proof(&id, &merkle_proof, &external_nullifier, &signal).unwrap();
+    let config = SnarkFileConfig {
+        zkey: "./snarkfiles/semaphore.zkey".to_string(),
+        wasm: "./snarkfiles/semaphore.wasm".to_string(),
+    };
+
+    let proof = generate_proof(&config, &id, &merkle_proof, external_nullifier, signal).unwrap();
     let success =
-        verify_proof(&root, &nullifier_hash, &signal, &external_nullifier, &proof).unwrap();
+        verify_proof(&config, &root, &nullifier_hash, signal, external_nullifier, &proof).unwrap();
 
     dbg!(success);
 }
