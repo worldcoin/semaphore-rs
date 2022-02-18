@@ -18,7 +18,7 @@ name = "semaphore"
 crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
-ark-circom = { git = "https://github.com/philsippl/ark-circom", features=["circom-2"] }
+ark-circom = { git = "https://github.com/gakonst/ark-circom", features=["circom-2"] }
 ark-std = { version = "0.3.0", default-features = false, features = ["parallel"] }
 ark-bn254 = { version = "0.3.0" }
 ark-groth16 = { git = "https://github.com/arkworks-rs/groth16", rev = "765817f", features = ["parallel"] }
@@ -38,6 +38,9 @@ hex-literal = "0.3"
 proptest = { version = "1.0", optional = true }
 rayon = "1.5.1"
 
+[patch.crates-io]
+wasmer = { git = 'https://github.com/philsippl/wasmer' }
+
 [profile.release]
 codegen-units = 1
 lto = true
@@ -49,3 +52,6 @@ opt-level = 3
 # while having neglible impact on incremental build times.
 [profile.dev.package."*"]
 opt-level = 3
+
+[target.aarch64-linux-android]
+linker = "aarch64-linux-android29-clang"
