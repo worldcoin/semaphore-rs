@@ -39,7 +39,7 @@ proptest = { version = "1.0", optional = true }
 rayon = "1.5.1"
 
 [patch.crates-io]
-wasmer = { git = 'https://github.com/philsippl/wasmer' }
+wasmer = { git = 'https://github.com/philsippl/wasmer', rev = "e776616"}
 
 [profile.release]
 codegen-units = 1
