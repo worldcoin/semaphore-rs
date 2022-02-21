@@ -1,4 +1,4 @@
-use ethers::types::U256;
+use ethers_core::types::U256;
 use num_bigint::{BigInt, Sign};
 use serde::{
     de::{Error as DeError, Visitor},

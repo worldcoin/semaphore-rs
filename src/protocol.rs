@@ -6,7 +6,7 @@ use ark_groth16::{create_proof_with_reduction_and_matrices, prepare_verifying_ke
 use ark_relations::r1cs::SynthesisError;
 use ark_std::rand::thread_rng;
 use color_eyre::Result;
-use ethers::utils::keccak256;
+use ethers_core::utils::keccak256;
 use num_bigint::{BigInt, Sign};
 use once_cell::sync::Lazy;
 use poseidon_rs::{Fr, FrRepr, Poseidon};
