@@ -47,8 +47,15 @@ fn main() {
     };
 
     let proof = generate_proof(&config, &id, &merkle_proof, external_nullifier, signal).unwrap();
-    let success =
-        verify_proof(&config, &root, &nullifier_hash, signal, external_nullifier, &proof).unwrap();
+    let success = verify_proof(
+        &config,
+        &root,
+        &nullifier_hash,
+        signal,
+        external_nullifier,
+        &proof,
+    )
+    .unwrap();
 
     dbg!(success);
 }

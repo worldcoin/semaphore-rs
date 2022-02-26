@@ -9,7 +9,7 @@ use ark_bn254::Parameters;
 use ark_ec::bn::Bn;
 use ark_groth16::Proof;
 use hex_literal::hex;
-use num_bigint::{BigInt};
+use num_bigint::BigInt;
 use poseidon_tree::PoseidonHash;
 use protocol::SnarkFileConfig;
 use std::{
@@ -243,7 +243,7 @@ pub unsafe extern "C" fn verify_proof(
     protocol::verify_proof(
         &config,
         &root,
-        &nullifier, 
+        &nullifier,
         signal.as_bytes(),
         external_nullifier.as_bytes(),
         proof,
