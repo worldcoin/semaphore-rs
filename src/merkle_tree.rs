@@ -221,16 +221,21 @@ where
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use ethers::utils::keccak256;
     use hex_literal::hex;
+    use tiny_keccak::{Hasher as _, Keccak};
 
-    struct Keccak;
+    struct Keccak256;
 
-    impl Hasher for Keccak {
+    impl Hasher for Keccak256 {
         type Hash = [u8; 32];
 
         fn hash_node(left: &Self::Hash, right: &Self::Hash) -> Self::Hash {
-            keccak256([*left, *right].concat())
+            let mut output = [0; 32];
+            let mut hasher = Keccak::v256();
+            hasher.update(left);
+            hasher.update(right);
+            hasher.finalize(&mut output);
+            output
         }
     }
 
@@ -254,7 +259,7 @@ pub mod test {
 
     #[test]
     fn test_root() {
-        let mut tree = MerkleTree::<Keccak>::new(3, [0; 32]);
+        let mut tree = MerkleTree::<Keccak256>::new(3, [0; 32]);
         assert_eq!(
             tree.root(),
             hex!("b4c11951957c6f8f642c4af61cd6b24640fec6dc7fc607ee8206a99e92410d30")
@@ -295,7 +300,7 @@ pub mod test {
 
     #[test]
     fn test_proof() {
-        let mut tree = MerkleTree::<Keccak>::new(3, [0; 32]);
+        let mut tree = MerkleTree::<Keccak256>::new(3, [0; 32]);
         tree.set(
             0,
             hex!("0000000000000000000000000000000000000000000000000000000000000001"),
@@ -327,7 +332,7 @@ pub mod test {
 
     #[test]
     fn test_position() {
-        let mut tree = MerkleTree::<Keccak>::new(3, [0; 32]);
+        let mut tree = MerkleTree::<Keccak256>::new(3, [0; 32]);
         tree.set(
             0,
             hex!("0000000000000000000000000000000000000000000000000000000000000001"),
