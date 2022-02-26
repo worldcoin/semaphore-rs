@@ -172,7 +172,6 @@ fn trim_hex_prefix(str: &str) -> &str {
 pub mod test {
     use super::*;
     use hex_literal::hex;
-    use proptest::proptest;
     use serde_json::{from_str, to_string};
 
     #[test]
@@ -211,15 +210,5 @@ pub mod test {
                 "1c4823575d154474ee3e5ac838d002456a815181437afd14f126da58a9912bbe"
             ))
         );
-    }
-
-    #[test]
-    fn test_roundtrip() {
-        proptest!(|(bytes: [u8; 32])| {
-            let hash = Hash(bytes);
-            let json = to_string(&hash).unwrap();
-            let parsed = from_str(&json).unwrap();
-            assert_eq!(hash, parsed);
-        });
     }
 }

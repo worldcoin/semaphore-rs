@@ -8,8 +8,7 @@ mod util;
 use hash::*;
 use hex_literal::hex;
 use identity::*;
-use num_bigint::{BigInt, Sign};
-use poseidon_rs::Poseidon;
+use num_bigint::{BigInt};
 use poseidon_tree::*;
 use protocol::*;
 

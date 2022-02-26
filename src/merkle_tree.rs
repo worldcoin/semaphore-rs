@@ -158,6 +158,7 @@ impl<H: Hasher> MerkleTree<H> {
         proof.root(hash) == self.root()
     }
 
+    #[allow(dead_code)]
     pub fn leaves(&self) -> &[H::Hash] {
         &self.nodes[(self.num_leaves() - 1)..]
     }
