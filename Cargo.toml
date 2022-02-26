@@ -15,7 +15,6 @@ license-file = "mit-license.md"
 
 [lib]
 name = "semaphore"
-crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
 ark-circom = { git = "https://github.com/gakonst/ark-circom", features=["circom-2"] }
@@ -56,6 +55,3 @@ opt-level = 3
 # while having neglible impact on incremental build times.
 [profile.dev.package."*"]
 opt-level = 3
-
-[target.aarch64-linux-android]
-linker = "aarch64-linux-android29-clang"

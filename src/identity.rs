@@ -1,7 +1,6 @@
-use ff::{PrimeField, PrimeFieldRepr};
 use num_bigint::{BigInt, Sign};
 use once_cell::sync::Lazy;
-use poseidon_rs::{Fr, FrRepr, Poseidon};
+use poseidon_rs::{Poseidon};
 use sha2::{Digest, Sha256};
 
 use crate::util::{bigint_to_fr, fr_to_bigint};
