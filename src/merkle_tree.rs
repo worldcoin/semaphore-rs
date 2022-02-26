@@ -10,7 +10,7 @@ use std::{
 };
 
 use num_bigint::BigInt;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
 /// Hash types, values and algorithms for a Merkle tree
 pub trait Hasher {
@@ -35,7 +35,7 @@ pub struct MerkleTree<H: Hasher> {
 }
 
 /// Element of a Merkle proof
-#[derive(Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Branch<H: Hasher> {
     /// Left branch taken, value is the right sibling hash.
     Left(H::Hash),

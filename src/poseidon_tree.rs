@@ -5,7 +5,7 @@ use crate::{
 use ff::{PrimeField, PrimeFieldRepr};
 use once_cell::sync::Lazy;
 use poseidon_rs::{Fr, FrRepr, Poseidon};
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
 static POSEIDON: Lazy<Poseidon> = Lazy::new(Poseidon::new);
 
@@ -16,7 +16,7 @@ pub type Branch = merkle_tree::Branch<PoseidonHash>;
 #[allow(dead_code)]
 pub type Proof = merkle_tree::Proof<PoseidonHash>;
 
-#[derive(Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PoseidonHash;
 
 #[allow(clippy::fallible_impl_from)] // TODO
