@@ -7,6 +7,6 @@ pub mod util;
 
 use ark_bn254::Parameters;
 use ark_ec::bn::Bn;
-use ark_groth16::Proof;
 
-pub type Groth16Proof = Proof<Bn<Parameters>>;
+pub type Groth16Proof = ark_groth16::Proof<Bn<Parameters>>;
+pub type EthereumGroth16Proof = ark_circom::ethereum::Proof;
