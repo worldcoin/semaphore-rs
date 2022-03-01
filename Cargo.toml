@@ -13,9 +13,6 @@ categories = ["cryptography"]
 readme = "Readme.md"
 license-file = "mit-license.md"
 
-[lib]
-name = "semaphore"
-
 [dependencies]
 ark-circom = { git = "https://github.com/gakonst/ark-circom", features=["circom-2"] }
 ark-std = { version = "0.3.0", default-features = false, features = ["parallel"] }

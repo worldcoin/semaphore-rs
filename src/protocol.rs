@@ -9,7 +9,7 @@ use color_eyre::Result;
 use ethers_core::utils::keccak256;
 use num_bigint::{BigInt, Sign};
 use once_cell::sync::Lazy;
-use poseidon_rs::{Poseidon};
+use poseidon_rs::Poseidon;
 use std::{collections::HashMap, fs::File, ops::Shr};
 
 use crate::{

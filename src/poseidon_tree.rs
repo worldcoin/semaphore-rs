@@ -5,7 +5,7 @@ use crate::{
 use ff::{PrimeField, PrimeFieldRepr};
 use once_cell::sync::Lazy;
 use poseidon_rs::{Fr, FrRepr, Poseidon};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 static POSEIDON: Lazy<Poseidon> = Lazy::new(Poseidon::new);
 

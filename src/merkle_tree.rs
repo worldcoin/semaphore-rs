@@ -10,7 +10,7 @@ use std::{
 };
 
 use num_bigint::BigInt;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Hash types, values and algorithms for a Merkle tree
 pub trait Hasher {
