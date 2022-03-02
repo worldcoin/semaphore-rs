@@ -16,6 +16,7 @@ license-file = "mit-license.md"
 [features]
 default = []
 bench = [ "criterion", "proptest" ]
+mimc = [ "tiny-keccak", "zkp-u256" ]
 
 [[bench]]
 name = "criterion"
@@ -44,6 +45,8 @@ proptest = { version = "1.0", optional = true }
 rayon = "1.5.1"
 serde = "1.0"
 sha2 = "0.10.1"
+tiny-keccak = { version = "2.0.2", optional = true }
+zkp-u256 = { version = "0.2", optional = true }
 
 [dev-dependencies]
 pretty_assertions = "1.0"
