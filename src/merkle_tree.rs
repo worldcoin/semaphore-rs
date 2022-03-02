@@ -8,7 +8,6 @@ use std::{
     fmt::Debug,
     iter::{once, repeat, successors},
 };
-
 use num_bigint::BigInt;
 use serde::{Deserialize, Serialize};
 

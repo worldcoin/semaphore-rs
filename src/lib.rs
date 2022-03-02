@@ -5,6 +5,11 @@ pub mod poseidon_tree;
 pub mod protocol;
 pub mod util;
 
+#[cfg(feature = "mimc")]
+pub mod mimc_hash;
+#[cfg(feature = "mimc")]
+pub mod mimc_tree;
+
 use ark_bn254::Parameters;
 use ark_ec::bn::Bn;
 
@@ -70,12 +75,16 @@ pub mod bench {
         hash::Hash,
         identity::Identity,
         poseidon_tree::PoseidonTree,
-        protocol::{generate_nullifier_hash, generate_proof, verify_proof, SnarkFileConfig},
+        protocol::{generate_proof, SnarkFileConfig},
     };
     use criterion::Criterion;
     use hex_literal::hex;
 
     pub fn group(criterion: &mut Criterion) {
+        #[cfg(feature = "mimc")]
+        crate::mimc_hash::bench::group(criterion);
+        #[cfg(feature = "mimc")]
+        crate::mimc_tree::bench::group(criterion);
         bench_proof(criterion);
     }
 
