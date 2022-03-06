@@ -1,0 +1,3 @@
+[submodule "semaphore"]
+	path = semaphore
+	url = git@github.com:appliedzkp/semaphore.git

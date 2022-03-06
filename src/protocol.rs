@@ -78,21 +78,21 @@ pub fn generate_proof(
     let inputs = {
         let mut inputs: HashMap<String, Vec<BigInt>> = HashMap::new();
 
-        inputs.insert("identity_nullifier".to_string(), vec![identity
+        inputs.insert("identityNullifier".to_string(), vec![identity
             .nullifier
             .clone()]);
-        inputs.insert("identity_trapdoor".to_string(), vec![identity
+        inputs.insert("identityTrapdoor".to_string(), vec![identity
             .trapdoor
             .clone()]);
-        inputs.insert("identity_path_index".to_string(), merkle_proof.path_index());
+        inputs.insert("treePathIndices".to_string(), merkle_proof.path_index());
         inputs.insert(
-            "path_elements".to_string(),
+            "treeSiblings".to_string(),
             merkle_proof_to_vec(merkle_proof),
         );
-        inputs.insert("external_nullifier".to_string(), vec![
+        inputs.insert("externalNullifier".to_string(), vec![
             hash_external_nullifier(external_nullifier),
         ]);
-        inputs.insert("signal_hash".to_string(), vec![hash_signal(signal)]);
+        inputs.insert("signalHash".to_string(), vec![hash_signal(signal)]);
 
         inputs
     };
