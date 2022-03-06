@@ -1,3 +1,4 @@
 /target
 *.profraw
 .*
+snarkfiles_tmp
