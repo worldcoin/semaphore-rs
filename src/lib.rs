@@ -43,7 +43,8 @@ mod test {
         let signal = "xxx".as_bytes();
         let external_nullifier = "appId".as_bytes();
 
-        let nullifier_hash = generate_nullifier_hash(&id, external_nullifier);
+        let external_nullifier_hash = hash_external_nullifier(external_nullifier);
+        let nullifier_hash = generate_nullifier_hash(&id, &external_nullifier_hash);
 
         let config = SnarkFileConfig {
             zkey: "./semaphore/build/snark/semaphore_final.zkey".to_string(),
@@ -51,14 +52,14 @@ mod test {
         };
 
         let proof =
-            generate_proof(&config, &id, &merkle_proof, external_nullifier, signal).unwrap();
+            generate_proof(&config, &id, &merkle_proof, &external_nullifier_hash, signal).unwrap();
 
         let success = verify_proof(
             &config,
             &root.into(),
             &nullifier_hash,
             signal,
-            external_nullifier,
+            &external_nullifier_hash,
             &proof,
         )
         .unwrap();
