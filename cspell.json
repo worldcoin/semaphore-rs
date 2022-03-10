@@ -1,0 +1,19 @@
+{
+    "version": "0.2",
+    "ignorePaths": [],
+    "dictionaryDefinitions": [],
+    "dictionaries": [],
+    "words": [
+        "biguint",
+        "circom",
+        "groth",
+        "hasher",
+        "keccak",
+        "merkle",
+        "mimc",
+        "snarkfiles",
+        "zkey"
+    ],
+    "ignoreWords": [],
+    "import": []
+}
