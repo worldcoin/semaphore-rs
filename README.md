@@ -32,21 +32,22 @@ let (_, leaf) = id.commitment().to_bytes_be();
 tree.set(0, leaf.into());
 
 let merkle_proof = tree.proof(0).expect("proof should exist");
-let root = tree.root().into();
+let root = tree.root();
 
 // change signal and external_nullifier here
-let signal = "hello".as_bytes();
-let external_nullifier = "123".as_bytes();
+let signal = "xxx".as_bytes();
+let external_nullifier = "appId".as_bytes();
 
-let nullifier_hash = generate_nullifier_hash(&id, external_nullifier);
+let external_nullifier_hash = hash_external_nullifier(external_nullifier);
+let nullifier_hash = generate_nullifier_hash(&id, &external_nullifier_hash);
 
 let config = SnarkFileConfig {
     zkey: "./semaphore/build/snark/semaphore_final.zkey".to_string(),
     wasm: "./semaphore/build/snark/semaphore.wasm".to_string(),
 };
 
-let proof = generate_proof(&config, &id, &merkle_proof, external_nullifier, signal).unwrap();
-let success = verify_proof(&config, &root, &nullifier_hash, signal, external_nullifier, &proof).unwrap();
+let proof = generate_proof(&config, &id, &merkle_proof, &external_nullifier_hash, signal).unwrap();
+let success = verify_proof(&config, &root.into(), &nullifier_hash, signal, &external_nullifier_hash, &proof).unwrap();
 
 assert!(success);
 ```
