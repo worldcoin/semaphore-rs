@@ -1,3 +1,6 @@
+#![doc = include_str!("../Readme.md")]
+#![warn(clippy::all, clippy::pedantic, clippy::cargo, clippy::nursery)]
+
 pub mod hash;
 pub mod identity;
 pub mod merkle_tree;
