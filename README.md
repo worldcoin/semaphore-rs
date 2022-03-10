@@ -5,6 +5,11 @@ Rust support library for Semaphore
 ## Example
 
 ```rust
+use semaphore::{
+    identity::Identity, hash::Hash, poseidon_tree::PoseidonTree,
+    protocol::* };
+use num_bigint::BigInt;
+
 // generate identity
 let id = Identity::new(b"hello");
 
