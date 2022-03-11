@@ -11,6 +11,7 @@ use num_bigint::{BigInt, Sign};
 use once_cell::sync::Lazy;
 use poseidon_rs::Poseidon;
 use std::{collections::HashMap, fs::File, ops::Shr, time::Instant};
+use thiserror::Error;
 
 use crate::{
     identity::Identity,
@@ -63,16 +64,30 @@ pub fn generate_nullifier_hash(identity: &Identity, external_nullifier: &[u8]) -
     fr_to_bigint(res)
 }
 
+#[derive(Error, Debug)]
+pub enum ProofError {
+    #[error("Error reading circuit key: {0}")]
+    CircuitKeyError(#[from] std::io::Error),
+    #[error("Error producing witness: {0}")]
+    WitnessError(color_eyre::Report),
+    #[error("Error producing proof: {0}")]
+    SynthesisError(#[from] SynthesisError),
+}
+
 /// Generates a semaphore proof
+///
+/// # Errors
+///
+/// Returns a [`ProofError`] if proving fails.
 pub fn generate_proof(
     config: &SnarkFileConfig,
     identity: &Identity,
     merkle_proof: &merkle_tree::Proof<PoseidonHash>,
     external_nullifier: &[u8],
     signal: &[u8],
-) -> Result<Proof<Bn<Parameters>>, SynthesisError> {
-    let mut file = File::open(&config.zkey).unwrap();
-    let (params, matrices) = read_zkey(&mut file).unwrap();
+) -> Result<Proof<Bn<Parameters>>, ProofError> {
+    let mut file = File::open(&config.zkey)?;
+    let (params, matrices) = read_zkey(&mut file)?;
     let num_inputs = matrices.num_instance_variables;
     let num_constraints = matrices.num_constraints;
 
@@ -100,11 +115,11 @@ pub fn generate_proof(
 
     let now = Instant::now();
 
-    let mut witness = WitnessCalculator::new(&config.wasm).unwrap();
+    let mut witness = WitnessCalculator::new(&config.wasm).map_err(ProofError::WitnessError)?;
 
     let full_assignment = witness
         .calculate_witness_element::<Bn254, _>(inputs, false)
-        .unwrap();
+        .map_err(ProofError::WitnessError)?;
 
     println!("witness generation took: {:.2?}", now.elapsed());
 
@@ -124,11 +139,11 @@ pub fn generate_proof(
         num_inputs,
         num_constraints,
         full_assignment.as_slice(),
-    );
+    )?;
 
     println!("proof generation took: {:.2?}", now.elapsed());
 
-    proof
+    Ok(proof)
 }
 
 /// Verifies a given semaphore proof
@@ -139,9 +154,9 @@ pub fn verify_proof(
     signal: &[u8],
     external_nullifier: &[u8],
     proof: &Proof<Bn<Parameters>>,
-) -> Result<bool, SynthesisError> {
-    let mut file = File::open(&config.zkey).unwrap();
-    let (params, _) = read_zkey(&mut file).unwrap();
+) -> Result<bool, ProofError> {
+    let mut file = File::open(&config.zkey)?;
+    let (params, _) = read_zkey(&mut file)?;
 
     let pvk = prepare_verifying_key(&params.vk);
 
@@ -155,5 +170,6 @@ pub fn verify_proof(
                 .unwrap(),
         ),
     ];
-    ark_groth16::verify_proof(&pvk, proof, &public_inputs)
+    let result = ark_groth16::verify_proof(&pvk, proof, &public_inputs)?;
+    Ok(result)
 }
