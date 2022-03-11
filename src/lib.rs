@@ -1,5 +1,7 @@
 #![doc = include_str!("../Readme.md")]
 #![warn(clippy::all, clippy::pedantic, clippy::cargo, clippy::nursery)]
+// TODO: ark-circom and ethers-core pull in a lot of deps, some duplicate.
+#![allow(clippy::multiple_crate_versions)]
 
 pub mod hash;
 pub mod identity;

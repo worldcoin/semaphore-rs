@@ -58,8 +58,8 @@ tempfile = "3.0"
 tiny-keccak = "2.0.2"
 tracing-test = "0.2"
 
-[patch.crates-io]
-wasmer = { git = 'https://github.com/philsippl/wasmer', rev = "e776616"}
+# [patch.crates-io]
+# wasmer = { git = 'https://github.com/philsippl/wasmer', rev = "e776616"}
 
 [profile.release]
 codegen-units = 1
