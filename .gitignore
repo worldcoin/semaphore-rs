@@ -2,3 +2,4 @@
 *.profraw
 .*
 Cargo.lock
+snarkfiles_tmp

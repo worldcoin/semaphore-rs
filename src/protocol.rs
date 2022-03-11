@@ -57,7 +57,10 @@ pub fn hash_external_nullifier(nullifier: &[u8]) -> BigInt {
 pub fn generate_nullifier_hash(identity: &Identity, external_nullifier: &[u8]) -> BigInt {
     let res = POSEIDON
         .hash(vec![
-            bigint_to_fr(&hash_external_nullifier(external_nullifier)),
+            bigint_to_fr(&BigInt::from_bytes_be(
+                Sign::Plus,
+                external_nullifier,
+            )),
             bigint_to_fr(&identity.nullifier),
         ])
         .expect("hash with fixed input size can't fail");
@@ -94,21 +97,21 @@ pub fn generate_proof(
     let inputs = {
         let mut inputs: HashMap<String, Vec<BigInt>> = HashMap::new();
 
-        inputs.insert("identity_nullifier".to_string(), vec![identity
+        inputs.insert("identityNullifier".to_string(), vec![identity
             .nullifier
             .clone()]);
-        inputs.insert("identity_trapdoor".to_string(), vec![identity
+        inputs.insert("identityTrapdoor".to_string(), vec![identity
             .trapdoor
             .clone()]);
-        inputs.insert("identity_path_index".to_string(), merkle_proof.path_index());
+        inputs.insert("treePathIndices".to_string(), merkle_proof.path_index());
         inputs.insert(
-            "path_elements".to_string(),
+            "treeSiblings".to_string(),
             merkle_proof_to_vec(merkle_proof),
         );
-        inputs.insert("external_nullifier".to_string(), vec![
-            hash_external_nullifier(external_nullifier),
+        inputs.insert("externalNullifier".to_string(), vec![
+            BigInt::from_bytes_be(Sign::Plus, external_nullifier),
         ]);
-        inputs.insert("signal_hash".to_string(), vec![hash_signal(signal)]);
+        inputs.insert("signalHash".to_string(), vec![hash_signal(signal)]);
 
         inputs
     };
@@ -174,7 +177,7 @@ pub fn verify_proof(
                 .expect("can not be negative"),
         ),
         Fp256::from(
-            hash_external_nullifier(external_nullifier)
+            BigInt::from_bytes_be(Sign::Plus, external_nullifier)
                 .to_biguint()
                 .expect("can not be negative"),
         ),

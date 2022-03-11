@@ -52,21 +52,23 @@ mod test {
         let signal = b"xxx";
         let external_nullifier = b"appId";
 
-        let nullifier_hash = generate_nullifier_hash(&id, external_nullifier);
+        let external_nullifier_hash = hash_external_nullifier(external_nullifier);
+        let nullifier_hash = generate_nullifier_hash(&id, &external_nullifier_hash);
 
         let config = SnarkFileConfig {
-            zkey: "./snarkfiles/semaphore.zkey".to_string(),
-            wasm: "./snarkfiles/semaphore.wasm".to_string(),
+            zkey: "./semaphore/build/snark/semaphore_final.zkey".to_string(),
+            wasm: "./semaphore/build/snark/semaphore.wasm".to_string(),
         };
 
         let proof =
-            generate_proof(&config, &id, &merkle_proof, external_nullifier, signal).unwrap();
+            generate_proof(&config, &id, &merkle_proof, &external_nullifier_hash, signal).unwrap();
+
         let success = verify_proof(
             &config,
             &root.into(),
             &nullifier_hash,
             signal,
-            external_nullifier,
+            &external_nullifier_hash,
             &proof,
         )
         .unwrap();
