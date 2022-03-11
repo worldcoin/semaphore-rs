@@ -23,6 +23,7 @@ fn sha(msg: &[u8]) -> [u8; 32] {
 }
 
 impl Identity {
+    #[must_use]
     pub fn new(seed: &[u8]) -> Self {
         let seed_hash = &sha(seed);
 
@@ -42,20 +43,22 @@ impl Identity {
         }
     }
 
+    #[must_use]
     pub fn secret_hash(&self) -> BigInt {
         let res = POSEIDON
             .hash(vec![
                 bigint_to_fr(&self.nullifier),
                 bigint_to_fr(&self.trapdoor),
             ])
-            .unwrap();
+            .expect("input length is constant and valid for the hash");
         fr_to_bigint(res)
     }
 
+    #[must_use]
     pub fn commitment(&self) -> BigInt {
         let res = POSEIDON
             .hash(vec![bigint_to_fr(&self.secret_hash())])
-            .unwrap();
+            .expect("input length is constant and valid for the hash");
         fr_to_bigint(res)
     }
 }

@@ -65,7 +65,7 @@ impl From<Vec<u8>> for Hash {
     }
 }
 
-/// Conversion to BigInt
+/// Conversion to `BigInt`
 impl From<Hash> for BigInt {
     fn from(hash: Hash) -> Self {
         Self::from_bytes_be(Sign::Plus, hash.as_bytes_be())

@@ -2,6 +2,7 @@ use ff::{PrimeField, PrimeFieldRepr};
 use num_bigint::{BigInt, Sign};
 use poseidon_rs::{Fr, FrRepr};
 
+#[must_use]
 pub fn fr_to_bigint(fr: Fr) -> BigInt {
     let mut bytes = [0_u8; 32];
     fr.into_repr().write_be(&mut bytes[..]).unwrap();

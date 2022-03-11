@@ -27,8 +27,8 @@ let merkle_proof = tree.proof(0).expect("proof should exist");
 let root = tree.root().into();
 
 // change signal and external_nullifier here
-let signal = "hello".as_bytes();
-let external_nullifier = "123".as_bytes();
+let signal = b"hello";
+let external_nullifier = b"123";
 
 let nullifier_hash = generate_nullifier_hash(&id, external_nullifier);
 

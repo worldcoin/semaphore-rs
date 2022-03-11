@@ -4,16 +4,16 @@ use ark_ec::bn::Bn;
 use ark_ff::Fp256;
 use ark_groth16::{create_proof_with_reduction_and_matrices, prepare_verifying_key, Proof};
 use ark_relations::r1cs::SynthesisError;
-use ark_std::rand::thread_rng;
+use ark_std::{rand::thread_rng, UniformRand};
 use color_eyre::Result;
 use ethers_core::utils::keccak256;
 use num_bigint::{BigInt, Sign};
 use once_cell::sync::Lazy;
 use poseidon_rs::Poseidon;
-use std::{collections::HashMap, fs::File, ops::Shr};
+use std::{collections::HashMap, fs::File, ops::Shr, time::Instant};
 
 use crate::{
-    identity::*,
+    identity::Identity,
     merkle_tree::{self, Branch},
     poseidon_tree::PoseidonHash,
     util::{bigint_to_fr, fr_to_bigint},
@@ -33,8 +33,7 @@ fn merkle_proof_to_vec(proof: &merkle_tree::Proof<PoseidonHash>) -> Vec<BigInt> 
         .0
         .iter()
         .map(|x| match x {
-            Branch::Left(value) => value.into(),
-            Branch::Right(value) => value.into(),
+            Branch::Left(value) | Branch::Right(value) => value.into(),
         })
         .collect::<Vec<BigInt>>()
 }
@@ -45,6 +44,7 @@ fn hash_signal(signal: &[u8]) -> BigInt {
 }
 
 /// Internal helper to hash the external nullifier
+#[must_use]
 pub fn hash_external_nullifier(nullifier: &[u8]) -> BigInt {
     let mut hash = keccak256(nullifier).to_vec();
     hash.splice(..3, vec![0; 4]);
@@ -52,13 +52,14 @@ pub fn hash_external_nullifier(nullifier: &[u8]) -> BigInt {
 }
 
 /// Generates the nullifier hash
+#[must_use]
 pub fn generate_nullifier_hash(identity: &Identity, external_nullifier: &[u8]) -> BigInt {
     let res = POSEIDON
         .hash(vec![
             bigint_to_fr(&hash_external_nullifier(external_nullifier)),
             bigint_to_fr(&identity.nullifier),
         ])
-        .unwrap();
+        .expect("hash with fixed input size can't fail");
     fr_to_bigint(res)
 }
 
@@ -97,19 +98,17 @@ pub fn generate_proof(
         inputs
     };
 
-    use std::time::Instant;
     let now = Instant::now();
 
-    let mut wtns = WitnessCalculator::new(&config.wasm).unwrap();
+    let mut witness = WitnessCalculator::new(&config.wasm).unwrap();
 
-    let full_assignment = wtns
+    let full_assignment = witness
         .calculate_witness_element::<Bn254, _>(inputs, false)
         .unwrap();
 
     println!("witness generation took: {:.2?}", now.elapsed());
 
     let mut rng = thread_rng();
-    use ark_std::UniformRand;
     let rng = &mut rng;
 
     let r = ark_bn254::Fr::rand(rng);

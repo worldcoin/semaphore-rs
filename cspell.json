@@ -11,6 +11,9 @@
         "keccak",
         "merkle",
         "mimc",
+        "mmaped",
+        "modpow",
+        "Repr",
         "snarkfiles",
         "zkey"
     ],
