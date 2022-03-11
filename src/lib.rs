@@ -16,13 +16,12 @@ pub mod mimc_hash;
 #[cfg(feature = "mimc")]
 pub mod mimc_tree;
 
-use ark_bn254::{FrParameters, Parameters};
+use ark_bn254::{Fr, FrParameters, Parameters};
 use ark_ec::bn::Bn;
-use ark_ff::Fp256;
 
 pub use crate::posseidon_hash::posseidon_hash;
 
-pub type Field = Fp256<FrParameters>;
+pub type Field = Fr;
 pub type Groth16Proof = ark_groth16::Proof<Bn<Parameters>>;
 pub type EthereumGroth16Proof = ark_circom::ethereum::Proof;
 
