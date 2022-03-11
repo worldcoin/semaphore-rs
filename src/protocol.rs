@@ -147,6 +147,11 @@ pub fn generate_proof(
 }
 
 /// Verifies a given semaphore proof
+///
+/// # Errors
+///
+/// Returns a [`ProofError`] if verifying fails. Verification failure does not
+/// necessarily mean the proof is incorrect.
 pub fn verify_proof(
     config: &SnarkFileConfig,
     root: &BigInt,
@@ -161,13 +166,17 @@ pub fn verify_proof(
     let pvk = prepare_verifying_key(&params.vk);
 
     let public_inputs = vec![
-        Fp256::from(root.to_biguint().unwrap()),
-        Fp256::from(nullifier_hash.to_biguint().unwrap()),
-        Fp256::from(hash_signal(signal).to_biguint().unwrap()),
+        Fp256::from(root.to_biguint().expect("can not be negative")),
+        Fp256::from(nullifier_hash.to_biguint().expect("can not be negative")),
+        Fp256::from(
+            hash_signal(signal)
+                .to_biguint()
+                .expect("can not be negative"),
+        ),
         Fp256::from(
             hash_external_nullifier(external_nullifier)
                 .to_biguint()
-                .unwrap(),
+                .expect("can not be negative"),
         ),
     ];
     let result = ark_groth16::verify_proof(&pvk, proof, &public_inputs)?;
