@@ -5,7 +5,8 @@ Rust support library for using [semaphore](https://github.com/appliedzkp/semapho
 ## Usage
 
 Add this line to your `cargo.toml`:
-```
+
+```toml
 semaphore = { git = "https://github.com/worldcoin/semaphore-rs" }
 ```
 
@@ -13,7 +14,7 @@ semaphore = { git = "https://github.com/worldcoin/semaphore-rs" }
 
 1. Check out submodule (if not done before already): `git submodule update --init --recursive`
 1. Install semaphore dependencies `cd semaphore && npm install`
-1. Compile circuits `ts-node ./scripts/compile-circuits.ts`
+1. Compile circuits `npm exec ts-node ./scripts/compile-circuits.ts`
 1. You'll find the `zkey` and `wasm` file in `semaphore/build/snark`
 
 ## Example

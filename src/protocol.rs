@@ -46,10 +46,13 @@ fn hash_signal(signal: &[u8]) -> BigInt {
 
 /// Internal helper to hash the external nullifier
 #[must_use]
-pub fn hash_external_nullifier(nullifier: &[u8]) -> BigInt {
-    let mut hash = keccak256(nullifier).to_vec();
-    hash.splice(..3, vec![0; 4]);
-    BigInt::from_bytes_be(Sign::Plus, &hash)
+pub fn hash_external_nullifier(nullifier: &[u8]) -> [u8; 32] {
+    let mut hash = keccak256(nullifier);
+    hash[0] = 0;
+    hash[1] = 0;
+    hash[2] = 0;
+    hash[3] = 0;
+    hash
 }
 
 /// Generates the nullifier hash
@@ -57,10 +60,7 @@ pub fn hash_external_nullifier(nullifier: &[u8]) -> BigInt {
 pub fn generate_nullifier_hash(identity: &Identity, external_nullifier: &[u8]) -> BigInt {
     let res = POSEIDON
         .hash(vec![
-            bigint_to_fr(&BigInt::from_bytes_be(
-                Sign::Plus,
-                external_nullifier,
-            )),
+            bigint_to_fr(&BigInt::from_bytes_be(Sign::Plus, external_nullifier)),
             bigint_to_fr(&identity.nullifier),
         ])
         .expect("hash with fixed input size can't fail");

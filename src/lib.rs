@@ -27,7 +27,10 @@ mod test {
         hash::Hash,
         identity::Identity,
         poseidon_tree::PoseidonTree,
-        protocol::{generate_nullifier_hash, generate_proof, verify_proof, SnarkFileConfig},
+        protocol::{
+            generate_nullifier_hash, generate_proof, hash_external_nullifier, verify_proof,
+            SnarkFileConfig,
+        },
     };
     use hex_literal::hex;
 
@@ -60,8 +63,14 @@ mod test {
             wasm: "./semaphore/build/snark/semaphore.wasm".to_string(),
         };
 
-        let proof =
-            generate_proof(&config, &id, &merkle_proof, &external_nullifier_hash, signal).unwrap();
+        let proof = generate_proof(
+            &config,
+            &id,
+            &merkle_proof,
+            &external_nullifier_hash,
+            signal,
+        )
+        .unwrap();
 
         let success = verify_proof(
             &config,
@@ -113,8 +122,8 @@ pub mod bench {
         let external_nullifier = b"appId";
 
         let config = SnarkFileConfig {
-            zkey: "./snarkfiles/semaphore.zkey".to_string(),
-            wasm: "./snarkfiles/semaphore.wasm".to_string(),
+            zkey: "./semaphore/build/snark/semaphore_final.zkey".to_string(),
+            wasm: "./semaphore/build/snark/semaphore.wasm".to_string(),
         };
 
         criterion.bench_function("proof", move |b| {
