@@ -1,13 +1,10 @@
 use crate::{
     hash::Hash,
     merkle_tree::{self, Hasher, MerkleTree},
+    posseidon_hash, Field,
 };
-use ff::{PrimeField, PrimeFieldRepr};
-use once_cell::sync::Lazy;
-use poseidon_rs::{Fr, FrRepr, Poseidon};
+use ark_ff::PrimeField;
 use serde::{Deserialize, Serialize};
-
-static POSEIDON: Lazy<Poseidon> = Lazy::new(Poseidon::new);
 
 #[allow(dead_code)]
 pub type PoseidonTree = MerkleTree<PoseidonHash>;
@@ -20,20 +17,23 @@ pub type Proof = merkle_tree::Proof<PoseidonHash>;
 pub struct PoseidonHash;
 
 #[allow(clippy::fallible_impl_from)] // TODO
-impl From<&Hash> for Fr {
+impl From<&Hash> for Field {
     fn from(hash: &Hash) -> Self {
-        let mut repr = FrRepr::default();
-        repr.read_be(&hash.as_bytes_be()[..]).unwrap();
-        Self::from_repr(repr).unwrap()
+        Field::from_be_bytes_mod_order(&hash.0)
     }
 }
 
 #[allow(clippy::fallible_impl_from)] // TODO
-impl From<Fr> for Hash {
-    fn from(fr: Fr) -> Self {
-        let mut bytes = [0_u8; 32];
-        fr.into_repr().write_be(&mut bytes[..]).unwrap();
-        Self::from_bytes_be(bytes)
+impl From<Hash> for Field {
+    fn from(hash: Hash) -> Self {
+        Field::from_be_bytes_mod_order(&hash.0)
+    }
+}
+
+#[allow(clippy::fallible_impl_from)] // TODO
+impl From<Field> for Hash {
+    fn from(n: Field) -> Self {
+        todo!()
     }
 }
 
@@ -41,10 +41,7 @@ impl Hasher for PoseidonHash {
     type Hash = Hash;
 
     fn hash_node(left: &Self::Hash, right: &Self::Hash) -> Self::Hash {
-        POSEIDON
-            .hash(vec![left.into(), right.into()])
-            .unwrap() // TODO
-            .into()
+        posseidon_hash(&[left.into(), right.into()]).into()
     }
 }
 

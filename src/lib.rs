@@ -7,6 +7,7 @@ pub mod hash;
 pub mod identity;
 pub mod merkle_tree;
 pub mod poseidon_tree;
+mod posseidon_hash;
 pub mod protocol;
 pub mod util;
 
@@ -15,9 +16,13 @@ pub mod mimc_hash;
 #[cfg(feature = "mimc")]
 pub mod mimc_tree;
 
-use ark_bn254::Parameters;
+use ark_bn254::{FrParameters, Parameters};
 use ark_ec::bn::Bn;
+use ark_ff::Fp256;
 
+pub use crate::posseidon_hash::posseidon_hash;
+
+pub type Field = Fp256<FrParameters>;
 pub type Groth16Proof = ark_groth16::Proof<Bn<Parameters>>;
 pub type EthereumGroth16Proof = ark_circom::ethereum::Proof;
 
@@ -45,39 +50,32 @@ mod test {
 
         // generate merkle tree
         let mut tree = PoseidonTree::new(21, LEAF);
-        let (_, leaf) = id.commitment().to_bytes_be();
-        tree.set(0, leaf.into());
+        tree.set(0, id.commitment().into());
 
         let merkle_proof = tree.proof(0).expect("proof should exist");
-        let root = tree.root();
+        let root = tree.root().into();
 
         // change signal and external_nullifier here
         let signal = b"xxx";
         let external_nullifier = b"appId";
 
         let external_nullifier_hash = hash_external_nullifier(external_nullifier);
-        let nullifier_hash = generate_nullifier_hash(&id, &external_nullifier_hash);
+        let nullifier_hash = generate_nullifier_hash(&id, external_nullifier_hash);
 
         let config = SnarkFileConfig {
             zkey: "./semaphore/build/snark/semaphore_final.zkey".to_string(),
             wasm: "./semaphore/build/snark/semaphore.wasm".to_string(),
         };
 
-        let proof = generate_proof(
-            &config,
-            &id,
-            &merkle_proof,
-            &external_nullifier_hash,
-            signal,
-        )
-        .unwrap();
+        let proof =
+            generate_proof(&config, &id, &merkle_proof, external_nullifier, signal).unwrap();
 
         let success = verify_proof(
             &config,
-            &root.into(),
-            &nullifier_hash,
+            root,
+            nullifier_hash,
             signal,
-            &external_nullifier_hash,
+            external_nullifier,
             &proof,
         )
         .unwrap();
@@ -113,8 +111,7 @@ pub mod bench {
         // Create tree
         let id = Identity::new(b"hello");
         let mut tree = PoseidonTree::new(21, LEAF);
-        let (_, leaf) = id.commitment().to_bytes_be();
-        tree.set(0, leaf.into());
+        tree.set(0, id.commitment().into());
         let merkle_proof = tree.proof(0).expect("proof should exist");
 
         // change signal and external_nullifier here
