@@ -13,6 +13,7 @@ use ark_relations::r1cs::SynthesisError;
 use ark_std::{rand::thread_rng, UniformRand};
 use color_eyre::Result;
 use ethers_core::utils::keccak256;
+use num_bigint::{BigInt, BigUint, ToBigInt};
 use std::{collections::HashMap, fs::File, ops::Shr, time::Instant};
 use thiserror::Error;
 
@@ -35,8 +36,11 @@ fn merkle_proof_to_vec(proof: &merkle_tree::Proof<PoseidonHash>) -> Vec<Field> {
 
 /// Internal helper to hash the signal to make sure it's in the field
 fn hash_signal(signal: &[u8]) -> Field {
-    todo!()
-    // BigInt::from_bytes_be(Sign::Plus, &keccak256(signal)).shr(8)
+    let hash = keccak256(signal);
+    // Shift right one byte to make it fit in the field
+    let mut bytes = [0_u8; 32];
+    bytes[1..].copy_from_slice(&hash[..31]);
+    Field::from_be_bytes_mod_order(&bytes)
 }
 
 /// Internal helper to hash the external nullifier
@@ -68,8 +72,9 @@ pub enum ProofError {
     SynthesisError(#[from] SynthesisError),
 }
 
-fn ark_to_bigint(n: Field) -> num_bigint::BigInt {
-    todo!()
+fn ark_to_bigint(n: Field) -> BigInt {
+    let n: BigUint = n.into();
+    n.to_bigint().expect("conversion always succeeds for uint")
 }
 
 /// Generates a semaphore proof
