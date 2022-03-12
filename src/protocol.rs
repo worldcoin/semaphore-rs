@@ -1,4 +1,5 @@
 use crate::{
+    circuit::{WITNESS_CALCULATOR, ZKEY},
     identity::Identity,
     merkle_tree::{self, Branch},
     poseidon_tree::PoseidonHash,
@@ -89,11 +90,6 @@ pub fn generate_proof(
     external_nullifier: &[u8],
     signal: &[u8],
 ) -> Result<Proof<Bn<Parameters>>, ProofError> {
-    let mut file = File::open(&config.zkey)?;
-    let (params, matrices) = read_zkey(&mut file)?;
-    let num_inputs = matrices.num_instance_variables;
-    let num_constraints = matrices.num_constraints;
-
     let external_nullifier = hash_external_nullifier(external_nullifier);
     let signal = hash_signal(signal);
     let inputs = [
@@ -117,9 +113,8 @@ pub fn generate_proof(
 
     let now = Instant::now();
 
-    let mut witness = WitnessCalculator::new(&config.wasm).map_err(ProofError::WitnessError)?;
-
-    let full_assignment = witness
+    let full_assignment = WITNESS_CALCULATOR
+        .clone()
         .calculate_witness_element::<Bn254, _>(inputs, false)
         .map_err(ProofError::WitnessError)?;
 
@@ -134,12 +129,12 @@ pub fn generate_proof(
     let now = Instant::now();
 
     let proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
-        &params,
+        &ZKEY.0,
         r,
         s,
-        &matrices,
-        num_inputs,
-        num_constraints,
+        &ZKEY.1,
+        ZKEY.1.num_instance_variables,
+        ZKEY.1.num_constraints,
         full_assignment.as_slice(),
     )?;
 
@@ -162,10 +157,7 @@ pub fn verify_proof(
     external_nullifier: &[u8],
     proof: &Proof<Bn<Parameters>>,
 ) -> Result<bool, ProofError> {
-    let mut file = File::open(&config.zkey)?;
-    let (params, _) = read_zkey(&mut file)?;
-
-    let pvk = prepare_verifying_key(&params.vk);
+    let pvk = prepare_verifying_key(&ZKEY.0.vk);
 
     let public_inputs = vec![
         root,
