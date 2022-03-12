@@ -2,11 +2,12 @@ use crate::{
     circuit::{WITNESS_CALCULATOR, ZKEY},
     identity::Identity,
     merkle_tree::{self, Branch},
+    poseidon_hash,
     poseidon_tree::PoseidonHash,
-    posseidon_hash, Field,
+    Field,
 };
 use ark_bn254::{Bn254, Parameters};
-use ark_circom::{read_zkey, CircomReduction, WitnessCalculator};
+use ark_circom::CircomReduction;
 use ark_ec::bn::Bn;
 use ark_ff::{Fp256, PrimeField};
 use ark_groth16::{create_proof_with_reduction_and_matrices, prepare_verifying_key, Proof};
@@ -15,13 +16,8 @@ use ark_std::{rand::thread_rng, UniformRand};
 use color_eyre::Result;
 use ethers_core::utils::keccak256;
 use num_bigint::{BigInt, BigUint, ToBigInt};
-use std::{collections::HashMap, fs::File, ops::Shr, time::Instant};
+use std::time::Instant;
 use thiserror::Error;
-
-pub struct SnarkFileConfig {
-    pub zkey: String,
-    pub wasm: String,
-}
 
 /// Helper to merkle proof into a bigint vector
 /// TODO: we should create a From trait for this
@@ -60,7 +56,7 @@ pub fn hash_external_nullifier(nullifier: &[u8]) -> Field {
 /// Generates the nullifier hash
 #[must_use]
 pub fn generate_nullifier_hash(identity: &Identity, external_nullifier: Field) -> Field {
-    posseidon_hash(&[external_nullifier, identity.nullifier])
+    poseidon_hash(&[external_nullifier, identity.nullifier])
 }
 
 #[derive(Error, Debug)]
@@ -84,7 +80,6 @@ fn ark_to_bigint(n: Field) -> BigInt {
 ///
 /// Returns a [`ProofError`] if proving fails.
 pub fn generate_proof(
-    config: &SnarkFileConfig,
     identity: &Identity,
     merkle_proof: &merkle_tree::Proof<PoseidonHash>,
     external_nullifier: &[u8],
@@ -100,7 +95,7 @@ pub fn generate_proof(
         ("externalNullifier", vec![external_nullifier]),
         ("signalHash", vec![signal]),
     ];
-    let inputs = inputs.iter().map(|(name, values)| {
+    let inputs = inputs.into_iter().map(|(name, values)| {
         (
             name.to_string(),
             values
@@ -150,7 +145,6 @@ pub fn generate_proof(
 /// Returns a [`ProofError`] if verifying fails. Verification failure does not
 /// necessarily mean the proof is incorrect.
 pub fn verify_proof(
-    config: &SnarkFileConfig,
     root: Field,
     nullifier_hash: Field,
     signal: &[u8],

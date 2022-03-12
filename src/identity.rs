@@ -1,4 +1,4 @@
-use crate::{posseidon_hash, Field};
+use crate::{poseidon_hash, Field};
 use ark_ff::PrimeField;
 use sha2::{Digest, Sha256};
 
@@ -42,11 +42,11 @@ impl Identity {
 
     #[must_use]
     pub fn secret_hash(&self) -> Field {
-        posseidon_hash(&[self.nullifier, self.trapdoor])
+        poseidon_hash(&[self.nullifier, self.trapdoor])
     }
 
     #[must_use]
     pub fn commitment(&self) -> Field {
-        posseidon_hash(&[self.secret_hash()])
+        poseidon_hash(&[self.secret_hash()])
     }
 }

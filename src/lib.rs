@@ -1,14 +1,14 @@
 #![doc = include_str!("../Readme.md")]
 #![warn(clippy::all, clippy::pedantic, clippy::cargo, clippy::nursery)]
-// TODO: ark-circom and ethers-core pull in a lot of deps, some duplicate.
+// TODO: ark-circom and ethers-core pull in a lot of dependencies, some duplicate.
 #![allow(clippy::multiple_crate_versions)]
 
 mod circuit;
 pub mod hash;
 pub mod identity;
 pub mod merkle_tree;
+mod poseidon_hash;
 pub mod poseidon_tree;
-mod posseidon_hash;
 pub mod protocol;
 pub mod util;
 
@@ -17,10 +17,10 @@ pub mod mimc_hash;
 #[cfg(feature = "mimc")]
 pub mod mimc_tree;
 
-use ark_bn254::{Fr, FrParameters, Parameters};
+use ark_bn254::{Fr, Parameters};
 use ark_ec::bn::Bn;
 
-pub use crate::posseidon_hash::posseidon_hash;
+pub use crate::poseidon_hash::poseidon_hash;
 
 pub type Field = Fr;
 pub type Groth16Proof = ark_groth16::Proof<Bn<Parameters>>;

@@ -1,4 +1,4 @@
-# 🦀 semaphore-rs 
+# 🦀 semaphore-rs
 
 Rust support library for using [semaphore](https://github.com/appliedzkp/semaphore). It's mostly a Rust rewrite of [zk-kit](https://github.com/appliedzkp/zk-kit), but just focuses on semaphore (for now) and still covers a much smaller scope. It's using [ark-circom](https://github.com/gakonst/ark-circom) under the hood for generating the groth16 proofs.
 
@@ -46,13 +46,8 @@ let external_nullifier = b"appId";
 let external_nullifier_hash = hash_external_nullifier(external_nullifier);
 let nullifier_hash = generate_nullifier_hash(&id, &external_nullifier_hash);
 
-let config = SnarkFileConfig {
-    zkey: "./semaphore/build/snark/semaphore_final.zkey".to_string(),
-    wasm: "./semaphore/build/snark/semaphore.wasm".to_string(),
-};
-
-let proof = generate_proof(&config, &id, &merkle_proof, &external_nullifier_hash, signal).unwrap();
-let success = verify_proof(&config, &root.into(), &nullifier_hash, signal, &external_nullifier_hash, &proof).unwrap();
+let proof = generate_proof(&id, &merkle_proof, &external_nullifier_hash, signal).unwrap();
+let success = verify_proof(&root.into(), &nullifier_hash, signal, &external_nullifier_hash, &proof).unwrap();
 
 assert!(success);
 ```

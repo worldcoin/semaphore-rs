@@ -5,6 +5,7 @@
     "dictionaries": [],
     "words": [
         "biguint",
+        "chacha",
         "circom",
         "groth",
         "hasher",
@@ -14,7 +15,9 @@
         "mmaped",
         "modpow",
         "Repr",
+        "Seedable",
         "snarkfiles",
+        "thiserror",
         "zkey"
     ],
     "ignoreWords": [],
