@@ -34,7 +34,6 @@ mod test {
         poseidon_tree::PoseidonTree,
         protocol::{
             generate_nullifier_hash, generate_proof, hash_external_nullifier, verify_proof,
-            SnarkFileConfig,
         },
     };
     use hex_literal::hex;
@@ -62,23 +61,10 @@ mod test {
         let external_nullifier_hash = hash_external_nullifier(external_nullifier);
         let nullifier_hash = generate_nullifier_hash(&id, external_nullifier_hash);
 
-        let config = SnarkFileConfig {
-            zkey: "./semaphore/build/snark/semaphore_final.zkey".to_string(),
-            wasm: "./semaphore/build/snark/semaphore.wasm".to_string(),
-        };
+        let proof = generate_proof(&id, &merkle_proof, external_nullifier, signal).unwrap();
 
-        let proof =
-            generate_proof(&config, &id, &merkle_proof, external_nullifier, signal).unwrap();
-
-        let success = verify_proof(
-            &config,
-            root,
-            nullifier_hash,
-            signal,
-            external_nullifier,
-            &proof,
-        )
-        .unwrap();
+        let success =
+            verify_proof(root, nullifier_hash, signal, external_nullifier, &proof).unwrap();
 
         assert!(success);
     }
@@ -87,10 +73,7 @@ mod test {
 #[cfg(feature = "bench")]
 pub mod bench {
     use crate::{
-        hash::Hash,
-        identity::Identity,
-        poseidon_tree::PoseidonTree,
-        protocol::{generate_proof, SnarkFileConfig},
+        hash::Hash, identity::Identity, poseidon_tree::PoseidonTree, protocol::generate_proof,
     };
     use criterion::Criterion;
     use hex_literal::hex;
@@ -118,14 +101,9 @@ pub mod bench {
         let signal = b"xxx";
         let external_nullifier = b"appId";
 
-        let config = SnarkFileConfig {
-            zkey: "./semaphore/build/snark/semaphore_final.zkey".to_string(),
-            wasm: "./semaphore/build/snark/semaphore.wasm".to_string(),
-        };
-
         criterion.bench_function("proof", move |b| {
             b.iter(|| {
-                generate_proof(&config, &id, &merkle_proof, external_nullifier, signal).unwrap();
+                generate_proof(&id, &merkle_proof, external_nullifier, signal).unwrap();
             });
         });
     }
