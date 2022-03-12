@@ -33,8 +33,7 @@ let id = Identity::new(b"secret");
 const LEAF: Hash = Hash::from_bytes_be([0u8; 32]);
 
 let mut tree = PoseidonTree::new(21, LEAF);
-let (_, leaf) = id.commitment().to_bytes_be();
-tree.set(0, leaf.into());
+tree.set(0, id.commitment().into());
 
 let merkle_proof = tree.proof(0).expect("proof should exist");
 let root = tree.root();
@@ -44,10 +43,10 @@ let signal = b"xxx";
 let external_nullifier = b"appId";
 
 let external_nullifier_hash = hash_external_nullifier(external_nullifier);
-let nullifier_hash = generate_nullifier_hash(&id, &external_nullifier_hash);
+let nullifier_hash = generate_nullifier_hash(&id, external_nullifier_hash);
 
-let proof = generate_proof(&id, &merkle_proof, &external_nullifier_hash, signal).unwrap();
-let success = verify_proof(&root.into(), &nullifier_hash, signal, &external_nullifier_hash, &proof).unwrap();
+let proof = generate_proof(&id, &merkle_proof, external_nullifier, signal).unwrap();
+let success = verify_proof(root.into(), nullifier_hash, signal, external_nullifier, &proof).unwrap();
 
 assert!(success);
 ```
