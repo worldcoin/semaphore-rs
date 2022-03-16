@@ -2,12 +2,16 @@ use ff::{PrimeField, PrimeFieldRepr};
 use num_bigint::{BigInt, Sign};
 use poseidon_rs::{Fr, FrRepr};
 
+#[must_use]
+#[allow(clippy::missing_panics_doc)] // TODO: Remove panics
 pub fn fr_to_bigint(fr: Fr) -> BigInt {
     let mut bytes = [0_u8; 32];
     fr.into_repr().write_be(&mut bytes[..]).unwrap();
     BigInt::from_bytes_be(Sign::Plus, &bytes)
 }
 
+#[must_use]
+#[allow(clippy::missing_panics_doc)] // TODO: Remove panics
 pub fn bigint_to_fr(bi: &BigInt) -> Fr {
     // dirty: have to force the point into the field manually, otherwise you get an
     // error if bi not in field

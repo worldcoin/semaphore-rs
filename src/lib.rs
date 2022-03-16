@@ -1,3 +1,8 @@
+#![doc = include_str!("../Readme.md")]
+#![warn(clippy::all, clippy::pedantic, clippy::cargo, clippy::nursery)]
+// TODO: ark-circom and ethers-core pull in a lot of deps, some duplicate.
+#![allow(clippy::multiple_crate_versions)]
+
 pub mod hash;
 pub mod identity;
 pub mod merkle_tree;
@@ -18,20 +23,27 @@ pub type EthereumGroth16Proof = ark_circom::ethereum::Proof;
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use hash::*;
-    use identity::*;
-    use poseidon_tree::*;
-    use protocol::*;
+    use crate::{
+        hash::Hash,
+        identity::Identity,
+        poseidon_tree::PoseidonTree,
+        protocol::{
+            generate_nullifier_hash, generate_proof, hash_external_nullifier, verify_proof,
+            SnarkFileConfig,
+        },
+    };
+    use hex_literal::hex;
 
     #[test]
     fn test_end_to_end() {
+        const LEAF: Hash = Hash::from_bytes_be(hex!(
+            "0000000000000000000000000000000000000000000000000000000000000000"
+        ));
+
         // generate identity
-        let id = Identity::new(b"secret");
+        let id = Identity::new(b"hello");
 
         // generate merkle tree
-        const LEAF: Hash = Hash::from_bytes_be([0u8; 32]);
-
         let mut tree = PoseidonTree::new(21, LEAF);
         let (_, leaf) = id.commitment().to_bytes_be();
         tree.set(0, leaf.into());
@@ -40,8 +52,8 @@ mod test {
         let root = tree.root();
 
         // change signal and external_nullifier here
-        let signal = "xxx".as_bytes();
-        let external_nullifier = "appId".as_bytes();
+        let signal = b"xxx";
+        let external_nullifier = b"appId";
 
         let external_nullifier_hash = hash_external_nullifier(external_nullifier);
         let nullifier_hash = generate_nullifier_hash(&id, &external_nullifier_hash);
@@ -51,8 +63,14 @@ mod test {
             wasm: "./semaphore/build/snark/semaphore.wasm".to_string(),
         };
 
-        let proof =
-            generate_proof(&config, &id, &merkle_proof, &external_nullifier_hash, signal).unwrap();
+        let proof = generate_proof(
+            &config,
+            &id,
+            &merkle_proof,
+            &external_nullifier_hash,
+            signal,
+        )
+        .unwrap();
 
         let success = verify_proof(
             &config,
@@ -88,29 +106,30 @@ pub mod bench {
     }
 
     fn bench_proof(criterion: &mut Criterion) {
-        // Create tree
-        let id = Identity::new(b"hello");
         const LEAF: Hash = Hash::from_bytes_be(hex!(
             "0000000000000000000000000000000000000000000000000000000000000000"
         ));
+
+        // Create tree
+        let id = Identity::new(b"hello");
         let mut tree = PoseidonTree::new(21, LEAF);
         let (_, leaf) = id.commitment().to_bytes_be();
         tree.set(0, leaf.into());
         let merkle_proof = tree.proof(0).expect("proof should exist");
 
         // change signal and external_nullifier here
-        let signal = "xxx".as_bytes();
-        let external_nullifier = "appId".as_bytes();
+        let signal = b"xxx";
+        let external_nullifier = b"appId";
 
         let config = SnarkFileConfig {
-            zkey: "./snarkfiles/semaphore.zkey".to_string(),
-            wasm: "./snarkfiles/semaphore.wasm".to_string(),
+            zkey: "./semaphore/build/snark/semaphore_final.zkey".to_string(),
+            wasm: "./semaphore/build/snark/semaphore.wasm".to_string(),
         };
 
         criterion.bench_function("proof", move |b| {
             b.iter(|| {
                 generate_proof(&config, &id, &merkle_proof, external_nullifier, signal).unwrap();
-            })
+            });
         });
     }
 }

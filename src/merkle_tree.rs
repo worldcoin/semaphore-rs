@@ -4,12 +4,12 @@
 //!
 //! * Disk based storage backend (using mmaped files should be easy)
 
+use num_bigint::BigInt;
+use serde::{Deserialize, Serialize};
 use std::{
     fmt::Debug,
     iter::{once, repeat, successors},
 };
-use num_bigint::BigInt;
-use serde::{Deserialize, Serialize};
 
 /// Hash types, values and algorithms for a Merkle tree
 pub trait Hasher {
@@ -95,6 +95,7 @@ impl<H: Hasher> MerkleTree<H> {
         }
     }
 
+    #[must_use]
     pub fn num_leaves(&self) -> usize {
         self.depth
             .checked_sub(1)
@@ -102,6 +103,7 @@ impl<H: Hasher> MerkleTree<H> {
             .unwrap_or_default()
     }
 
+    #[must_use]
     pub fn root(&self) -> H::Hash {
         self.nodes[0].clone()
     }
@@ -134,6 +136,7 @@ impl<H: Hasher> MerkleTree<H> {
         }
     }
 
+    #[must_use]
     pub fn proof(&self, leaf: usize) -> Option<Proof<H>> {
         if leaf >= self.num_leaves() {
             return None;
@@ -152,12 +155,12 @@ impl<H: Hasher> MerkleTree<H> {
         Some(Proof(path))
     }
 
-    #[allow(dead_code)]
+    #[must_use]
     pub fn verify(&self, hash: H::Hash, proof: &Proof<H>) -> bool {
         proof.root(hash) == self.root()
     }
 
-    #[allow(dead_code)]
+    #[must_use]
     pub fn leaves(&self) -> &[H::Hash] {
         &self.nodes[(self.num_leaves() - 1)..]
     }
@@ -165,7 +168,7 @@ impl<H: Hasher> MerkleTree<H> {
 
 impl<H: Hasher> Proof<H> {
     /// Compute the leaf index for this proof
-    #[allow(dead_code)]
+    #[must_use]
     pub fn leaf_index(&self) -> usize {
         self.0.iter().rev().fold(0, |index, branch| match branch {
             Branch::Left(_) => index << 1,
@@ -174,7 +177,7 @@ impl<H: Hasher> Proof<H> {
     }
 
     /// Compute path index (TODO: do we want to keep this here?)
-    #[allow(dead_code)]
+    #[must_use]
     pub fn path_index(&self) -> Vec<BigInt> {
         self.0
             .iter()
@@ -186,7 +189,7 @@ impl<H: Hasher> Proof<H> {
     }
 
     /// Compute the Merkle root given a leaf hash
-    #[allow(dead_code)]
+    #[must_use]
     pub fn root(&self, hash: H::Hash) -> H::Hash {
         self.0.iter().fold(hash, |hash, branch| match branch {
             Branch::Left(sibling) => H::hash_node(&hash, sibling),

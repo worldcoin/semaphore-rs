@@ -9,8 +9,8 @@
 //! * Instantiate a `PrimeField` to use Montgomery form.
 
 use once_cell::sync::Lazy;
-use zkp_u256::U256;
 use tiny_keccak::{Hasher as _, Keccak};
+use zkp_u256::U256;
 
 const NUM_ROUNDS: usize = 220;
 
@@ -21,7 +21,7 @@ static MODULUS: Lazy<U256> = Lazy::new(|| {
     .unwrap()
 });
 
-fn keccak256(bytes: &[u8]) -> [u8;32] {
+fn keccak256(bytes: &[u8]) -> [u8; 32] {
     let mut output = [0; 32];
     let mut hasher = Keccak::v256();
     hasher.update(bytes);
@@ -58,6 +58,7 @@ fn mix(left: &mut U256, right: &mut U256) {
     std::mem::swap(left, right);
 }
 
+#[must_use]
 pub fn hash(values: &[U256]) -> U256 {
     let mut left = U256::ZERO;
     let mut right = U256::ZERO;
