@@ -1,11 +1,13 @@
 use crate::{
+    circuit::{WITNESS_CALCULATOR, ZKEY},
     identity::Identity,
     merkle_tree::{self, Branch},
+    poseidon_hash,
     poseidon_tree::PoseidonHash,
-    posseidon_hash, Field,
+    Field,
 };
 use ark_bn254::{Bn254, Parameters};
-use ark_circom::{read_zkey, CircomReduction, WitnessCalculator};
+use ark_circom::CircomReduction;
 use ark_ec::bn::Bn;
 use ark_ff::{Fp256, PrimeField};
 use ark_groth16::{create_proof_with_reduction_and_matrices, prepare_verifying_key, Proof};
@@ -14,13 +16,8 @@ use ark_std::{rand::thread_rng, UniformRand};
 use color_eyre::Result;
 use ethers_core::utils::keccak256;
 use num_bigint::{BigInt, BigUint, ToBigInt};
-use std::{collections::HashMap, fs::File, ops::Shr, time::Instant};
+use std::time::Instant;
 use thiserror::Error;
-
-pub struct SnarkFileConfig {
-    pub zkey: String,
-    pub wasm: String,
-}
 
 /// Helper to merkle proof into a bigint vector
 /// TODO: we should create a From trait for this
@@ -59,7 +56,7 @@ pub fn hash_external_nullifier(nullifier: &[u8]) -> Field {
 /// Generates the nullifier hash
 #[must_use]
 pub fn generate_nullifier_hash(identity: &Identity, external_nullifier: Field) -> Field {
-    posseidon_hash(&[external_nullifier, identity.nullifier])
+    poseidon_hash(&[external_nullifier, identity.nullifier])
 }
 
 #[derive(Error, Debug)]
@@ -83,17 +80,11 @@ fn ark_to_bigint(n: Field) -> BigInt {
 ///
 /// Returns a [`ProofError`] if proving fails.
 pub fn generate_proof(
-    config: &SnarkFileConfig,
     identity: &Identity,
     merkle_proof: &merkle_tree::Proof<PoseidonHash>,
     external_nullifier: &[u8],
     signal: &[u8],
 ) -> Result<Proof<Bn<Parameters>>, ProofError> {
-    let mut file = File::open(&config.zkey)?;
-    let (params, matrices) = read_zkey(&mut file)?;
-    let num_inputs = matrices.num_instance_variables;
-    let num_constraints = matrices.num_constraints;
-
     let external_nullifier = hash_external_nullifier(external_nullifier);
     let signal = hash_signal(signal);
     let inputs = [
@@ -104,7 +95,7 @@ pub fn generate_proof(
         ("externalNullifier", vec![external_nullifier]),
         ("signalHash", vec![signal]),
     ];
-    let inputs = inputs.iter().map(|(name, values)| {
+    let inputs = inputs.into_iter().map(|(name, values)| {
         (
             name.to_string(),
             values
@@ -117,9 +108,8 @@ pub fn generate_proof(
 
     let now = Instant::now();
 
-    let mut witness = WitnessCalculator::new(&config.wasm).map_err(ProofError::WitnessError)?;
-
-    let full_assignment = witness
+    let full_assignment = WITNESS_CALCULATOR
+        .clone()
         .calculate_witness_element::<Bn254, _>(inputs, false)
         .map_err(ProofError::WitnessError)?;
 
@@ -134,12 +124,12 @@ pub fn generate_proof(
     let now = Instant::now();
 
     let proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
-        &params,
+        &ZKEY.0,
         r,
         s,
-        &matrices,
-        num_inputs,
-        num_constraints,
+        &ZKEY.1,
+        ZKEY.1.num_instance_variables,
+        ZKEY.1.num_constraints,
         full_assignment.as_slice(),
     )?;
 
@@ -155,17 +145,13 @@ pub fn generate_proof(
 /// Returns a [`ProofError`] if verifying fails. Verification failure does not
 /// necessarily mean the proof is incorrect.
 pub fn verify_proof(
-    config: &SnarkFileConfig,
     root: Field,
     nullifier_hash: Field,
     signal: &[u8],
     external_nullifier: &[u8],
     proof: &Proof<Bn<Parameters>>,
 ) -> Result<bool, ProofError> {
-    let mut file = File::open(&config.zkey)?;
-    let (params, _) = read_zkey(&mut file)?;
-
-    let pvk = prepare_verifying_key(&params.vk);
+    let pvk = prepare_verifying_key(&ZKEY.0.vk);
 
     let public_inputs = vec![
         root,

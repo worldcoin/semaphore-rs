@@ -1,7 +1,7 @@
 use crate::{
     hash::Hash,
     merkle_tree::{self, Hasher, MerkleTree},
-    posseidon_hash, Field,
+    poseidon_hash, Field,
 };
 use ark_ff::{PrimeField, ToBytes};
 use serde::{Deserialize, Serialize};
@@ -19,14 +19,14 @@ pub struct PoseidonHash;
 #[allow(clippy::fallible_impl_from)] // TODO
 impl From<&Hash> for Field {
     fn from(hash: &Hash) -> Self {
-        Field::from_be_bytes_mod_order(&hash.0)
+        Self::from_be_bytes_mod_order(&hash.0)
     }
 }
 
 #[allow(clippy::fallible_impl_from)] // TODO
 impl From<Hash> for Field {
     fn from(hash: Hash) -> Self {
-        Field::from_be_bytes_mod_order(&hash.0)
+        Self::from_be_bytes_mod_order(&hash.0)
     }
 }
 
@@ -46,7 +46,7 @@ impl Hasher for PoseidonHash {
     type Hash = Hash;
 
     fn hash_node(left: &Self::Hash, right: &Self::Hash) -> Self::Hash {
-        posseidon_hash(&[left.into(), right.into()]).into()
+        poseidon_hash(&[left.into(), right.into()]).into()
     }
 }
 
@@ -60,11 +60,9 @@ pub mod test {
 
     #[test]
     fn test_ark_hash_ark_roundtrip() {
-        use ark_ff::One;
         let mut rng = ChaChaRng::seed_from_u64(123);
-        for i in 0..1000 {
+        for _ in 0..1000 {
             let n = Field::rand(&mut rng);
-            let n = Field::one();
             let m = Hash::from(n).into();
             assert_eq!(n, m);
         }
