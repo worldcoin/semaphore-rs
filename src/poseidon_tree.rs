@@ -1,13 +1,10 @@
 use crate::{
     hash::Hash,
     merkle_tree::{self, Hasher, MerkleTree},
+    posseidon_hash, Field,
 };
-use ff::{PrimeField, PrimeFieldRepr};
-use once_cell::sync::Lazy;
-use poseidon_rs::{Fr, FrRepr, Poseidon};
+use ark_ff::{PrimeField, ToBytes};
 use serde::{Deserialize, Serialize};
-
-static POSEIDON: Lazy<Poseidon> = Lazy::new(Poseidon::new);
 
 #[allow(dead_code)]
 pub type PoseidonTree = MerkleTree<PoseidonHash>;
@@ -20,20 +17,28 @@ pub type Proof = merkle_tree::Proof<PoseidonHash>;
 pub struct PoseidonHash;
 
 #[allow(clippy::fallible_impl_from)] // TODO
-impl From<&Hash> for Fr {
+impl From<&Hash> for Field {
     fn from(hash: &Hash) -> Self {
-        let mut repr = FrRepr::default();
-        repr.read_be(&hash.as_bytes_be()[..]).unwrap();
-        Self::from_repr(repr).unwrap()
+        Field::from_be_bytes_mod_order(&hash.0)
     }
 }
 
 #[allow(clippy::fallible_impl_from)] // TODO
-impl From<Fr> for Hash {
-    fn from(fr: Fr) -> Self {
+impl From<Hash> for Field {
+    fn from(hash: Hash) -> Self {
+        Field::from_be_bytes_mod_order(&hash.0)
+    }
+}
+
+#[allow(clippy::fallible_impl_from)] // TODO
+impl From<Field> for Hash {
+    fn from(n: Field) -> Self {
         let mut bytes = [0_u8; 32];
-        fr.into_repr().write_be(&mut bytes[..]).unwrap();
-        Self::from_bytes_be(bytes)
+        n.into_repr()
+            .write(&mut bytes[..])
+            .expect("write should succeed");
+        bytes.reverse(); // Convert to big endian
+        Self(bytes)
     }
 }
 
@@ -41,17 +46,29 @@ impl Hasher for PoseidonHash {
     type Hash = Hash;
 
     fn hash_node(left: &Self::Hash, right: &Self::Hash) -> Self::Hash {
-        POSEIDON
-            .hash(vec![left.into(), right.into()])
-            .unwrap() // TODO
-            .into()
+        posseidon_hash(&[left.into(), right.into()]).into()
     }
 }
 
 #[cfg(test)]
 pub mod test {
     use super::*;
+    use ark_ff::UniformRand;
     use hex_literal::hex;
+    use rand_chacha::ChaChaRng;
+    use rand_core::SeedableRng;
+
+    #[test]
+    fn test_ark_hash_ark_roundtrip() {
+        use ark_ff::One;
+        let mut rng = ChaChaRng::seed_from_u64(123);
+        for i in 0..1000 {
+            let n = Field::rand(&mut rng);
+            let n = Field::one();
+            let m = Hash::from(n).into();
+            assert_eq!(n, m);
+        }
+    }
 
     #[test]
     fn test_tree_4() {

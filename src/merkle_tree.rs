@@ -4,7 +4,7 @@
 //!
 //! * Disk based storage backend (using mmaped files should be easy)
 
-use num_bigint::BigInt;
+use crate::Field;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::Debug,
@@ -178,12 +178,12 @@ impl<H: Hasher> Proof<H> {
 
     /// Compute path index (TODO: do we want to keep this here?)
     #[must_use]
-    pub fn path_index(&self) -> Vec<BigInt> {
+    pub fn path_index(&self) -> Vec<Field> {
         self.0
             .iter()
             .map(|branch| match branch {
-                Branch::Left(_) => BigInt::from(0),
-                Branch::Right(_) => BigInt::from(1),
+                Branch::Left(_) => Field::from(0),
+                Branch::Right(_) => Field::from(1),
             })
             .collect()
     }
