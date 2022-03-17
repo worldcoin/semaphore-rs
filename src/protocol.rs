@@ -9,7 +9,7 @@ use crate::{
 use ark_bn254::{Bn254, Parameters};
 use ark_circom::CircomReduction;
 use ark_ec::bn::Bn;
-use ark_ff::{Fp256, PrimeField};
+use ark_ff::PrimeField;
 use ark_groth16::{create_proof_with_reduction_and_matrices, prepare_verifying_key, Proof};
 use ark_relations::r1cs::SynthesisError;
 use ark_std::{rand::thread_rng, UniformRand};
@@ -31,26 +31,16 @@ fn merkle_proof_to_vec(proof: &merkle_tree::Proof<PoseidonHash>) -> Vec<Field> {
         .collect()
 }
 
-/// Internal helper to hash the signal to make sure it's in the field
-fn hash_signal(signal: &[u8]) -> Field {
-    let hash = keccak256(signal);
+/// Hash arbitrary data to a field element.
+///
+/// This is used to create `signal_hash` and `external_nullifier_hash`.
+#[must_use]
+pub fn hash_to_field(data: &[u8]) -> Field {
+    let hash = keccak256(data);
     // Shift right one byte to make it fit in the field
     let mut bytes = [0_u8; 32];
     bytes[1..].copy_from_slice(&hash[..31]);
     Field::from_be_bytes_mod_order(&bytes)
-}
-
-/// Internal helper to hash the external nullifier
-#[must_use]
-pub fn hash_external_nullifier(nullifier: &[u8]) -> Field {
-    // Hash input to 256 bits.
-    let mut hash = keccak256(nullifier);
-    // Clear first four bytes to make sure the hash is in the field.
-    for byte in &mut hash[0..4] {
-        *byte = 0;
-    }
-    // Convert to field element.
-    Fp256::from_be_bytes_mod_order(&hash)
 }
 
 /// Generates the nullifier hash
@@ -82,18 +72,16 @@ fn ark_to_bigint(n: Field) -> BigInt {
 pub fn generate_proof(
     identity: &Identity,
     merkle_proof: &merkle_tree::Proof<PoseidonHash>,
-    external_nullifier: &[u8],
-    signal: &[u8],
+    external_nullifier_hash: Field,
+    signal_hash: Field,
 ) -> Result<Proof<Bn<Parameters>>, ProofError> {
-    let external_nullifier = hash_external_nullifier(external_nullifier);
-    let signal = hash_signal(signal);
     let inputs = [
         ("identityNullifier", vec![identity.nullifier]),
         ("identityTrapdoor", vec![identity.trapdoor]),
         ("treePathIndices", merkle_proof.path_index()),
         ("treeSiblings", merkle_proof_to_vec(merkle_proof)),
-        ("externalNullifier", vec![external_nullifier]),
-        ("signalHash", vec![signal]),
+        ("externalNullifier", vec![external_nullifier_hash]),
+        ("signalHash", vec![signal_hash]),
     ];
     let inputs = inputs.into_iter().map(|(name, values)| {
         (
@@ -147,18 +135,13 @@ pub fn generate_proof(
 pub fn verify_proof(
     root: Field,
     nullifier_hash: Field,
-    signal: &[u8],
-    external_nullifier: &[u8],
+    signal_hash: Field,
+    external_nullifier_hash: Field,
     proof: &Proof<Bn<Parameters>>,
 ) -> Result<bool, ProofError> {
     let pvk = prepare_verifying_key(&ZKEY.0.vk);
 
-    let public_inputs = vec![
-        root,
-        nullifier_hash,
-        hash_signal(signal),
-        hash_external_nullifier(external_nullifier),
-    ];
+    let public_inputs = vec![root, nullifier_hash, signal_hash, external_nullifier_hash];
     let result = ark_groth16::verify_proof(&pvk, proof, &public_inputs)?;
     Ok(result)
 }

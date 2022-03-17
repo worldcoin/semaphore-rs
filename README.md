@@ -39,14 +39,13 @@ let merkle_proof = tree.proof(0).expect("proof should exist");
 let root = tree.root();
 
 // change signal and external_nullifier here
-let signal = b"xxx";
-let external_nullifier = b"appId";
+let signal_hash = hash_to_field(b"xxx");
+let external_nullifier_hash = hash_to_field(b"appId");
 
-let external_nullifier_hash = hash_external_nullifier(external_nullifier);
 let nullifier_hash = generate_nullifier_hash(&id, external_nullifier_hash);
 
-let proof = generate_proof(&id, &merkle_proof, external_nullifier, signal).unwrap();
-let success = verify_proof(root.into(), nullifier_hash, signal, external_nullifier, &proof).unwrap();
+let proof = generate_proof(&id, &merkle_proof, external_nullifier_hash, signal_hash).unwrap();
+let success = verify_proof(root.into(), nullifier_hash, signal_hash, external_nullifier_hash, &proof).unwrap();
 
 assert!(success);
 ```
