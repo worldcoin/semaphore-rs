@@ -1,19 +1,11 @@
-use crate::util::{keccak256, trim_hex_prefix};
+use crate::util::{bytes_from_hex, deserialize_bytes, keccak256, serialize_bytes};
 use ark_bn254::Fr as ArkField;
 use ark_ff::{BigInteger as _, PrimeField as _};
-use core::{
-    fmt::{Formatter, Result as FmtResult},
-    str,
-    str::FromStr,
-};
+use core::{str, str::FromStr};
 use ff::{PrimeField as _, PrimeFieldRepr as _};
-use hex::encode_to_slice;
 use num_bigint::{BigInt, Sign};
 use poseidon_rs::Fr as PosField;
-use serde::{
-    de::{Error as DeError, Visitor},
-    Deserialize, Serialize, Serializer,
-};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// An element of the BN254 scalar field Fr.
 ///
@@ -77,36 +69,28 @@ impl From<Field> for BigInt {
     }
 }
 
+/// Serialize a field element.
+///
+/// For human readable formats a `0x` prefixed lower case hex string is used.
+/// For binary formats a byte array is used.
 impl Serialize for Field {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        if serializer.is_human_readable() {
-            // Write as a 0x prefixed lower-case hex string
-            let mut buffer = [0u8; 66];
-            buffer[0] = b'0';
-            buffer[1] = b'x';
-            encode_to_slice(&self.0, &mut buffer[2..]).expect("the buffer is correctly sized");
-            let string = str::from_utf8(&buffer).expect("the buffer is valid UTF-8");
-            serializer.serialize_str(string)
-        } else {
-            // Write as bytes directly
-            serializer.serialize_bytes(&self.0)
-        }
+        serialize_bytes::<32, 66, S>(serializer, &self.0)
     }
 }
 
 /// Parse Hash from hex string.
+///
 /// Hex strings can be upper/lower/mixed case and have an optional `0x` prefix
 /// but they must always be exactly 32 bytes.
+///
+/// Too large values are reduced modulo the field prime.
 impl FromStr for Field {
     type Err = hex::FromHexError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let str = trim_hex_prefix(s);
-        let mut out = [0_u8; 32];
-        hex::decode_to_slice(str, &mut out)?;
-
-        // TODO: Reduce
-        Ok(Self(out))
+        let bytes = bytes_from_hex::<32>(s)?;
+        Ok(Self::from_be_bytes_mod_order(&bytes[..]))
     }
 }
 
@@ -114,47 +98,9 @@ impl FromStr for Field {
 /// Hex strings can be upper/lower/mixed case and have an optional `0x` prefix
 /// but they must always be exactly 32 bytes.
 impl<'de> Deserialize<'de> for Field {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        if deserializer.is_human_readable() {
-            deserializer.deserialize_str(StrVisitor)
-        } else {
-            // TODO: Reduce
-            <[u8; 32]>::deserialize(deserializer).map(Field)
-        }
-    }
-}
-
-struct StrVisitor;
-
-impl<'de> Visitor<'de> for StrVisitor {
-    type Value = Field;
-
-    fn expecting(&self, formatter: &mut Formatter) -> FmtResult {
-        formatter.write_str("a 32 byte hex string")
-    }
-
-    fn visit_borrowed_str<E>(self, value: &'de str) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        Field::from_str(value).map_err(|e| E::custom(format!("Error in hex: {}", e)))
-    }
-
-    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        Field::from_str(value).map_err(|e| E::custom(format!("Error in hex: {}", e)))
-    }
-
-    fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        Field::from_str(&value).map_err(|e| E::custom(format!("Error in hex: {}", e)))
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let bytes = deserialize_bytes::<32, _>(deserializer)?;
+        Ok(Self::from_be_bytes_mod_order(&bytes))
     }
 }
 

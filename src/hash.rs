@@ -1,13 +1,10 @@
+use crate::util::{bytes_from_hex, deserialize_bytes, serialize_bytes};
 use ethers_core::types::U256;
 use num_bigint::{BigInt, Sign};
-use serde::{
-    de::{Error as DeError, Visitor},
-    ser::Error as _,
-    Deserialize, Serialize,
-};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::{
     fmt::{Debug, Display, Formatter, Result as FmtResult},
-    str::{from_utf8, FromStr},
+    str::FromStr,
 };
 
 /// Container for 256-bit hash values.
@@ -85,30 +82,15 @@ impl FromStr for Hash {
     type Err = hex::FromHexError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let str = trim_hex_prefix(s);
-        let mut out = [0_u8; 32];
-        hex::decode_to_slice(str, &mut out)?;
-        Ok(Self(out))
+        bytes_from_hex::<32>(s).map(Self)
     }
 }
 
 /// Serialize hashes into human readable hex strings or byte arrays.
 /// Hex strings are lower case without prefix and always 32 bytes.
 impl Serialize for Hash {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        if serializer.is_human_readable() {
-            let mut hex_ascii = [0_u8; 64];
-            hex::encode_to_slice(self.0, &mut hex_ascii)
-                .map_err(|e| S::Error::custom(format!("Error hex encoding: {}", e)))?;
-            from_utf8(&hex_ascii)
-                .map_err(|e| S::Error::custom(format!("Invalid hex encoding: {}", e)))?
-                .serialize(serializer)
-        } else {
-            self.0.serialize(serializer)
-        }
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serialize_bytes::<32, 66, S>(serializer, &self.0)
     }
 }
 
@@ -116,55 +98,9 @@ impl Serialize for Hash {
 /// Hex strings can be upper/lower/mixed case and have an optional `0x` prefix
 /// but they must always be exactly 32 bytes.
 impl<'de> Deserialize<'de> for Hash {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        if deserializer.is_human_readable() {
-            deserializer.deserialize_str(HashStrVisitor)
-        } else {
-            <[u8; 32]>::deserialize(deserializer).map(Hash)
-        }
-    }
-}
-
-struct HashStrVisitor;
-
-impl<'de> Visitor<'de> for HashStrVisitor {
-    type Value = Hash;
-
-    fn expecting(&self, formatter: &mut Formatter) -> FmtResult {
-        formatter.write_str("a 32 byte hex string")
-    }
-
-    fn visit_borrowed_str<E>(self, value: &'de str) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        Hash::from_str(value).map_err(|e| E::custom(format!("Error in hex: {}", e)))
-    }
-
-    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        Hash::from_str(value).map_err(|e| E::custom(format!("Error in hex: {}", e)))
-    }
-
-    fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
-    where
-        E: DeError,
-    {
-        Hash::from_str(&value).map_err(|e| E::custom(format!("Error in hex: {}", e)))
-    }
-}
-
-/// Helper function to optionally remove `0x` prefix from hex strings.
-fn trim_hex_prefix(str: &str) -> &str {
-    if str.len() >= 2 && (&str[..2] == "0x" || &str[..2] == "0X") {
-        &str[2..]
-    } else {
-        str
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let bytes = deserialize_bytes::<32, _>(deserializer)?;
+        Ok(Self(bytes))
     }
 }
 
@@ -179,14 +115,14 @@ pub mod test {
         let hash = Hash([0; 32]);
         assert_eq!(
             to_string(&hash).unwrap(),
-            "\"0000000000000000000000000000000000000000000000000000000000000000\""
+            "\"0x0000000000000000000000000000000000000000000000000000000000000000\""
         );
         let hash = Hash(hex!(
             "1c4823575d154474ee3e5ac838d002456a815181437afd14f126da58a9912bbe"
         ));
         assert_eq!(
             to_string(&hash).unwrap(),
-            "\"1c4823575d154474ee3e5ac838d002456a815181437afd14f126da58a9912bbe\""
+            "\"0x1c4823575d154474ee3e5ac838d002456a815181437afd14f126da58a9912bbe\""
         );
     }
 
