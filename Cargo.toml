@@ -16,7 +16,7 @@ license-file = "mit-license.md"
 [features]
 default = []
 bench = [ "criterion", "proptest" ]
-mimc = [ "tiny-keccak", "zkp-u256" ]
+mimc = [ "zkp-u256" ]
 
 [[bench]]
 name = "criterion"
@@ -46,10 +46,11 @@ serde = "1.0"
 sha2 = "0.10.1"
 tempfile = "3.3.0"
 thiserror = "1.0.0"
-tiny-keccak = { version = "2.0.2", optional = true }
-zkp-u256 = { version = "0.2", optional = true }
+tiny-keccak = { version = "2.0.2" }
+zkp-u256 = { version = "0.2", optional = true } # TODO: Remove
 
 # Use the same `ethers-core` version as ark-circom
+# TODO: Remove
 ethers-core = { git = "https://github.com/gakonst/ethers-rs", default-features = false }
 
 [dev-dependencies]

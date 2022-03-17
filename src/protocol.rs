@@ -9,13 +9,10 @@ use crate::{
 use ark_bn254::{Bn254, Parameters};
 use ark_circom::CircomReduction;
 use ark_ec::bn::Bn;
-use ark_ff::PrimeField;
 use ark_groth16::{create_proof_with_reduction_and_matrices, prepare_verifying_key, Proof};
 use ark_relations::r1cs::SynthesisError;
 use ark_std::{rand::thread_rng, UniformRand};
 use color_eyre::Result;
-use ethers_core::utils::keccak256;
-use num_bigint::{BigInt, BigUint, ToBigInt};
 use std::time::Instant;
 use thiserror::Error;
 
@@ -26,21 +23,9 @@ fn merkle_proof_to_vec(proof: &merkle_tree::Proof<PoseidonHash>) -> Vec<Field> {
         .0
         .iter()
         .map(|x| match x {
-            Branch::Left(value) | Branch::Right(value) => value.into(),
+            Branch::Left(value) | Branch::Right(value) => *value,
         })
         .collect()
-}
-
-/// Hash arbitrary data to a field element.
-///
-/// This is used to create `signal_hash` and `external_nullifier_hash`.
-#[must_use]
-pub fn hash_to_field(data: &[u8]) -> Field {
-    let hash = keccak256(data);
-    // Shift right one byte to make it fit in the field
-    let mut bytes = [0_u8; 32];
-    bytes[1..].copy_from_slice(&hash[..31]);
-    Field::from_be_bytes_mod_order(&bytes)
 }
 
 /// Generates the nullifier hash
@@ -57,11 +42,6 @@ pub enum ProofError {
     WitnessError(color_eyre::Report),
     #[error("Error producing proof: {0}")]
     SynthesisError(#[from] SynthesisError),
-}
-
-fn ark_to_bigint(n: Field) -> BigInt {
-    let n: BigUint = n.into();
-    n.to_bigint().expect("conversion always succeeds for uint")
 }
 
 /// Generates a semaphore proof
@@ -86,11 +66,7 @@ pub fn generate_proof(
     let inputs = inputs.into_iter().map(|(name, values)| {
         (
             name.to_string(),
-            values
-                .iter()
-                .copied()
-                .map(ark_to_bigint)
-                .collect::<Vec<_>>(),
+            values.iter().copied().map(Into::into).collect::<Vec<_>>(),
         )
     });
 
@@ -141,7 +117,12 @@ pub fn verify_proof(
 ) -> Result<bool, ProofError> {
     let pvk = prepare_verifying_key(&ZKEY.0.vk);
 
-    let public_inputs = vec![root, nullifier_hash, signal_hash, external_nullifier_hash];
-    let result = ark_groth16::verify_proof(&pvk, proof, &public_inputs)?;
+    let public_inputs = [
+        root.into(),
+        nullifier_hash.into(),
+        signal_hash.into(),
+        external_nullifier_hash.into(),
+    ];
+    let result = ark_groth16::verify_proof(&pvk, proof, &public_inputs[..])?;
     Ok(result)
 }

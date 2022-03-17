@@ -8,8 +8,8 @@
 //!
 //! * Instantiate a `PrimeField` to use Montgomery form.
 
+use crate::util::keccak256;
 use once_cell::sync::Lazy;
-use tiny_keccak::{Hasher as _, Keccak};
 use zkp_u256::U256;
 
 const NUM_ROUNDS: usize = 220;
@@ -20,14 +20,6 @@ static MODULUS: Lazy<U256> = Lazy::new(|| {
     )
     .unwrap()
 });
-
-fn keccak256(bytes: &[u8]) -> [u8; 32] {
-    let mut output = [0; 32];
-    let mut hasher = Keccak::v256();
-    hasher.update(bytes);
-    hasher.finalize(&mut output);
-    output
-}
 
 static ROUND_CONSTANTS: Lazy<[U256; NUM_ROUNDS]> = Lazy::new(|| {
     const SEED: &str = "mimcsponge";

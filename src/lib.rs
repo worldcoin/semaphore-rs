@@ -4,6 +4,7 @@
 #![allow(clippy::multiple_crate_versions)]
 
 mod circuit;
+mod field;
 pub mod hash;
 pub mod identity;
 pub mod merkle_tree;
@@ -17,40 +18,52 @@ pub mod mimc_hash;
 #[cfg(feature = "mimc")]
 pub mod mimc_tree;
 
-use ark_bn254::{Fr, Parameters};
+use ark_bn254::Parameters;
 use ark_ec::bn::Bn;
 
-pub use crate::poseidon_hash::poseidon_hash;
+// Export types
+pub use crate::{
+    field::{hash_to_field, Field},
+    poseidon_hash::poseidon_hash,
+};
 
-pub type Field = Fr;
 pub type Groth16Proof = ark_groth16::Proof<Bn<Parameters>>;
 pub type EthereumGroth16Proof = ark_circom::ethereum::Proof;
 
 #[cfg(test)]
 mod test {
     use crate::{
-        hash::Hash,
+        hash_to_field,
         identity::Identity,
         poseidon_tree::PoseidonTree,
-        protocol::{generate_nullifier_hash, generate_proof, hash_to_field, verify_proof},
+        protocol::{generate_nullifier_hash, generate_proof, verify_proof},
+        Field,
     };
-    use hex_literal::hex;
+
+    #[test]
+    fn test_field_serde() {
+        let value = Field::from(0x1234_5678);
+        let serialized = serde_json::to_value(value).unwrap();
+        let deserialized = serde_json::from_value(serialized).unwrap();
+        assert_eq!(value, deserialized);
+    }
 
     #[test]
     fn test_end_to_end() {
-        const LEAF: Hash = Hash::from_bytes_be(hex!(
-            "0000000000000000000000000000000000000000000000000000000000000000"
-        ));
+        // const LEAF: Hash = Hash::from_bytes_be(hex!(
+        //     "0000000000000000000000000000000000000000000000000000000000000000"
+        // ));
+        let leaf = Field::from(0);
 
         // generate identity
-        let id = Identity::new(b"hello");
+        let id = Identity::from_seed(b"hello");
 
         // generate merkle tree
-        let mut tree = PoseidonTree::new(21, LEAF);
-        tree.set(0, id.commitment().into());
+        let mut tree = PoseidonTree::new(21, leaf);
+        tree.set(0, id.commitment());
 
         let merkle_proof = tree.proof(0).expect("proof should exist");
-        let root = tree.root().into();
+        let root = tree.root();
 
         // change signal and external_nullifier here
         let signal = b"xxx";
@@ -79,13 +92,10 @@ mod test {
 #[cfg(feature = "bench")]
 pub mod bench {
     use crate::{
-        hash::Hash,
-        identity::Identity,
-        poseidon_tree::PoseidonTree,
-        protocol::{generate_proof, hash_to_field},
+        hash_to_field, identity::Identity, poseidon_tree::PoseidonTree, protocol::generate_proof,
+        Field,
     };
     use criterion::Criterion;
-    use hex_literal::hex;
 
     pub fn group(criterion: &mut Criterion) {
         #[cfg(feature = "mimc")]
@@ -96,14 +106,12 @@ pub mod bench {
     }
 
     fn bench_proof(criterion: &mut Criterion) {
-        const LEAF: Hash = Hash::from_bytes_be(hex!(
-            "0000000000000000000000000000000000000000000000000000000000000000"
-        ));
+        let leaf = Field::from(0);
 
         // Create tree
-        let id = Identity::new(b"hello");
-        let mut tree = PoseidonTree::new(21, LEAF);
-        tree.set(0, id.commitment().into());
+        let id = Identity::from_seed(b"hello");
+        let mut tree = PoseidonTree::new(21, leaf);
+        tree.set(0, id.commitment());
         let merkle_proof = tree.proof(0).expect("proof should exist");
 
         // change signal and external_nullifier here
