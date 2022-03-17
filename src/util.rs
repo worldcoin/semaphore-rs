@@ -56,6 +56,7 @@ fn trim_hex_prefix(str: &str) -> &str {
     }
 }
 
+/// Helper to deserialize byte arrays.
 pub(crate) fn deserialize_bytes<'de, const N: usize, D: Deserializer<'de>>(
     deserializer: D,
 ) -> Result<[u8; N], D::Error> {
@@ -98,5 +99,33 @@ pub(crate) fn deserialize_bytes<'de, const N: usize, D: Deserializer<'de>>(
             }
         }
         deserializer.deserialize_bytes(ByteVisitor)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_serialize_bytes_hex() {
+        let bytes = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+        let mut ser = serde_json::Serializer::new(Vec::new());
+        serialize_bytes::<16, 34, _>(&mut ser, &bytes).unwrap();
+        let json = ser.into_inner();
+        assert_eq!(json, b"\"0x0102030405060708090a0b0c0d0e0f10\"");
+    }
+
+    #[test]
+    fn test_serialize_bytes_bin() {
+        let bytes = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+        let mut bin: Vec<u8> = Vec::new();
+        {
+            let mut ser = bincode::Serializer::new(&mut bin, bincode::options());
+            serialize_bytes::<16, 34, _>(&mut ser, &bytes).unwrap();
+        }
+        // Bincode appears to prefix with a length.
+        assert_eq!(bin, [
+            16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+        ]);
     }
 }
