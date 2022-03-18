@@ -9,12 +9,54 @@ use crate::{
 use ark_bn254::{Bn254, Parameters};
 use ark_circom::CircomReduction;
 use ark_ec::bn::Bn;
-use ark_groth16::{create_proof_with_reduction_and_matrices, prepare_verifying_key, Proof};
+use ark_groth16::{
+    create_proof_with_reduction_and_matrices, prepare_verifying_key, Proof as ArkProof,
+};
 use ark_relations::r1cs::SynthesisError;
 use ark_std::{rand::thread_rng, UniformRand};
 use color_eyre::Result;
+use primitive_types::U256;
+use serde::{Deserialize, Serialize};
 use std::time::Instant;
 use thiserror::Error;
+
+// Matches the private G1Tup type in ark-circom.
+pub type G1 = (U256, U256);
+
+// Matches the private G2Tup type in ark-circom.
+pub type G2 = ([U256; 2], [U256; 2]);
+
+/// Wrap a proof object so we have serde support
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Proof(G1, G2, G1);
+
+impl From<ArkProof<Bn<Parameters>>> for Proof {
+    fn from(proof: ArkProof<Bn<Parameters>>) -> Self {
+        let proof = ark_circom::ethereum::Proof::from(proof);
+        let (a, b, c) = proof.as_tuple();
+        Self(a, b, c)
+    }
+}
+
+impl From<Proof> for ArkProof<Bn<Parameters>> {
+    fn from(proof: Proof) -> Self {
+        let eth_proof = ark_circom::ethereum::Proof {
+            a: ark_circom::ethereum::G1 {
+                x: proof.0 .0,
+                y: proof.0 .1,
+            },
+            b: ark_circom::ethereum::G2 {
+                x: proof.1 .0,
+                y: proof.1 .1,
+            },
+            c: ark_circom::ethereum::G1 {
+                x: proof.2 .0,
+                y: proof.2 .1,
+            },
+        };
+        eth_proof.into()
+    }
+}
 
 /// Helper to merkle proof into a bigint vector
 /// TODO: we should create a From trait for this
@@ -54,7 +96,7 @@ pub fn generate_proof(
     merkle_proof: &merkle_tree::Proof<PoseidonHash>,
     external_nullifier_hash: Field,
     signal_hash: Field,
-) -> Result<Proof<Bn<Parameters>>, ProofError> {
+) -> Result<Proof, ProofError> {
     let inputs = [
         ("identityNullifier", vec![identity.nullifier]),
         ("identityTrapdoor", vec![identity.trapdoor]),
@@ -95,7 +137,8 @@ pub fn generate_proof(
         ZKEY.1.num_instance_variables,
         ZKEY.1.num_constraints,
         full_assignment.as_slice(),
-    )?;
+    )?
+    .into();
 
     println!("proof generation took: {:.2?}", now.elapsed());
 
@@ -113,7 +156,7 @@ pub fn verify_proof(
     nullifier_hash: Field,
     signal_hash: Field,
     external_nullifier_hash: Field,
-    proof: &Proof<Bn<Parameters>>,
+    proof: &Proof,
 ) -> Result<bool, ProofError> {
     let pvk = prepare_verifying_key(&ZKEY.0.vk);
 
@@ -123,6 +166,40 @@ pub fn verify_proof(
         signal_hash.into(),
         external_nullifier_hash.into(),
     ];
-    let result = ark_groth16::verify_proof(&pvk, proof, &public_inputs[..])?;
+    let ark_proof = (*proof).into();
+    let result = ark_groth16::verify_proof(&pvk, &ark_proof, &public_inputs[..])?;
     Ok(result)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::{hash_to_field, poseidon_tree::PoseidonTree};
+
+    #[test]
+    fn test_proof_serialize() {
+        // generate identity
+        let id = Identity::from_seed(b"secret");
+
+        // generate merkle tree
+        let leaf = Field::from(0);
+        let mut tree = PoseidonTree::new(21, leaf);
+        tree.set(0, id.commitment());
+
+        let merkle_proof = tree.proof(0).expect("proof should exist");
+
+        // change signal and external_nullifier here
+        let signal_hash = hash_to_field(b"xxx");
+        let external_nullifier_hash = hash_to_field(b"appId");
+
+        let proof =
+            generate_proof(&id, &merkle_proof, external_nullifier_hash, signal_hash).unwrap();
+
+        let _json = serde_json::to_value(&proof).unwrap();
+
+        // TODO: Ideally we would check the output against an expected value,
+        // but proof generation is non-deterministic (to achieve
+        // zero-knowledge) and there's currently no mechanism to make it
+        // deterministic for testing purposes.
+    }
 }
