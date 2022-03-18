@@ -116,8 +116,10 @@ pub fn generate_proof(
 
     let now = Instant::now();
 
-    let full_assignment = WITNESS_CALCULATOR
-        .clone()
+    let full_assignment =
+        WITNESS_CALCULATOR
+        .lock()
+        .expect("witness_calculator mutex should not get poisoned")
         .calculate_witness_element::<Bn254, _>(inputs, false)
         .map_err(ProofError::WitnessError)?;
 
