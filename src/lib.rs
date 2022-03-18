@@ -39,6 +39,7 @@ mod test {
         protocol::{generate_nullifier_hash, generate_proof, verify_proof},
         Field,
     };
+    use std::thread::spawn;
 
     #[test]
     fn test_field_serde() {
@@ -48,15 +49,14 @@ mod test {
         assert_eq!(value, deserialized);
     }
 
-    #[test]
-    fn test_end_to_end() {
+    fn test_end_to_end(identity: &[u8], external_nullifier: &[u8], signal: &[u8]) {
         // const LEAF: Hash = Hash::from_bytes_be(hex!(
         //     "0000000000000000000000000000000000000000000000000000000000000000"
         // ));
         let leaf = Field::from(0);
 
         // generate identity
-        let id = Identity::from_seed(b"hello");
+        let id = Identity::from_seed(identity);
 
         // generate merkle tree
         let mut tree = PoseidonTree::new(21, leaf);
@@ -64,10 +64,7 @@ mod test {
 
         let merkle_proof = tree.proof(0).expect("proof should exist");
         let root = tree.root();
-
-        // change signal and external_nullifier here
-        let signal = b"xxx";
-        let external_nullifier = b"appId";
+        dbg!(root);
 
         let signal_hash = hash_to_field(signal);
         let external_nullifier_hash = hash_to_field(external_nullifier);
@@ -76,16 +73,33 @@ mod test {
         let proof =
             generate_proof(&id, &merkle_proof, external_nullifier_hash, signal_hash).unwrap();
 
-        let success = verify_proof(
-            root,
-            nullifier_hash,
-            signal_hash,
-            external_nullifier_hash,
-            &proof,
-        )
-        .unwrap();
+        for _ in 0..5 {
+            let success = verify_proof(
+                root,
+                nullifier_hash,
+                signal_hash,
+                external_nullifier_hash,
+                &proof,
+            )
+            .unwrap();
+            assert!(success);
+        }
+    }
+    #[test]
+    fn test_single() {
+        // Note that rust will still run tests in parallel
+        test_end_to_end(b"hello", b"appId", b"xxx");
+    }
 
-        assert!(success);
+    #[test]
+    fn test_parallel() {
+        // Note that this does not guarantee a concurrency issue will be detected.
+        // For that we need much more sophisticated static analysis tooling like
+        // loom. See <https://github.com/tokio-rs/loom>
+        let a = spawn(|| test_end_to_end(b"hello", b"appId", b"xxx"));
+        let b = spawn(|| test_end_to_end(b"secret", b"test", b"signal"));
+        a.join().unwrap();
+        b.join().unwrap();
     }
 }
 

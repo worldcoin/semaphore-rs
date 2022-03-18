@@ -113,7 +113,7 @@ pub fn generate_proof(
             values.iter().copied().map(Into::into).collect::<Vec<_>>(),
         )
     });
-    
+
     let now = Instant::now();
 
     let full_assignment = WITNESS_CALCULATOR
