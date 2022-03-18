@@ -45,9 +45,11 @@ impl From<Proof> for ArkProof<Bn<Parameters>> {
                 x: proof.0 .0,
                 y: proof.0 .1,
             },
+            #[rustfmt::skip] // Rustfmt inserts some confusing spaces
             b: ark_circom::ethereum::G2 {
-                x: proof.1 .0,
-                y: proof.1 .1,
+                // The order of coefficients is flipped.
+                x: [proof.1.0[1], proof.1.0[0]],
+                y: [proof.1.1[1], proof.1.1[0]],
             },
             c: ark_circom::ethereum::G1 {
                 x: proof.2 .0,
@@ -129,7 +131,7 @@ pub fn generate_proof(
 
     let now = Instant::now();
 
-    let proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
+    let ark_proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
         &ZKEY.0,
         r,
         s,
@@ -137,8 +139,8 @@ pub fn generate_proof(
         ZKEY.1.num_instance_variables,
         ZKEY.1.num_constraints,
         full_assignment.as_slice(),
-    )?
-    .into();
+    )?;
+    let proof = ark_proof.into();
 
     println!("proof generation took: {:.2?}", now.elapsed());
 
