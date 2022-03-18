@@ -1,6 +1,6 @@
 use crate::util::{bytes_from_hex, bytes_to_hex, deserialize_bytes, serialize_bytes};
 use core::{
-    fmt::{Debug, Display, Formatter, Result as FmtResult},
+    fmt::{Debug, Display},
     str,
     str::FromStr,
 };

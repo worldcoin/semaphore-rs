@@ -113,7 +113,7 @@ pub fn generate_proof(
             values.iter().copied().map(Into::into).collect::<Vec<_>>(),
         )
     });
-
+    
     let now = Instant::now();
 
     let full_assignment = WITNESS_CALCULATOR
@@ -178,8 +178,7 @@ mod test {
     use super::*;
     use crate::{hash_to_field, poseidon_tree::PoseidonTree};
 
-    #[test]
-    fn test_proof_serialize() {
+    fn arb_proof() -> Proof {
         // generate identity
         let id = Identity::from_seed(b"secret");
 
@@ -194,9 +193,20 @@ mod test {
         let signal_hash = hash_to_field(b"xxx");
         let external_nullifier_hash = hash_to_field(b"appId");
 
-        let proof =
-            generate_proof(&id, &merkle_proof, external_nullifier_hash, signal_hash).unwrap();
+        generate_proof(&id, &merkle_proof, external_nullifier_hash, signal_hash).unwrap()
+    }
 
+    #[test]
+    fn test_proof_cast_roundtrip() {
+        let proof = arb_proof();
+        let ark_proof: ArkProof<Bn<Parameters>> = proof.into();
+        let result: Proof = ark_proof.into();
+        assert_eq!(proof, result);
+    }
+
+    #[test]
+    fn test_proof_serialize() {
+        let proof = arb_proof();
         let _json = serde_json::to_value(&proof).unwrap();
 
         // TODO: Ideally we would check the output against an expected value,
