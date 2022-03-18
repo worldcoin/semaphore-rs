@@ -1,7 +1,11 @@
-use crate::util::{bytes_from_hex, deserialize_bytes, keccak256, serialize_bytes};
+use crate::util::{bytes_from_hex, bytes_to_hex, deserialize_bytes, keccak256, serialize_bytes};
 use ark_bn254::Fr as ArkField;
 use ark_ff::{BigInteger as _, PrimeField as _};
-use core::{str, str::FromStr};
+use core::{
+    fmt::{Debug, Display},
+    str,
+    str::FromStr,
+};
 use ff::{PrimeField as _, PrimeFieldRepr as _};
 use num_bigint::{BigInt, Sign};
 use poseidon_rs::Fr as PosField;
@@ -10,7 +14,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 /// An element of the BN254 scalar field Fr.
 ///
 /// Represented as a big-endian byte vector without Montgomery reduction.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 // TODO: Make sure value is always reduced.
 pub struct Field([u8; 32]);
 
@@ -66,6 +70,22 @@ impl From<Field> for PosField {
 impl From<Field> for BigInt {
     fn from(value: Field) -> Self {
         Self::from_bytes_be(Sign::Plus, &value.0[..])
+    }
+}
+
+impl Debug for Field {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let hex = bytes_to_hex::<32, 66>(&self.0);
+        let hex_str = str::from_utf8(&hex).expect("hex is always valid utf8");
+        write!(f, "Field({})", hex_str)
+    }
+}
+
+impl Display for Field {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let hex = bytes_to_hex::<32, 66>(&self.0);
+        let hex_str = str::from_utf8(&hex).expect("hex is always valid utf8");
+        write!(f, "{}", hex_str)
     }
 }
 
