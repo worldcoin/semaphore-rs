@@ -4,9 +4,11 @@ use ark_groth16::ProvingKey;
 use ark_relations::r1cs::ConstraintMatrices;
 use core::include_bytes;
 use once_cell::sync::Lazy;
-use std::io::{Cursor, Write};
+use std::{
+    io::{Cursor, Write},
+    sync::Mutex,
+};
 use tempfile::NamedTempFile;
-use std::sync::Mutex;
 
 const ZKEY_BYTES: &[u8] = include_bytes!("../semaphore/build/snark/semaphore_final.zkey");
 const WASM: &[u8] = include_bytes!("../semaphore/build/snark/semaphore.wasm");
