@@ -6,6 +6,7 @@ use core::include_bytes;
 use once_cell::sync::Lazy;
 use std::io::{Cursor, Write};
 use tempfile::NamedTempFile;
+use std::sync::Mutex;
 
 const ZKEY_BYTES: &[u8] = include_bytes!("../semaphore/build/snark/semaphore_final.zkey");
 const WASM: &[u8] = include_bytes!("../semaphore/build/snark/semaphore.wasm");
@@ -15,7 +16,7 @@ pub static ZKEY: Lazy<(ProvingKey<Bn254>, ConstraintMatrices<Fr>)> = Lazy::new(|
     read_zkey(&mut reader).expect("zkey should be valid")
 });
 
-pub static WITNESS_CALCULATOR: Lazy<WitnessCalculator> = Lazy::new(|| {
+pub static WITNESS_CALCULATOR: Lazy<Mutex<WitnessCalculator>> = Lazy::new(|| {
     // HACK: ark-circom requires a file, so we make one!
     let mut tmpfile = NamedTempFile::new().expect("Failed to create temp file");
     let written = tmpfile.write(WASM).expect("Failed to write to temp file");
@@ -23,5 +24,5 @@ pub static WITNESS_CALCULATOR: Lazy<WitnessCalculator> = Lazy::new(|| {
     let path = tmpfile.into_temp_path();
     let result = WitnessCalculator::new(&path).expect("Failed to create witness calculator");
     path.close().expect("Could not remove tempfile");
-    result
+    Mutex::new(result)
 });

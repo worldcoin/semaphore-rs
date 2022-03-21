@@ -16,6 +16,16 @@ pub(crate) fn keccak256(bytes: &[u8]) -> [u8; 32] {
     output
 }
 
+pub(crate) fn bytes_to_hex<const N: usize, const M: usize>(bytes: &[u8; N]) -> [u8; M] {
+    // TODO: Replace `M` with a const expression once it's stable.
+    debug_assert_eq!(M, 2 * N + 2);
+    let mut result = [0u8; M];
+    result[0] = b'0';
+    result[1] = b'x';
+    hex::encode_to_slice(&bytes[..], &mut result[2..]).expect("the buffer is correctly sized");
+    result
+}
+
 /// Helper to serialize byte arrays
 pub(crate) fn serialize_bytes<const N: usize, const M: usize, S: Serializer>(
     serializer: S,
@@ -25,10 +35,7 @@ pub(crate) fn serialize_bytes<const N: usize, const M: usize, S: Serializer>(
     debug_assert_eq!(M, 2 * N + 2);
     if serializer.is_human_readable() {
         // Write as a 0x prefixed lower-case hex string
-        let mut buffer = [0u8; M];
-        buffer[0] = b'0';
-        buffer[1] = b'x';
-        hex::encode_to_slice(&bytes[..], &mut buffer[2..]).expect("the buffer is correctly sized");
+        let buffer = bytes_to_hex::<N, M>(bytes);
         let string = str::from_utf8(&buffer).expect("the buffer is valid UTF-8");
         serializer.serialize_str(string)
     } else {

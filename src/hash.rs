@@ -1,11 +1,12 @@
-use crate::util::{bytes_from_hex, deserialize_bytes, serialize_bytes};
+use crate::util::{bytes_from_hex, bytes_to_hex, deserialize_bytes, serialize_bytes};
+use core::{
+    fmt::{Debug, Display},
+    str,
+    str::FromStr,
+};
 use ethers_core::types::U256;
 use num_bigint::{BigInt, Sign};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::{
-    fmt::{Debug, Display, Formatter, Result as FmtResult},
-    str::FromStr,
-};
 
 /// Container for 256-bit hash values.
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
@@ -20,20 +21,6 @@ impl Hash {
     #[must_use]
     pub const fn as_bytes_be(&self) -> &[u8; 32] {
         &self.0
-    }
-}
-
-/// Debug print hashes using `hex!(..)` literals.
-impl Debug for Hash {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "Hash(hex!(\"{}\"))", hex::encode(&self.0))
-    }
-}
-
-/// Display print hashes as `0x...`.
-impl Display for Hash {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "0x{}", hex::encode(&self.0))
     }
 }
 
@@ -72,6 +59,22 @@ impl From<Hash> for BigInt {
 impl From<&Hash> for BigInt {
     fn from(hash: &Hash) -> Self {
         Self::from_bytes_be(Sign::Plus, hash.as_bytes_be())
+    }
+}
+
+impl Debug for Hash {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let hex = bytes_to_hex::<32, 66>(&self.0);
+        let hex_str = str::from_utf8(&hex).expect("hex is always valid utf8");
+        write!(f, "Field({})", hex_str)
+    }
+}
+
+impl Display for Hash {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let hex = bytes_to_hex::<32, 66>(&self.0);
+        let hex_str = str::from_utf8(&hex).expect("hex is always valid utf8");
+        write!(f, "{}", hex_str)
     }
 }
 
