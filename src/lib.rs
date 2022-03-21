@@ -32,9 +32,7 @@ mod test {
         hash::Hash,
         identity::Identity,
         poseidon_tree::PoseidonTree,
-        protocol::{
-            generate_nullifier_hash, generate_proof, hash_external_nullifier, verify_proof,
-        },
+        protocol::{generate_nullifier_hash, generate_proof, hash_to_field, verify_proof},
     };
     use hex_literal::hex;
 
@@ -58,13 +56,21 @@ mod test {
         let signal = b"xxx";
         let external_nullifier = b"appId";
 
-        let external_nullifier_hash = hash_external_nullifier(external_nullifier);
+        let signal_hash = hash_to_field(signal);
+        let external_nullifier_hash = hash_to_field(external_nullifier);
         let nullifier_hash = generate_nullifier_hash(&id, external_nullifier_hash);
 
-        let proof = generate_proof(&id, &merkle_proof, external_nullifier, signal).unwrap();
+        let proof =
+            generate_proof(&id, &merkle_proof, external_nullifier_hash, signal_hash).unwrap();
 
-        let success =
-            verify_proof(root, nullifier_hash, signal, external_nullifier, &proof).unwrap();
+        let success = verify_proof(
+            root,
+            nullifier_hash,
+            signal_hash,
+            external_nullifier_hash,
+            &proof,
+        )
+        .unwrap();
 
         assert!(success);
     }
@@ -73,7 +79,10 @@ mod test {
 #[cfg(feature = "bench")]
 pub mod bench {
     use crate::{
-        hash::Hash, identity::Identity, poseidon_tree::PoseidonTree, protocol::generate_proof,
+        hash::Hash,
+        identity::Identity,
+        poseidon_tree::PoseidonTree,
+        protocol::{generate_proof, hash_to_field},
     };
     use criterion::Criterion;
     use hex_literal::hex;
@@ -98,12 +107,12 @@ pub mod bench {
         let merkle_proof = tree.proof(0).expect("proof should exist");
 
         // change signal and external_nullifier here
-        let signal = b"xxx";
-        let external_nullifier = b"appId";
+        let signal_hash = hash_to_field(b"xxx");
+        let external_nullifier_hash = hash_to_field(b"appId");
 
         criterion.bench_function("proof", move |b| {
             b.iter(|| {
-                generate_proof(&id, &merkle_proof, external_nullifier, signal).unwrap();
+                generate_proof(&id, &merkle_proof, external_nullifier_hash, signal_hash).unwrap();
             });
         });
     }
