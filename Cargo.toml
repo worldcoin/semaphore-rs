@@ -64,6 +64,9 @@ tempfile = "3.0"
 tiny-keccak = "2.0.2"
 tracing-test = "0.2"
 
+[build-dependencies]
+wasmer = { version = "2.0", features = [ "dylib" ] }
+color-eyre = "0.5"
 wasmer-engine-dylib = "2.2.1"
 wasmer-compiler-cranelift = "2.2.1"
 
