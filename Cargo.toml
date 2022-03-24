@@ -64,6 +64,9 @@ tempfile = "3.0"
 tiny-keccak = "2.0.2"
 tracing-test = "0.2"
 
+wasmer-engine-dylib = "2.2.1"
+wasmer-compiler-cranelift = "2.2.1"
+
 [profile.release]
 codegen-units = 1
 lto = true
