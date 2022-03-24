@@ -53,8 +53,8 @@ fn build_circuit() -> Result<()> {
     assert!(wasm_file.exists());
 
     // Export generated paths
-    println!("cargo:rustc-env=ZKEY_FILE={}", zkey_file.display());
-    println!("cargo:rustc-env=WASM_FILE={}", wasm_file.display());
+    println!("cargo:rustc-env=BUILD_RS_ZKEY_FILE={}", zkey_file.display());
+    println!("cargo:rustc-env=BUILD_RS_WASM_FILE={}", wasm_file.display());
     
     Ok(())
 }
