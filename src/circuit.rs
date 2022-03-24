@@ -4,11 +4,8 @@ use ark_groth16::ProvingKey;
 use ark_relations::r1cs::ConstraintMatrices;
 use core::include_bytes;
 use once_cell::sync::Lazy;
-use std::{
-    io::{Cursor, Write},
-    sync::Mutex,
-};
-use tempfile::NamedTempFile;
+use std::{io::Cursor, sync::Mutex};
+use wasmer::{Module, Store};
 
 const ZKEY_BYTES: &[u8] = include_bytes!("../semaphore/build/snark/semaphore_final.zkey");
 const WASM: &[u8] = include_bytes!("../semaphore/build/snark/semaphore.wasm");
@@ -19,12 +16,12 @@ pub static ZKEY: Lazy<(ProvingKey<Bn254>, ConstraintMatrices<Fr>)> = Lazy::new(|
 });
 
 pub static WITNESS_CALCULATOR: Lazy<Mutex<WitnessCalculator>> = Lazy::new(|| {
-    // HACK: ark-circom requires a file, so we make one!
-    let mut tmpfile = NamedTempFile::new().expect("Failed to create temp file");
-    let written = tmpfile.write(WASM).expect("Failed to write to temp file");
-    assert_eq!(written, WASM.len());
-    let path = tmpfile.into_temp_path();
-    let result = WitnessCalculator::new(&path).expect("Failed to create witness calculator");
-    path.close().expect("Could not remove tempfile");
+    // Create Wasm module
+    let store = Store::default();
+    let module = Module::from_binary(&store, WASM).expect("wasm should be valid");
+
+    // Create witness calculator
+    let result =
+        WitnessCalculator::from_module(module).expect("Failed to create witness calculator");
     Mutex::new(result)
 });
