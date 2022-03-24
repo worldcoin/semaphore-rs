@@ -26,7 +26,7 @@ required-features = [ "bench", "proptest" ]
 
 [dependencies]
 ark-bn254 = { version = "0.3.0" }
-ark-circom = { git = "https://github.com/gakonst/ark-circom", features=["circom-2"] }
+ark-circom = { git = "https://github.com/gakonst/ark-circom", rev="a93c8b0", features=["circom-2"] }
 ark-ec = { version = "0.3.0", default-features = false, features = ["parallel"] }
 ark-ff = { version = "0.3.0", default-features = false, features = ["parallel", "asm"] }
 ark-groth16 = { git = "https://github.com/arkworks-rs/groth16", rev = "765817f", features = ["parallel"] }
@@ -46,9 +46,9 @@ rand = "0.8.4"
 rayon = "1.5.1"
 serde = "1.0"
 sha2 = "0.10.1"
-tempfile = "3.3.0"
 thiserror = "1.0.0"
 tiny-keccak = { version = "2.0.2" }
+wasmer = { version = "2.0", features = [ "dylib" ] }
 zkp-u256 = { version = "0.2", optional = true } # TODO: Remove
 
 # Use the same `ethers-core` version as ark-circom
@@ -64,8 +64,8 @@ tempfile = "3.0"
 tiny-keccak = "2.0.2"
 tracing-test = "0.2"
 
-# [patch.crates-io]
-# wasmer = { git = 'https://github.com/philsippl/wasmer', rev = "e776616"}
+wasmer-engine-dylib = "2.2.1"
+wasmer-compiler-cranelift = "2.2.1"
 
 [profile.release]
 codegen-units = 1
