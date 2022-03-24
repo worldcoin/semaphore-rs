@@ -5,9 +5,10 @@ use ark_relations::r1cs::ConstraintMatrices;
 use core::include_bytes;
 use once_cell::sync::Lazy;
 use std::{io::Cursor, sync::Mutex};
-use wasmer::{Module, Store};
+use wasmer::{Dylib, Module, Store};
 
 const ZKEY_BYTES: &[u8] = include_bytes!("../semaphore/build/snark/semaphore_final.zkey");
+
 const WASM: &[u8] = include_bytes!("../semaphore/build/snark/semaphore.wasm");
 
 pub static ZKEY: Lazy<(ProvingKey<Bn254>, ConstraintMatrices<Fr>)> = Lazy::new(|| {
@@ -17,8 +18,16 @@ pub static ZKEY: Lazy<(ProvingKey<Bn254>, ConstraintMatrices<Fr>)> = Lazy::new(|
 
 pub static WITNESS_CALCULATOR: Lazy<Mutex<WitnessCalculator>> = Lazy::new(|| {
     // Create Wasm module
-    let store = Store::default();
-    let module = Module::from_binary(&store, WASM).expect("wasm should be valid");
+    let module = if let Some(path) = option_env!("CIRCUIT_WASM_DYLIB") {
+        let store = Store::new(&Dylib::headless().engine());
+        // The module must be exported using [`Module::serialize`].
+        unsafe {
+            Module::deserialize_from_file(&store, path).expect("Failed to load wasm dylib module")
+        }
+    } else {
+        let store = Store::default();
+        Module::from_binary(&store, WASM).expect("wasm should be valid")
+    };
 
     // Create witness calculator
     let result =
