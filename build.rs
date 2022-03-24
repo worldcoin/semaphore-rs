@@ -1,11 +1,17 @@
-// TODO: Use ExitCode::exit_ok() when stable.
-
-use std::{process::Command, fs::canonicalize, path::{Path, PathBuf, Component}};
-use color_eyre::eyre::{Result, eyre};
+use color_eyre::eyre::{eyre, Result};
+use std::{
+    path::{Component, Path, PathBuf},
+    process::Command,
+    str::FromStr, env,
+};
+use wasmer::{CpuFeature, Module, RuntimeError, Store, Target, Triple};
+use wasmer_compiler_cranelift::Cranelift;
+use wasmer_engine_dylib::Dylib;
+use enumset::enum_set;
 
 const ZKEY_FILE: &str = "./semaphore/build/snark/semaphore_final.zkey";
 const WASM_FILE: &str = "./semaphore/build/snark/semaphore.wasm";
-const DYLIB_FILE: &str = "./semaphore/build/snark/semaphore.dylib";
+const DYLIB_FILE: &str = "./semaphore.dylib";
 
 // See <https://internals.rust-lang.org/t/path-to-lexical-absolute/14940>
 fn absolute(path: &str) -> Result<PathBuf> {
@@ -17,8 +23,10 @@ fn absolute(path: &str) -> Result<PathBuf> {
     };
     for component in path.components() {
         match component {
-            Component::CurDir => {},
-            Component::ParentDir => { absolute.pop(); },
+            Component::CurDir => {}
+            Component::ParentDir => {
+                absolute.pop();
+            }
             component @ _ => absolute.push(component.as_os_str()),
         }
     }
@@ -28,6 +36,7 @@ fn absolute(path: &str) -> Result<PathBuf> {
 fn build_circuit() -> Result<()> {
     println!("cargo:rerun-if-changed=./semaphore");
     let run = |cmd: &[&str]| -> Result<()> {
+        // TODO: Use ExitCode::exit_ok() when stable.
         Command::new(cmd[0])
             .args(cmd[1..].iter())
             .current_dir("./semaphore")
@@ -35,7 +44,7 @@ fn build_circuit() -> Result<()> {
             .success()
             .then(|| ())
             .ok_or(eyre!("procees returned failure"))?;
-            Ok(())
+        Ok(())
     };
 
     // Compute absolute paths
@@ -43,7 +52,7 @@ fn build_circuit() -> Result<()> {
     let wasm_file = absolute(WASM_FILE)?;
 
     // Build circuits if not exists
-    // TODO: This does not rebuild if the semaphore submodule is changed. 
+    // TODO: This does not rebuild if the semaphore submodule is changed.
     // NOTE: This requires npm / nodejs to be installed.
     if !(zkey_file.exists() && wasm_file.exists()) {
         run(&["npm", "install"])?;
@@ -55,13 +64,44 @@ fn build_circuit() -> Result<()> {
     // Export generated paths
     println!("cargo:rustc-env=BUILD_RS_ZKEY_FILE={}", zkey_file.display());
     println!("cargo:rustc-env=BUILD_RS_WASM_FILE={}", wasm_file.display());
-    
+
+    Ok(())
+}
+
+fn build_dylib() -> Result<()> {
+    let wasm_file = absolute(WASM_FILE)?;
+    assert!(wasm_file.exists());
+
+    let out_dir = env::var("OUT_DIR")?;
+    let out_dir = Path::new(&out_dir).to_path_buf();
+    let dylib_file = out_dir.join("semaphore.dylib");
+    println!("cargo:rustc-env=BUILD_DYLIB_FILE={}", dylib_file.display());
+
+    if dylib_file.exists() {
+        return Ok(());
+    }
+
+    // Create a WASM engine for the target that can compile
+    let triple = Triple::from_str(&env::var("TARGET")?).map_err(|e| eyre!(e))?;
+    let cpu_features = enum_set!();
+    let target = Target::new(triple, cpu_features);
+    let compiler_config = Cranelift::default();
+    let engine = Dylib::new(compiler_config)
+        .target(target)
+        .engine();
+
+    // Compile the WASM module
+    let store = Store::new(&engine);
+    let module = Module::from_file(&store, &wasm_file)?;
+    module.serialize_to_file(&dylib_file)?;
+    assert!(dylib_file.exists());
+    println!("cargo:warning=Circuit dylib is in {}", dylib_file.display());
+
     Ok(())
 }
 
 fn main() -> Result<()> {
     build_circuit()?;
-
-
+    build_dylib()?;
     Ok(())
 }
