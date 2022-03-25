@@ -48,7 +48,8 @@ serde = "1.0"
 sha2 = "0.10.1"
 thiserror = "1.0.0"
 tiny-keccak = { version = "2.0.2" }
-wasmer = { version = "2.0", features = [ "dylib" ] }
+wasmer = { version = "2.0", features = [ "engine" ] }
+wasmer-engine-staticlib = "2.2.1"
 zkp-u256 = { version = "0.2", optional = true } # TODO: Remove
 
 # Use the same `ethers-core` version as ark-circom
@@ -64,7 +65,11 @@ tempfile = "3.0"
 tiny-keccak = "2.0.2"
 tracing-test = "0.2"
 
-wasmer-engine-dylib = "2.2.1"
+[build-dependencies]
+color-eyre = "0.5"
+enumset = "1.0.8"
+wasmer = { version = "2.0", features = [ "dylib" ] }
+wasmer-engine-staticlib = { version = "2.2.1", features = [ "compiler" ] }
 wasmer-compiler-cranelift = "2.2.1"
 
 [profile.release]
