@@ -5,10 +5,11 @@ use ark_relations::r1cs::ConstraintMatrices;
 use core::include_bytes;
 use once_cell::sync::Lazy;
 use std::{io::Cursor, sync::Mutex};
-use wasmer::{Dylib, Module, Store};
+use wasmer::{Module, Store};
+use wasmer_engine_staticlib::{Staticlib, StaticlibArtifact};
 
 const ZKEY_BYTES: &[u8] = include_bytes!(env!("BUILD_RS_ZKEY_FILE"));
-const WASM: &[u8] = include_bytes!(env!("BUILD_RS_WASM_FILE"));
+const WASM_STATICLIB: &[u8] = include_bytes!("../semaphore.o");
 
 pub static ZKEY: Lazy<(ProvingKey<Bn254>, ConstraintMatrices<Fr>)> = Lazy::new(|| {
     let mut reader = Cursor::new(ZKEY_BYTES);
@@ -16,17 +17,10 @@ pub static ZKEY: Lazy<(ProvingKey<Bn254>, ConstraintMatrices<Fr>)> = Lazy::new(|
 });
 
 pub static WITNESS_CALCULATOR: Lazy<Mutex<WitnessCalculator>> = Lazy::new(|| {
-    // Create Wasm module
-    let module = if let Some(path) = option_env!("CIRCUIT_WASM_DYLIB") {
-        let store = Store::new(&Dylib::headless().engine());
-        // The module must be exported using [`Module::serialize`].
-        unsafe {
-            Module::deserialize_from_file(&store, path).expect("Failed to load wasm dylib module")
-        }
-    } else {
-        let store = Store::default();
-        Module::from_binary(&store, WASM).expect("wasm should be valid")
-    };
+    let store = Store::new(&Staticlib::headless().engine());
+    let module =
+    // Staticlib is generated in `build.rs` and should be valid.
+    unsafe { Module::deserialize(&store, WASM_STATICLIB) }.expect("wasm should be valid");
 
     // Create witness calculator
     let result =

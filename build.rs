@@ -1,17 +1,18 @@
 use color_eyre::eyre::{eyre, Result};
+use enumset::enum_set;
 use std::{
+    env,
     path::{Component, Path, PathBuf},
     process::Command,
-    str::FromStr, env,
+    str::FromStr,
 };
 use wasmer::{CpuFeature, Module, RuntimeError, Store, Target, Triple};
 use wasmer_compiler_cranelift::Cranelift;
-use wasmer_engine_dylib::Dylib;
-use enumset::enum_set;
+use wasmer_engine_staticlib::Staticlib;
 
 const ZKEY_FILE: &str = "./semaphore/build/snark/semaphore_final.zkey";
 const WASM_FILE: &str = "./semaphore/build/snark/semaphore.wasm";
-const DYLIB_FILE: &str = "./semaphore.dylib";
+const STATICLIB_FILE: &str = "semaphore.staticlib";
 
 // See <https://internals.rust-lang.org/t/path-to-lexical-absolute/14940>
 fn absolute(path: &str) -> Result<PathBuf> {
@@ -68,16 +69,19 @@ fn build_circuit() -> Result<()> {
     Ok(())
 }
 
-fn build_dylib() -> Result<()> {
+fn build_staticlib() -> Result<()> {
     let wasm_file = absolute(WASM_FILE)?;
     assert!(wasm_file.exists());
 
     let out_dir = env::var("OUT_DIR")?;
     let out_dir = Path::new(&out_dir).to_path_buf();
-    let dylib_file = out_dir.join("semaphore.dylib");
-    println!("cargo:rustc-env=BUILD_DYLIB_FILE={}", dylib_file.display());
+    let staticlib_file = out_dir.join(STATICLIB_FILE);
+    println!(
+        "cargo:rustc-env=BUILD_RS_STATICLIB_FILE={}",
+        staticlib_file.display()
+    );
 
-    if dylib_file.exists() {
+    if staticlib_file.exists() {
         return Ok(());
     }
 
@@ -86,22 +90,23 @@ fn build_dylib() -> Result<()> {
     let cpu_features = enum_set!();
     let target = Target::new(triple, cpu_features);
     let compiler_config = Cranelift::default();
-    let engine = Dylib::new(compiler_config)
-        .target(target)
-        .engine();
+    let engine = Staticlib::new(compiler_config).target(target).engine();
 
     // Compile the WASM module
     let store = Store::new(&engine);
     let module = Module::from_file(&store, &wasm_file)?;
-    module.serialize_to_file(&dylib_file)?;
-    assert!(dylib_file.exists());
-    println!("cargo:warning=Circuit dylib is in {}", dylib_file.display());
+    module.serialize_to_file(&staticlib_file)?;
+    assert!(staticlib_file.exists());
+    println!(
+        "cargo:warning=Circuit staticlib is in {}",
+        staticlib_file.display()
+    );
 
     Ok(())
 }
 
 fn main() -> Result<()> {
     build_circuit()?;
-    build_dylib()?;
+    build_staticlib()?;
     Ok(())
 }
