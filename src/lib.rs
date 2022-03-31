@@ -3,7 +3,7 @@
 // TODO: ark-circom and ethers-core pull in a lot of dependencies, some duplicate.
 #![allow(clippy::multiple_crate_versions)]
 
-mod circuit;
+pub mod circuit;
 mod field;
 pub mod hash;
 pub mod identity;
