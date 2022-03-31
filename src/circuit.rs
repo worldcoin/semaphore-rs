@@ -2,8 +2,9 @@ use ark_bn254::{Bn254, Fr};
 use ark_circom::{read_zkey, WitnessCalculator};
 use ark_groth16::ProvingKey;
 use ark_relations::r1cs::ConstraintMatrices;
+use color_eyre::Result;
 use core::include_bytes;
-use once_cell::sync::Lazy;
+use once_cell::sync::{Lazy, OnceCell};
 use std::{io::Cursor, sync::Mutex};
 use wasmer::{Dylib, Module, Store};
 
@@ -16,9 +17,11 @@ pub static ZKEY: Lazy<(ProvingKey<Bn254>, ConstraintMatrices<Fr>)> = Lazy::new(|
     read_zkey(&mut reader).expect("zkey should be valid")
 });
 
+pub static WITNESS_CALCULATOR_PATH: OnceCell<String> = OnceCell::new();
+
 pub static WITNESS_CALCULATOR: Lazy<Mutex<WitnessCalculator>> = Lazy::new(|| {
     // Create Wasm module
-    let module = if let Some(path) = option_env!("CIRCUIT_WASM_DYLIB") {
+    let module = if let Some(path) = WITNESS_CALCULATOR_PATH.get() {
         let store = Store::new(&Dylib::headless().engine());
         // The module must be exported using [`Module::serialize`].
         unsafe {
@@ -34,3 +37,8 @@ pub static WITNESS_CALCULATOR: Lazy<Mutex<WitnessCalculator>> = Lazy::new(|| {
         WitnessCalculator::from_module(module).expect("Failed to create witness calculator");
     Mutex::new(result)
 });
+
+#[allow(dead_code)]
+pub fn init_witness_calculator_path(path: &str) -> Result<(), String> {
+    WITNESS_CALCULATOR_PATH.set(path.to_string())
+}
