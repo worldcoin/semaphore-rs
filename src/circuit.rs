@@ -17,11 +17,11 @@ pub static ZKEY: Lazy<(ProvingKey<Bn254>, ConstraintMatrices<Fr>)> = Lazy::new(|
     read_zkey(&mut reader).expect("zkey should be valid")
 });
 
-pub static WITNESS_CALCULATOR_PATH: OnceCell<String> = OnceCell::new();
+pub static WITNESS_CALCULATOR_DYLIB: OnceCell<String> = OnceCell::new();
 
 pub static WITNESS_CALCULATOR: Lazy<Mutex<WitnessCalculator>> = Lazy::new(|| {
     // Create Wasm module
-    let module = if let Some(path) = WITNESS_CALCULATOR_PATH.get() {
+    let module = if let Some(path) = WITNESS_CALCULATOR_DYLIB.get() {
         let store = Store::new(&Dylib::headless().engine());
         // The module must be exported using [`Module::serialize`].
         unsafe {
@@ -37,8 +37,3 @@ pub static WITNESS_CALCULATOR: Lazy<Mutex<WitnessCalculator>> = Lazy::new(|| {
         WitnessCalculator::from_module(module).expect("Failed to create witness calculator");
     Mutex::new(result)
 });
-
-#[allow(dead_code)]
-pub fn init_witness_calculator_path(path: &str) -> Result<(), String> {
-    WITNESS_CALCULATOR_PATH.set(path.to_string())
-}
