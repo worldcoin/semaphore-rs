@@ -5,15 +5,13 @@ use ark_relations::r1cs::ConstraintMatrices;
 use core::include_bytes;
 use once_cell::sync::{Lazy, OnceCell};
 use std::{io::Cursor, sync::Mutex};
-use wasmer::{BaseTunables, Cranelift, Dylib, Module, Pages, Store, Target, Universal};
-
-use crate::tunables::LimitingTunables;
+use wasmer::{BaseTunables, Dylib, Module, Store, Target};
 
 const ZKEY_BYTES: &[u8] = include_bytes!("../semaphore/build/snark/semaphore_final.zkey");
 
 const WASM: &[u8] = include_bytes!("../semaphore/build/snark/semaphore.wasm");
 
-const MEMORY_LIMIT: Option<&str> = option_env!("MEMORY_LIMIT");
+const FORCE_POINTER_WIDTH_U32: Option<&str> = option_env!("FORCE_POINTER_WIDTH_U32");
 
 pub static ZKEY: Lazy<(ProvingKey<Bn254>, ConstraintMatrices<Fr>)> = Lazy::new(|| {
     let mut reader = Cursor::new(ZKEY_BYTES);
@@ -25,18 +23,11 @@ pub static WITNESS_CALCULATOR_DYLIB: OnceCell<String> = OnceCell::new();
 pub static WITNESS_CALCULATOR: Lazy<Mutex<WitnessCalculator>> = Lazy::new(|| {
     // Create Wasm module
     let module = if let Some(path) = WITNESS_CALCULATOR_DYLIB.get() {
-        let store = if let Some(memory_limit) = MEMORY_LIMIT {
-            Store::new_with_tunables(
-                &Dylib::headless().engine(),
-                LimitingTunables::new(
-                    BaseTunables::for_target(&Target::default()),
-                    Pages(
-                        memory_limit
-                            .parse::<u32>()
-                            .expect("MEMORY_LIMIT must be u32"),
-                    ),
-                ),
-            )
+        let store = if FORCE_POINTER_WIDTH_U32.is_some() {
+            let mut tunable = BaseTunables::for_target(&Target::default());
+            (tunable.static_memory_bound, tunable.static_memory_offset_guard_size) = (0x4000.into(), 0x1_0000);
+
+            Store::new_with_tunables(&Dylib::headless().engine(), tunable)
         } else {
             Store::new(&Dylib::headless().engine())
         };
@@ -46,24 +37,7 @@ pub static WITNESS_CALCULATOR: Lazy<Mutex<WitnessCalculator>> = Lazy::new(|| {
             Module::deserialize_from_file(&store, path).expect("Failed to load wasm dylib module")
         }
     } else {
-        let store = if let Some(memory_limit) = MEMORY_LIMIT {
-            let compiler = Cranelift::default();
-            let engine = Universal::new(compiler).engine();
-            Store::new_with_tunables(
-                &engine,
-                LimitingTunables::new(
-                    BaseTunables::for_target(&Target::default()),
-                    Pages(
-                        memory_limit
-                            .parse::<u32>()
-                            .expect("MEMORY_LIMIT must be u32"),
-                    ),
-                ),
-            )
-        } else {
-            Store::default()
-        };
-
+        let store = Store::default();
         Module::from_binary(&store, WASM).expect("wasm should be valid")
     };
 
