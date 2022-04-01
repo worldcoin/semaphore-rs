@@ -7,9 +7,8 @@ use once_cell::sync::Lazy;
 use std::{io::Cursor, sync::Mutex};
 use wasmer::{Dylib, Module, Store};
 
-const ZKEY_BYTES: &[u8] = include_bytes!("../semaphore/build/snark/semaphore_final.zkey");
-
-const WASM: &[u8] = include_bytes!("../semaphore/build/snark/semaphore.wasm");
+const ZKEY_BYTES: &[u8] = include_bytes!(env!("BUILD_RS_ZKEY_FILE"));
+const WASM: &[u8] = include_bytes!(env!("BUILD_RS_WASM_FILE"));
 
 pub static ZKEY: Lazy<(ProvingKey<Bn254>, ConstraintMatrices<Fr>)> = Lazy::new(|| {
     let mut reader = Cursor::new(ZKEY_BYTES);
