@@ -4,14 +4,13 @@ use std::{
     process::Command,
     str::FromStr, env,
 };
-use wasmer::{CpuFeature, Module, RuntimeError, Store, Target, Triple};
+use wasmer::{Module, Store, Target, Triple};
 use wasmer_compiler_cranelift::Cranelift;
 use wasmer_engine_dylib::Dylib;
 use enumset::enum_set;
 
 const ZKEY_FILE: &str = "./semaphore/build/snark/semaphore_final.zkey";
 const WASM_FILE: &str = "./semaphore/build/snark/semaphore.wasm";
-const DYLIB_FILE: &str = "./semaphore.dylib";
 
 // See <https://internals.rust-lang.org/t/path-to-lexical-absolute/14940>
 fn absolute(path: &str) -> Result<PathBuf> {
