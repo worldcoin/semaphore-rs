@@ -2,12 +2,7 @@ use color_eyre::eyre::{eyre, Result};
 use std::{
     path::{Component, Path, PathBuf},
     process::Command,
-    str::FromStr, env,
 };
-use wasmer::{Module, Store, Target, Triple};
-use wasmer_compiler_cranelift::Cranelift;
-use wasmer_engine_dylib::Dylib;
-use enumset::enum_set;
 
 const ZKEY_FILE: &str = "./semaphore/build/snark/semaphore_final.zkey";
 const WASM_FILE: &str = "./semaphore/build/snark/semaphore.wasm";
@@ -67,14 +62,22 @@ fn build_circuit() -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "dylib")]
 fn build_dylib() -> Result<()> {
+    use wasmer::{Module, Store, Target, Triple};
+    use wasmer_compiler_cranelift::Cranelift;
+    use wasmer_engine_dylib::Dylib;
+    use enumset::enum_set;
+    use std::env;
+    use std::str::FromStr;
+
     let wasm_file = absolute(WASM_FILE)?;
     assert!(wasm_file.exists());
 
     let out_dir = env::var("OUT_DIR")?;
     let out_dir = Path::new(&out_dir).to_path_buf();
     let dylib_file = out_dir.join("semaphore.dylib");
-    println!("cargo:rustc-env=BUILD_DYLIB_FILE={}", dylib_file.display());
+    println!("cargo:rustc-env=CIRCUIT_WASM_DYLIB={}", dylib_file.display());
 
     if dylib_file.exists() {
         return Ok(());
@@ -85,9 +88,7 @@ fn build_dylib() -> Result<()> {
     let cpu_features = enum_set!();
     let target = Target::new(triple, cpu_features);
     let compiler_config = Cranelift::default();
-    let engine = Dylib::new(compiler_config)
-        .target(target)
-        .engine();
+    let engine = Dylib::new(compiler_config).target(target).engine();
 
     // Compile the WASM module
     let store = Store::new(&engine);
@@ -101,6 +102,7 @@ fn build_dylib() -> Result<()> {
 
 fn main() -> Result<()> {
     build_circuit()?;
+    #[cfg(feature = "dylib")]
     build_dylib()?;
     Ok(())
 }

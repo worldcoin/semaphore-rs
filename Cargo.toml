@@ -17,7 +17,7 @@ license-file = "mit-license.md"
 default = []
 bench = [ "criterion", "proptest" ]
 mimc = [ "zkp-u256" ]
-dylib = [ "wasmer/dylib" ]
+dylib = [ "wasmer/dylib", "wasmer-engine-dylib", "wasmer-compiler-cranelift" ]
 
 [[bench]]
 name = "criterion"
@@ -68,9 +68,9 @@ tracing-test = "0.2"
 [build-dependencies]
 color-eyre = "0.5"
 enumset = "1.0.8"
-wasmer = { version = "2.0", features = [ "dylib" ] }
-wasmer-engine-dylib = "2.2.1"
-wasmer-compiler-cranelift = "2.2.1"
+wasmer = { version = "2.0" }
+wasmer-engine-dylib = { version = "2.2.1", optional = true }
+wasmer-compiler-cranelift = { version = "2.2.1", optional = true }
 
 [profile.release]
 codegen-units = 1

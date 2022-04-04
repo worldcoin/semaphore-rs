@@ -35,6 +35,7 @@ pub fn initialize(dylib_path: &Path) {
     Lazy::force(&ZKEY);
 }
 
+#[cfg(feature = "dylib")]
 fn from_dylib(path: &Path) -> Mutex<WitnessCalculator> {
     let store = Store::new(&Dylib::headless().engine());
     // The module must be exported using [`Module::serialize`].
