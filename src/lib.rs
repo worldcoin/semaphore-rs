@@ -27,6 +27,9 @@ pub use crate::{
     poseidon_hash::poseidon_hash,
 };
 
+#[cfg(feature = "dylib")]
+pub use circuit::initialize;
+
 pub type Groth16Proof = ark_groth16::Proof<Bn<Parameters>>;
 pub type EthereumGroth16Proof = ark_circom::ethereum::Proof;
 
