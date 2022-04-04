@@ -8,14 +8,14 @@ use std::{io::Cursor, sync::Mutex};
 use wasmer::{Module, Store};
 
 #[cfg(feature = "dylib")]
-use std::{path::Path, env};
+use std::{env, path::Path};
 #[cfg(feature = "dylib")]
-use wasmer::{Dylib};
+use wasmer::Dylib;
 
-const ZKEY_BYTES: &[u8] = include_bytes!("../semaphore/build/snark/semaphore_final.zkey");
+const ZKEY_BYTES: &[u8] = include_bytes!(env!("BUILD_RS_ZKEY_FILE"));
 
 #[cfg(not(feature = "dylib"))]
-const WASM: &[u8] = include_bytes!("../semaphore/build/snark/semaphore.wasm");
+const WASM: &[u8] = include_bytes!(env!("BUILD_RS_WASM_FILE"));
 
 static ZKEY: Lazy<(ProvingKey<Bn254>, ConstraintMatrices<Fr>)> = Lazy::new(|| {
     let mut reader = Cursor::new(ZKEY_BYTES);
@@ -55,7 +55,11 @@ pub fn zkey() -> &'static (ProvingKey<Bn254>, ConstraintMatrices<Fr>) {
 #[must_use]
 pub fn witness_calculator() -> &'static Mutex<WitnessCalculator> {
     WITNESS_CALCULATOR.get_or_init(|| {
-        let path = env::var("CIRCUIT_WASM_DYLIB").expect("Semaphore-rs is not initialized. The library needs to be initialized before use when build with the `cdylib` feature. You can initialize by calling `initialize` or seting the `CIRCUIT_WASM_DYLIB` environment variable.");
+        let path = env::var("CIRCUIT_WASM_DYLIB").expect(
+            "Semaphore-rs is not initialized. The library needs to be initialized before use when \
+             build with the `cdylib` feature. You can initialize by calling `initialize` or \
+             seting the `CIRCUIT_WASM_DYLIB` environment variable.",
+        );
         from_dylib(&Path::new(&path))
     })
 }
