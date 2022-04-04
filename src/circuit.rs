@@ -8,7 +8,7 @@ use std::{io::Cursor, sync::Mutex};
 use wasmer::{Module, Store};
 
 #[cfg(feature = "dylib")]
-use std::path::Path;
+use std::{path::Path, env};
 #[cfg(feature = "dylib")]
 use wasmer::{Dylib};
 
@@ -27,19 +27,23 @@ static WITNESS_CALCULATOR: OnceCell<Mutex<WitnessCalculator>> = OnceCell::new();
 /// Initialize the library.
 #[cfg(feature = "dylib")]
 pub fn initialize(dylib_path: &Path) {
-    let store = Store::new(&Dylib::headless().engine());
-    // The module must be exported using [`Module::serialize`].
-    let module = unsafe {
-        Module::deserialize_from_file(&store, dylib_path).expect("Failed to load wasm dylib module")
-    };
-    let result =
-        WitnessCalculator::from_module(module).expect("Failed to create witness calculator");
     WITNESS_CALCULATOR
-        .set(Mutex::new(result))
+        .set(from_dylib(dylib_path))
         .expect("Failed to initialize witness calculator");
 
     // Force init of ZKEY
     Lazy::force(&ZKEY);
+}
+
+fn from_dylib(path: &Path) -> Mutex<WitnessCalculator> {
+    let store = Store::new(&Dylib::headless().engine());
+    // The module must be exported using [`Module::serialize`].
+    let module = unsafe {
+        Module::deserialize_from_file(&store, path).expect("Failed to load wasm dylib module")
+    };
+    let result =
+        WitnessCalculator::from_module(module).expect("Failed to create witness calculator");
+    Mutex::new(result)
 }
 
 #[must_use]
@@ -50,10 +54,10 @@ pub fn zkey() -> &'static (ProvingKey<Bn254>, ConstraintMatrices<Fr>) {
 #[cfg(feature = "dylib")]
 #[must_use]
 pub fn witness_calculator() -> &'static Mutex<WitnessCalculator> {
-    WITNESS_CALCULATOR.get().expect(
-        "Semaphore-rs not initialized. The library needs to be initialized before use when build \
-         with the `cdylib` feature.",
-    )
+    WITNESS_CALCULATOR.get_or_init(|| {
+        let path = env::var("CIRCUIT_WASM_DYLIB").expect("Semaphore-rs is not initialized. The library needs to be initialized before use when build with the `cdylib` feature. You can initialize by calling `initialize` or seting the `CIRCUIT_WASM_DYLIB` environment variable.");
+        from_dylib(&Path::new(&path))
+    })
 }
 
 #[cfg(not(feature = "dylib"))]
