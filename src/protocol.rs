@@ -1,5 +1,5 @@
 use crate::{
-    circuit::{WITNESS_CALCULATOR, ZKEY},
+    circuit::{witness_calculator, zkey},
     identity::Identity,
     merkle_tree::{self, Branch},
     poseidon_hash,
@@ -109,6 +109,11 @@ pub fn generate_proof(
     )
 }
 
+/// Generates a semaphore proof from entropy
+///
+/// # Errors
+///
+/// Returns a [`ProofError`] if proving fails.
 pub fn generate_proof_rng(
     identity: &Identity,
     merkle_proof: &merkle_tree::Proof<PoseidonHash>,
@@ -151,7 +156,7 @@ fn generate_proof_rs(
 
     let now = Instant::now();
 
-    let full_assignment = WITNESS_CALCULATOR
+    let full_assignment = witness_calculator()
         .lock()
         .expect("witness_calculator mutex should not get poisoned")
         .calculate_witness_element::<Bn254, _>(inputs, false)
@@ -160,13 +165,14 @@ fn generate_proof_rs(
     println!("witness generation took: {:.2?}", now.elapsed());
 
     let now = Instant::now();
+    let zkey = zkey();
     let ark_proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
-        &ZKEY.0,
+        &zkey.0,
         r,
         s,
-        &ZKEY.1,
-        ZKEY.1.num_instance_variables,
-        ZKEY.1.num_constraints,
+        &zkey.1,
+        zkey.1.num_instance_variables,
+        zkey.1.num_constraints,
         full_assignment.as_slice(),
     )?;
     let proof = ark_proof.into();
@@ -188,7 +194,8 @@ pub fn verify_proof(
     external_nullifier_hash: Field,
     proof: &Proof,
 ) -> Result<bool, ProofError> {
-    let pvk = prepare_verifying_key(&ZKEY.0.vk);
+    let zkey = zkey();
+    let pvk = prepare_verifying_key(&zkey.0.vk);
 
     let public_inputs = [
         root.into(),
