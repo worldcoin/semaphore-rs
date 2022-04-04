@@ -21,7 +21,7 @@ fn absolute(path: &str) -> Result<PathBuf> {
             Component::ParentDir => {
                 absolute.pop();
             }
-            component @ _ => absolute.push(component.as_os_str()),
+            component => absolute.push(component.as_os_str()),
         }
     }
     Ok(absolute)
@@ -64,12 +64,11 @@ fn build_circuit() -> Result<()> {
 
 #[cfg(feature = "dylib")]
 fn build_dylib() -> Result<()> {
+    use enumset::enum_set;
+    use std::{env, str::FromStr};
     use wasmer::{Module, Store, Target, Triple};
     use wasmer_compiler_cranelift::Cranelift;
     use wasmer_engine_dylib::Dylib;
-    use enumset::enum_set;
-    use std::env;
-    use std::str::FromStr;
 
     let wasm_file = absolute(WASM_FILE)?;
     assert!(wasm_file.exists());
@@ -77,7 +76,10 @@ fn build_dylib() -> Result<()> {
     let out_dir = env::var("OUT_DIR")?;
     let out_dir = Path::new(&out_dir).to_path_buf();
     let dylib_file = out_dir.join("semaphore.dylib");
-    println!("cargo:rustc-env=CIRCUIT_WASM_DYLIB={}", dylib_file.display());
+    println!(
+        "cargo:rustc-env=CIRCUIT_WASM_DYLIB={}",
+        dylib_file.display()
+    );
 
     if dylib_file.exists() {
         return Ok(());

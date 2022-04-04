@@ -61,7 +61,7 @@ pub fn witness_calculator() -> &'static Mutex<WitnessCalculator> {
              build with the `cdylib` feature. You can initialize by calling `initialize` or \
              seting the `CIRCUIT_WASM_DYLIB` environment variable.",
         );
-        from_dylib(&Path::new(&path))
+        from_dylib(Path::new(&path))
     })
 }
 
