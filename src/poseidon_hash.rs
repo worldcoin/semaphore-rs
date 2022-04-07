@@ -3,21 +3,43 @@
 // See <https://github.com/arnaucube/poseidon-rs>
 // See <https://github.com/filecoin-project/neptune>
 // See <https://github.com/dusk-network/poseidon252>
+// See <https://github.com/arkworks-rs/sponge/blob/master/src/poseidon/mod.rs>
 
 use crate::Field;
+use ark_bn254::Fr as ArkField;
+use ark_sponge::{
+    poseidon::{PoseidonParameters, PoseidonSponge},
+    CryptographicSponge,
+};
 use once_cell::sync::Lazy;
-use poseidon_rs::Poseidon;
 
-static POSEIDON: Lazy<Poseidon> = Lazy::new(Poseidon::new);
+impl ark_sponge::Absorb for Field {
+    fn to_sponge_bytes(&self, dest: &mut Vec<u8>) {
+        ArkField::from(*self).to_sponge_bytes(dest);
+    }
+
+    fn to_sponge_field_elements<F: ark_ff::PrimeField>(&self, dest: &mut Vec<F>) {
+        ArkField::from(*self).to_sponge_field_elements(dest)
+    }
+}
 
 #[must_use]
 pub fn poseidon_hash(input: &[Field]) -> Field {
-    let input = input.iter().copied().map(Into::into).collect::<Vec<_>>();
+    let mds = Vec::new();
+    let ark = Vec::new();
 
-    POSEIDON
-        .hash(input)
-        .map(Into::into)
-        .expect("hash with fixed input size can't fail")
+    // See <https://github.com/iden3/circomlib/blob/875013143bfbacd6254446fb88f53de6afb941ae/circuits/poseidon.circom#L71>
+    let params = PoseidonParameters::<ArkField>::new(8, 57, 5, mds, ark);
+
+    let mut sponge = PoseidonSponge::new(&params);
+
+    sponge.absorb(&input);
+
+    sponge
+        .squeeze_field_elements::<ArkField>(1)
+        .pop()
+        .unwrap()
+        .into()
 }
 
 #[cfg(test)]

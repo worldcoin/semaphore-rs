@@ -32,6 +32,7 @@ ark-ec = { version = "0.3.0", default-features = false, features = ["parallel"] 
 ark-ff = { version = "0.3.0", default-features = false, features = ["parallel", "asm"] }
 ark-groth16 = { git = "https://github.com/arkworks-rs/groth16", rev = "765817f", features = ["parallel"] }
 ark-relations = { version = "0.3.0", default-features = false }
+ark-sponge = "0.3.0"
 ark-std = { version = "0.3.0", default-features = false, features = ["parallel"] }
 color-eyre = "0.5"
 criterion = { version = "0.3", optional = true, features = [ "async_tokio" ] }
