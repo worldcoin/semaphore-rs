@@ -8,6 +8,7 @@ mod field;
 pub mod hash;
 pub mod identity;
 pub mod merkle_tree;
+pub mod ng;
 mod poseidon_hash;
 pub mod poseidon_tree;
 pub mod protocol;
