@@ -27,7 +27,7 @@ impl Field {
 
     /// Convert to big-endian 32-byte array.
     #[must_use]
-    pub fn to_be_bytes(&self) -> [u8; 32] {
+    pub const fn to_be_bytes(&self) -> [u8; 32] {
         self.0
     }
 }
