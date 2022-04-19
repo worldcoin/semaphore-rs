@@ -24,6 +24,12 @@ impl Field {
     pub fn from_be_bytes_mod_order(bytes: &[u8]) -> Self {
         ArkField::from_be_bytes_mod_order(bytes).into()
     }
+
+    /// Convert to big-endian 32-byte array.
+    #[must_use]
+    pub fn to_be_bytes(&self) -> [u8; 32] {
+        self.0
+    }
 }
 
 impl From<u64> for Field {
