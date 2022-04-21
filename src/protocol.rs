@@ -1,5 +1,5 @@
 use crate::{
-    circuit::{WITNESS_CALCULATOR, ZKEY},
+    circuit::{ZKEY, WASM},
     identity::Identity,
     merkle_tree::{self, Branch},
     poseidon_hash,
@@ -8,6 +8,7 @@ use crate::{
 };
 use ark_bn254::{Bn254, Parameters};
 use ark_circom::CircomReduction;
+use ark_circom::{read_zkey, WitnessCalculator};
 use ark_ec::bn::Bn;
 use ark_groth16::{
     create_proof_with_reduction_and_matrices, prepare_verifying_key, Proof as ArkProof,
@@ -20,6 +21,7 @@ use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
 use thiserror::Error;
+use wasmi::Module;
 
 // Matches the private G1Tup type in ark-circom.
 pub type G1 = (U256, U256);
@@ -151,11 +153,16 @@ fn generate_proof_rs(
 
     let now = Instant::now();
 
-    let full_assignment = WITNESS_CALCULATOR
-        .lock()
-        .expect("witness_calculator mutex should not get poisoned")
+    let module = Module::from_buffer(WASM).expect("ddd");
+    let full_assignment = WitnessCalculator::from_module(module).expect("ddd")
         .calculate_witness_element::<Bn254, _>(inputs, false)
         .map_err(ProofError::WitnessError)?;
+
+    // let full_assignment = WITNESS_CALCULATOR
+    //     .lock()
+    //     .expect("witness_calculator mutex should not get poisoned")
+    //     .calculate_witness_element::<Bn254, _>(inputs, false)
+    //     .map_err(ProofError::WitnessError)?;
 
     println!("witness generation took: {:.2?}", now.elapsed());
 
