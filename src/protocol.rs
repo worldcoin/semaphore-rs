@@ -18,7 +18,6 @@ use color_eyre::Result;
 use primitive_types::U256;
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
-use std::time::Instant;
 use thiserror::Error;
 
 // Matches the private G1Tup type in ark-circom.
@@ -63,7 +62,7 @@ impl From<Proof> for ArkProof<Bn<Parameters>> {
 
 /// Helper to merkle proof into a bigint vector
 /// TODO: we should create a From trait for this
-fn merkle_proof_to_vec(proof: &merkle_tree::Proof<PoseidonHash>) -> Vec<Field> {
+pub fn merkle_proof_to_vec(proof: &merkle_tree::Proof<PoseidonHash>) -> Vec<Field> {
     proof
         .0
         .iter()
@@ -154,17 +153,12 @@ fn generate_proof_rs(
         )
     });
 
-    let now = Instant::now();
-
     let full_assignment = witness_calculator()
         .lock()
         .expect("witness_calculator mutex should not get poisoned")
         .calculate_witness_element::<Bn254, _>(inputs, false)
         .map_err(ProofError::WitnessError)?;
 
-    println!("witness generation took: {:.2?}", now.elapsed());
-
-    let now = Instant::now();
     let zkey = zkey();
     let ark_proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
         &zkey.0,
@@ -176,7 +170,6 @@ fn generate_proof_rs(
         full_assignment.as_slice(),
     )?;
     let proof = ark_proof.into();
-    println!("proof generation took: {:.2?}", now.elapsed());
 
     Ok(proof)
 }

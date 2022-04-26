@@ -22,7 +22,6 @@ const LEAF: Hash = Hash::from_bytes_be(hex!(
         "352aa0818e138060d93b80393828ef8cdc104f331799b3ea647907481e51cce9"
         ));
 
-
 fn mix(criterion: &mut Criterion) {
     let left = U256::ONE;
     let right = U256::ZERO;
