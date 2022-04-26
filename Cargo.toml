@@ -23,6 +23,12 @@ name = "criterion"
 harness = false
 path = "benches/proof.rs"
 
+[[bench]]
+name = "mimc"
+harness = false
+path = "benches/mimc.rs"
+required-features = ["mimc"]
+
 [dependencies]
 ark-bn254 = { version = "0.3.0" }
 ark-circom = { git = "https://github.com/gakonst/ark-circom", rev="a93c8b0", features=["circom-2"] }

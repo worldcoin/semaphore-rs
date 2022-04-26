@@ -105,20 +105,3 @@ mod test {
         b.join().unwrap();
     }
 }
-
-#[cfg(feature = "bench")]
-pub mod bench {
-    use crate::{
-        hash_to_field, identity::Identity, poseidon_tree::PoseidonTree, protocol::generate_proof,
-        Field,
-    };
-    use criterion::Criterion;
-
-    pub fn group(criterion: &mut Criterion) {
-        #[cfg(feature = "mimc")]
-        crate::mimc_hash::bench::group(criterion);
-        #[cfg(feature = "mimc")]
-        crate::mimc_tree::bench::group(criterion);
-        bench_proof(criterion);
-    }
-}

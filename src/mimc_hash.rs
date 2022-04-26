@@ -34,7 +34,7 @@ static ROUND_CONSTANTS: Lazy<[U256; NUM_ROUNDS]> = Lazy::new(|| {
 });
 
 /// See <https://github.com/iden3/circomlibjs/blob/main/src/mimcsponge.js#L44>
-fn mix(left: &mut U256, right: &mut U256) {
+pub fn mix(left: &mut U256, right: &mut U256) {
     debug_assert!(*left < *MODULUS);
     debug_assert!(*right < *MODULUS);
     for round_constant in &*ROUND_CONSTANTS {
@@ -153,24 +153,5 @@ pub mod test {
                 "03e86bdc4eac70bd601473c53d8233b145fe8fd8bf6ef25f0b217a1da305665c"
             ))
         );
-    }
-}
-
-#[cfg(feature = "bench")]
-pub mod bench {
-    #[allow(clippy::wildcard_imports)]
-    use super::*;
-    use criterion::Criterion;
-
-    pub fn group(criterion: &mut Criterion) {
-        bench_mix(criterion);
-    }
-
-    fn bench_mix(criterion: &mut Criterion) {
-        let mut left = U256::ONE;
-        let mut right = U256::ZERO;
-        criterion.bench_function("mimc_mix", move |bencher| {
-            bencher.iter(|| mix(&mut left, &mut right));
-        });
     }
 }
