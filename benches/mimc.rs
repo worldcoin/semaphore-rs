@@ -2,6 +2,7 @@ use criterion::{
     black_box,
     criterion_group,
     criterion_main,
+    BenchmarkId,
     Criterion,
 };
 use hex_literal::hex;
@@ -23,11 +24,17 @@ const LEAF: Hash = Hash::from_bytes_be(hex!(
 
 
 fn mix(criterion: &mut Criterion) {
-    let mut left = U256::ONE;
-    let mut right = U256::ZERO;
-    criterion.bench_function("mimc hash mix", move |bencher| {
-        bencher.iter(|| mimc_hash::mix(&mut left, &mut right));
-    });
+    let left = U256::ONE;
+    let right = U256::ZERO;
+    criterion.bench_with_input(
+        BenchmarkId::new("mimc hash mix", "left one, right zero"),
+        &(left, right),
+        |bencher, input| {
+            let mut left = input.0.clone();
+            let mut right = input.1.clone();
+            bencher.iter(move || mimc_hash::mix(&mut left, &mut right));
+        }
+    );
 }
 
 fn tree_set(criterion: &mut Criterion) {
