@@ -8,8 +8,7 @@ mod field;
 pub mod hash;
 pub mod identity;
 pub mod merkle_tree;
-mod poseidon_hash;
-mod poseidon_hash_2;
+pub mod poseidon;
 pub mod poseidon_tree;
 pub mod protocol;
 pub mod util;
@@ -23,10 +22,7 @@ use ark_bn254::Parameters;
 use ark_ec::bn::Bn;
 
 // Export types
-pub use crate::{
-    field::{hash_to_field, Field},
-    poseidon_hash::poseidon_hash,
-};
+pub use crate::field::{hash_to_field, Field};
 
 #[cfg(feature = "dylib")]
 pub use circuit::initialize;

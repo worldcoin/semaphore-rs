@@ -1,4 +1,4 @@
-use crate::{field::MODULUS, poseidon_hash, Field};
+use crate::{field::MODULUS, poseidon, Field};
 use sha2::{Digest, Sha256};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -38,11 +38,11 @@ impl Identity {
 
     #[must_use]
     pub fn secret_hash(&self) -> Field {
-        poseidon_hash(&[self.nullifier, self.trapdoor])
+        poseidon::hash2(self.nullifier, self.trapdoor)
     }
 
     #[must_use]
     pub fn commitment(&self) -> Field {
-        poseidon_hash(&[self.secret_hash()])
+        poseidon::hash1(self.secret_hash())
     }
 }

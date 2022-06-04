@@ -23,14 +23,3 @@ pub fn hash_to_field(data: &[u8]) -> Field {
     // Shift right one byte to make it fit in the field
     n >> 8
 }
-
-#[cfg(test)]
-mod test {
-    use ark_ff::Field as _;
-    use ff::PrimeField;
-
-    #[test]
-    fn test_modulus_identical() {
-        assert_eq!(poseidon_rs::Fr::char().0, ark_bn254::Fr::characteristic());
-    }
-}

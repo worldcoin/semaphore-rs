@@ -2,7 +2,7 @@ use crate::{
     circuit::{witness_calculator, zkey},
     identity::Identity,
     merkle_tree::{self, Branch},
-    poseidon_hash,
+    poseidon,
     poseidon_tree::PoseidonHash,
     Field,
 };
@@ -76,7 +76,7 @@ fn merkle_proof_to_vec(proof: &merkle_tree::Proof<PoseidonHash>) -> Vec<Field> {
 /// Generates the nullifier hash
 #[must_use]
 pub fn generate_nullifier_hash(identity: &Identity, external_nullifier: Field) -> Field {
-    poseidon_hash(&[external_nullifier, identity.nullifier])
+    poseidon::hash2(external_nullifier, identity.nullifier)
 }
 
 #[derive(Error, Debug)]
