@@ -67,7 +67,6 @@ mod test {
 
         let merkle_proof = tree.proof(0).expect("proof should exist");
         let root = tree.root();
-        dbg!(root);
 
         let signal_hash = hash_to_field(signal);
         let external_nullifier_hash = hash_to_field(external_nullifier);

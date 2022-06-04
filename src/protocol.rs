@@ -6,7 +6,7 @@ use crate::{
     poseidon_tree::PoseidonHash,
     Field,
 };
-use ark_bn254::{Bn254, Parameters};
+use ark_bn254::{Bn254, Fr, Parameters};
 use ark_circom::CircomReduction;
 use ark_ec::bn::Bn;
 use ark_groth16::{
@@ -87,6 +87,8 @@ pub enum ProofError {
     WitnessError(color_eyre::Report),
     #[error("Error producing proof: {0}")]
     SynthesisError(#[from] SynthesisError),
+    #[error("Error converting public input: {0}")]
+    ToFieldError(#[from] ruint::ToFieldError),
 }
 
 /// Generates a semaphore proof
@@ -150,7 +152,7 @@ fn generate_proof_rs(
     let inputs = inputs.into_iter().map(|(name, values)| {
         (
             name.to_string(),
-            values.iter().copied().map(Into::into).collect::<Vec<_>>(),
+            values.iter().map(Into::into).collect::<Vec<_>>(),
         )
     });
 
@@ -197,12 +199,11 @@ pub fn verify_proof(
     let zkey = zkey();
     let pvk = prepare_verifying_key(&zkey.0.vk);
 
-    let public_inputs = [
-        root.into(),
-        nullifier_hash.into(),
-        signal_hash.into(),
-        external_nullifier_hash.into(),
-    ];
+    let public_inputs = [root, nullifier_hash, signal_hash, external_nullifier_hash]
+        .iter()
+        .map(|n| Fr::try_from(n))
+        .collect::<Result<Vec<_>, _>>()?;
+
     let ark_proof = (*proof).into();
     let result = ark_groth16::verify_proof(&pvk, &ark_proof, &public_inputs[..])?;
     Ok(result)

@@ -54,7 +54,6 @@ pub fn hash(values: &[U256]) -> U256 {
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use hex_literal::hex;
 
     #[test]
     fn test_round_constants() {
@@ -108,7 +107,7 @@ pub mod test {
         // See <https://github.com/iden3/circomlibjs/blob/3f84f4fbf77bebdf1722d851c1ad9b62cbf3d120/test/mimcsponge.js#L6>
         assert_eq!(
             hash(&[U256::from(1_u64), U256::from(2_u64)]),
-            uint!(2bcea035a1251603f1ceaf73cd4ae89427c47075bb8e3a944039ff1e3d6d2a6f_U256)
+            uint!(0x2bcea035a1251603f1ceaf73cd4ae89427c47075bb8e3a944039ff1e3d6d2a6f_U256)
         );
         assert_eq!(
             hash(&[
@@ -117,7 +116,7 @@ pub mod test {
                 U256::from(3_u64),
                 U256::from(4_u64)
             ]),
-            uint!(03e86bdc4eac70bd601473c53d8233b145fe8fd8bf6ef25f0b217a1da305665c_U256)
+            uint!(0x03e86bdc4eac70bd601473c53d8233b145fe8fd8bf6ef25f0b217a1da305665c_U256)
         );
     }
 }

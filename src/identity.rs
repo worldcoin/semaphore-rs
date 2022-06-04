@@ -1,4 +1,4 @@
-use crate::{poseidon_hash, Field};
+use crate::{field::MODULUS, poseidon_hash, Field};
 use sha2::{Digest, Sha256};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -14,7 +14,7 @@ fn derive_field(seed_hex: &[u8; 64], suffix: &[u8]) -> Field {
     let mut hasher = Sha256::new();
     hasher.update(seed_hex);
     hasher.update(suffix);
-    Field::from_be_bytes_mod_order(hasher.finalize().as_ref())
+    Field::try_from_be_slice(hasher.finalize().as_ref()).unwrap() % MODULUS
 }
 
 fn seed_hex(seed: &[u8]) -> [u8; 64] {
