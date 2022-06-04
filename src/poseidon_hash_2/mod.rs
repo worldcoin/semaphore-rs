@@ -41,24 +41,25 @@ pub fn hash(left: U256, right: U256) -> U256 {
     let left = left.try_into().unwrap();
     let right = right.try_into().unwrap();
     let mut state = [Fr::zero(), left, right];
+
     for i in 0..65 {
         // Add round constants
         state[0] += C[i][0];
         state[1] += C[i][1];
         state[2] += C[i][2];
 
-        // Exponentiate
+        // SubWords, S-Box: Exponentiate
         state[0] = state[0].pow(&[5]);
-        if !(4..=61).contains(&i) {
+        if !(4..61).contains(&i) {
             state[1] = state[1].pow(&[5]);
             state[2] = state[2].pow(&[5]);
         }
 
-        // Multiply by mixing matrix
+        // MixLayer: Multiply by maximum distance separable matrix
         state = [
-            M[0][1] * state[0] + M[0][1] * state[1] + M[0][2] * state[2],
-            M[1][1] * state[0] + M[1][1] * state[1] + M[1][2] * state[2],
-            M[2][1] * state[0] + M[2][1] * state[1] + M[2][2] * state[2],
+            M[0][0] * state[0] + M[0][1] * state[1] + M[0][2] * state[2],
+            M[1][0] * state[0] + M[1][1] * state[1] + M[1][2] * state[2],
+            M[2][0] * state[0] + M[2][1] * state[1] + M[2][2] * state[2],
         ];
     }
     state[0].into()
@@ -72,7 +73,9 @@ mod tests {
     #[test]
     fn test_posseidon() {
         uint! {
-            assert_eq!(hash(0_U256.into(), 0_U256.into()), 0x2098f5fb9e239eab3ceac3f27b81e481dc3124d55ffed523a839ee8446b64864_U256);
+            assert_eq!(hash(0_U256, 0_U256), 0x2098f5fb9e239eab3ceac3f27b81e481dc3124d55ffed523a839ee8446b64864_U256);
+            assert_eq!(hash(31213_U256, 132_U256), 0x303f59cd0831b5633bcda50514521b33776b5d4280eb5868ba1dbbe2e4d76ab5_U256);
+
         }
     }
 }
