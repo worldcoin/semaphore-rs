@@ -1,4 +1,4 @@
-use crate::{poseidon_hash, Field};
+use crate::{field::MODULUS, poseidon, Field};
 use sha2::{Digest, Sha256};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -14,7 +14,7 @@ fn derive_field(seed_hex: &[u8; 64], suffix: &[u8]) -> Field {
     let mut hasher = Sha256::new();
     hasher.update(seed_hex);
     hasher.update(suffix);
-    Field::from_be_bytes_mod_order(hasher.finalize().as_ref())
+    Field::try_from_be_slice(hasher.finalize().as_ref()).unwrap() % MODULUS
 }
 
 fn seed_hex(seed: &[u8]) -> [u8; 64] {
@@ -38,11 +38,11 @@ impl Identity {
 
     #[must_use]
     pub fn secret_hash(&self) -> Field {
-        poseidon_hash(&[self.nullifier, self.trapdoor])
+        poseidon::hash2(self.nullifier, self.trapdoor)
     }
 
     #[must_use]
     pub fn commitment(&self) -> Field {
-        poseidon_hash(&[self.secret_hash()])
+        poseidon::hash1(self.secret_hash())
     }
 }

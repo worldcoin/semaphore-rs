@@ -8,7 +8,7 @@ mod field;
 pub mod hash;
 pub mod identity;
 pub mod merkle_tree;
-mod poseidon_hash;
+pub mod poseidon;
 pub mod poseidon_tree;
 pub mod protocol;
 pub mod util;
@@ -22,10 +22,7 @@ use ark_bn254::Parameters;
 use ark_ec::bn::Bn;
 
 // Export types
-pub use crate::{
-    field::{hash_to_field, Field},
-    poseidon_hash::poseidon_hash,
-};
+pub use crate::field::{hash_to_field, Field};
 
 #[cfg(feature = "dylib")]
 pub use circuit::initialize;
@@ -67,7 +64,6 @@ mod test {
 
         let merkle_proof = tree.proof(0).expect("proof should exist");
         let root = tree.root();
-        dbg!(root);
 
         let signal_hash = hash_to_field(signal);
         let external_nullifier_hash = hash_to_field(external_nullifier);

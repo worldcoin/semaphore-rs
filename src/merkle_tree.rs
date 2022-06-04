@@ -21,6 +21,7 @@ pub trait Hasher {
 }
 
 /// Merkle tree with all leaf and intermediate hashes stored
+#[allow(clippy::derive_partial_eq_without_eq)] // False positive
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct MerkleTree<H: Hasher> {
     /// Depth of the tree, # of layers including leaf layer
@@ -34,6 +35,7 @@ pub struct MerkleTree<H: Hasher> {
 }
 
 /// Element of a Merkle proof
+#[allow(clippy::derive_partial_eq_without_eq)] // False positive
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Branch<H: Hasher> {
     /// Left branch taken, value is the right sibling hash.

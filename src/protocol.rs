@@ -2,11 +2,11 @@ use crate::{
     circuit::{witness_calculator, zkey},
     identity::Identity,
     merkle_tree::{self, Branch},
-    poseidon_hash,
+    poseidon,
     poseidon_tree::PoseidonHash,
     Field,
 };
-use ark_bn254::{Bn254, Parameters};
+use ark_bn254::{Bn254, Fr, Parameters};
 use ark_circom::CircomReduction;
 use ark_ec::bn::Bn;
 use ark_groth16::{
@@ -76,7 +76,7 @@ fn merkle_proof_to_vec(proof: &merkle_tree::Proof<PoseidonHash>) -> Vec<Field> {
 /// Generates the nullifier hash
 #[must_use]
 pub fn generate_nullifier_hash(identity: &Identity, external_nullifier: Field) -> Field {
-    poseidon_hash(&[external_nullifier, identity.nullifier])
+    poseidon::hash2(external_nullifier, identity.nullifier)
 }
 
 #[derive(Error, Debug)]
@@ -87,6 +87,8 @@ pub enum ProofError {
     WitnessError(color_eyre::Report),
     #[error("Error producing proof: {0}")]
     SynthesisError(#[from] SynthesisError),
+    #[error("Error converting public input: {0}")]
+    ToFieldError(#[from] ruint::ToFieldError),
 }
 
 /// Generates a semaphore proof
@@ -150,7 +152,7 @@ fn generate_proof_rs(
     let inputs = inputs.into_iter().map(|(name, values)| {
         (
             name.to_string(),
-            values.iter().copied().map(Into::into).collect::<Vec<_>>(),
+            values.iter().map(Into::into).collect::<Vec<_>>(),
         )
     });
 
@@ -197,12 +199,11 @@ pub fn verify_proof(
     let zkey = zkey();
     let pvk = prepare_verifying_key(&zkey.0.vk);
 
-    let public_inputs = [
-        root.into(),
-        nullifier_hash.into(),
-        signal_hash.into(),
-        external_nullifier_hash.into(),
-    ];
+    let public_inputs = [root, nullifier_hash, signal_hash, external_nullifier_hash]
+        .iter()
+        .map(Fr::try_from)
+        .collect::<Result<Vec<_>, _>>()?;
+
     let ark_proof = (*proof).into();
     let result = ark_groth16::verify_proof(&pvk, &ark_proof, &public_inputs[..])?;
     Ok(result)

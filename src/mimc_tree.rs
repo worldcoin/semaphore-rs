@@ -3,8 +3,8 @@ use crate::{
     merkle_tree::{self, Hasher, MerkleTree},
     mimc_hash::hash,
 };
+use ruint::aliases::U256;
 use serde::Serialize;
-use zkp_u256::U256;
 
 pub type MimcTree = MerkleTree<MimcHash>;
 #[allow(dead_code)]
@@ -19,9 +19,9 @@ impl Hasher for MimcHash {
     type Hash = Hash;
 
     fn hash_node(left: &Self::Hash, right: &Self::Hash) -> Self::Hash {
-        let left = U256::from_bytes_be(left.as_bytes_be());
-        let right = U256::from_bytes_be(right.as_bytes_be());
-        Hash::from_bytes_be(hash(&[left, right]).to_bytes_be())
+        let left = U256::try_from_be_slice(left.as_bytes_be()).unwrap();
+        let right = U256::try_from_be_slice(right.as_bytes_be()).unwrap();
+        Hash::from_bytes_be(hash(&[left, right]).to_be_bytes())
     }
 }
 
