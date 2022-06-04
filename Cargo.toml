@@ -33,7 +33,7 @@ ark-ff = { version = "0.3.0", default-features = false, features = ["parallel", 
 ark-groth16 = { git = "https://github.com/arkworks-rs/groth16", rev = "765817f", features = ["parallel"] }
 ark-relations = { version = "0.3.0", default-features = false }
 ark-std = { version = "0.3.0", default-features = false, features = ["parallel"] }
-color-eyre = "0.5"
+color-eyre = "0.6"
 criterion = { version = "0.3", optional = true, features = [ "async_tokio" ] }
 hex = "0.4.0"
 hex-literal = "0.3"
@@ -64,7 +64,7 @@ tiny-keccak = "2.0.2"
 tracing-test = "0.2"
 
 [build-dependencies]
-color-eyre = "0.5"
+color-eyre = "0.6"
 enumset = "1.0.8"
 wasmer = { version = "2.0" }
 wasmer-engine-dylib = { version = "2.2.1", optional = true }
