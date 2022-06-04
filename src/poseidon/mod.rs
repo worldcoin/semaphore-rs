@@ -69,6 +69,12 @@ static C: Lazy<[[Fr; 3]; 65]> = Lazy::new(|| {
         .unwrap()
 });
 
+/// Compute the one-value Poseidon hash function.
+///
+/// # Panics
+///
+/// Panics if `input` is not a valid field element.
+#[must_use]
 pub fn hash1(value: U256) -> U256 {
     let value = value.try_into().unwrap();
     let mut state = [Fr::zero(), value];
@@ -93,6 +99,12 @@ pub fn hash1(value: U256) -> U256 {
     state[0].into()
 }
 
+/// Compute the two-value Poseidon hash function.
+///
+/// # Panics
+///
+/// Panics if `left`, `right` are not a valid field element.
+#[must_use]
 pub fn hash2(left: U256, right: U256) -> U256 {
     let left = left.try_into().unwrap();
     let right = right.try_into().unwrap();
@@ -139,7 +151,6 @@ mod tests {
         uint! {
             assert_eq!(hash2(0_U256, 0_U256), 0x2098f5fb9e239eab3ceac3f27b81e481dc3124d55ffed523a839ee8446b64864_U256);
             assert_eq!(hash2(31213_U256, 132_U256), 0x303f59cd0831b5633bcda50514521b33776b5d4280eb5868ba1dbbe2e4d76ab5_U256);
-
         }
     }
 }

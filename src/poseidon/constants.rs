@@ -206,7 +206,7 @@ pub const C1: [[U256; 2]; 64] = [
         0x1574c7ef0c43545f36a8ca08bdbdd8b075d2959e2f322b731675de3e1982b4d0_U256,
         0x269e4b5b7a2eb21afd567970a717ceec5bd4184571c254fdc06e03a7ff8378f0_U256,
     ],
-    ];
+];
 
 pub const M: [[U256; 3]; 3] = [
     [
