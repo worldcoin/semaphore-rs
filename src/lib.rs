@@ -9,6 +9,7 @@ pub mod hash;
 pub mod identity;
 pub mod merkle_tree;
 mod poseidon_hash;
+mod poseidon_hash_2;
 pub mod poseidon_tree;
 pub mod protocol;
 pub mod util;
