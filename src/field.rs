@@ -1,16 +1,5 @@
-use crate::util::{bytes_from_hex, bytes_to_hex, deserialize_bytes, keccak256, serialize_bytes};
-use ark_bn254::Fr as ArkField;
-use ark_ff::{BigInteger as _, PrimeField as _};
-use core::{
-    fmt::{Debug, Display},
-    str,
-    str::FromStr,
-};
-use ff::{PrimeField as _, PrimeFieldRepr as _};
-use num_bigint::{BigInt, Sign};
-use poseidon_rs::Fr as PosField;
+use crate::util::keccak256;
 use ruint::{aliases::U256, uint};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// An element of the BN254 scalar field Fr.
 ///
@@ -27,7 +16,9 @@ pub const MODULUS: Field =
 /// This is used to create `signal_hash` and `external_nullifier_hash`.
 #[must_use]
 #[allow(clippy::module_name_repetitions)]
+#[allow(clippy::missing_panics_doc)]
 pub fn hash_to_field(data: &[u8]) -> Field {
+    // Never panics because the target uint is large enough.
     let n = U256::try_from_be_slice(&keccak256(data)).unwrap();
     // Shift right one byte to make it fit in the field
     n >> 8
@@ -35,29 +26,11 @@ pub fn hash_to_field(data: &[u8]) -> Field {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use ark_ff::Field as _;
+    use ff::PrimeField;
 
     #[test]
     fn test_modulus_identical() {
-        assert_eq!(PosField::char().0, ArkField::characteristic());
+        assert_eq!(poseidon_rs::Fr::char().0, ark_bn254::Fr::characteristic());
     }
-
-    #[test]
-    fn test_field_serde() {
-        let value = Field::from(0x1234_5678);
-        let serialized = serde_json::to_value(value).unwrap();
-        let deserialized = serde_json::from_value(serialized).unwrap();
-        assert_eq!(value, deserialized);
-    }
-
-    // #[test]
-    // fn test_ark_pos_ark_roundtrip() {
-    //     let mut rng = ChaChaRng::seed_from_u64(123);
-    //     for _ in 0..1000 {
-    //         let n = Field::rand(&mut rng);
-    //         let m = poseidon_to_ark(ark_to_poseidon(n));
-    //         assert_eq!(n, m);
-    //     }
-    // }
 }

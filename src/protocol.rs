@@ -201,7 +201,7 @@ pub fn verify_proof(
 
     let public_inputs = [root, nullifier_hash, signal_hash, external_nullifier_hash]
         .iter()
-        .map(|n| Fr::try_from(n))
+        .map(Fr::try_from)
         .collect::<Result<Vec<_>, _>>()?;
 
     let ark_proof = (*proof).into();
