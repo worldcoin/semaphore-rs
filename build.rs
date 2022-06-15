@@ -104,7 +104,7 @@ fn build_dylib() -> Result<()> {
 
 fn main() -> Result<()> {
     build_circuit()?;
-    #[cfg(feature = "dylib")]
-    build_dylib()?;
+    // #[cfg(feature = "dylib")]
+    // build_dylib()?;
     Ok(())
 }
