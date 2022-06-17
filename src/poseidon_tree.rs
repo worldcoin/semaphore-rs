@@ -1,6 +1,6 @@
 use crate::{
     merkle_tree::{self, Hasher, MerkleTree},
-    poseidon_hash, Field,
+    poseidon, Field,
 };
 use serde::{Deserialize, Serialize};
 
@@ -18,7 +18,7 @@ impl Hasher for PoseidonHash {
     type Hash = Field;
 
     fn hash_node(left: &Self::Hash, right: &Self::Hash) -> Self::Hash {
-        poseidon_hash(&[*left, *right])
+        poseidon::hash2(*left, *right)
     }
 }
 

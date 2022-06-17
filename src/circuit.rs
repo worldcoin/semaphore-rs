@@ -3,9 +3,13 @@ use ark_circom::{read_zkey, WitnessCalculator};
 use ark_groth16::ProvingKey;
 use ark_relations::r1cs::ConstraintMatrices;
 use core::include_bytes;
-use once_cell::sync::Lazy;
+use once_cell::sync::{Lazy, OnceCell};
 use std::{io::Cursor, sync::Mutex};
-// use wasmer::{Dylib, Module, Store};
+
+#[cfg(feature = "dylib")]
+use std::{env, path::Path};
+#[cfg(feature = "dylib")]
+use wasmer::Dylib;
 
 const ZKEY_BYTES: &[u8] = include_bytes!("../semaphore/build/snark/semaphore_final.zkey");
 

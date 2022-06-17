@@ -2,11 +2,11 @@ use crate::{
     circuit::{ZKEY, WASM},
     identity::Identity,
     merkle_tree::{self, Branch},
-    poseidon_hash,
+    poseidon,
     poseidon_tree::PoseidonHash,
     Field,
 };
-use ark_bn254::{Bn254, Parameters};
+use ark_bn254::{Bn254, Fr, Parameters};
 use ark_circom::CircomReduction;
 use ark_circom::{read_zkey, WitnessCalculator};
 use ark_ec::bn::Bn;
@@ -78,7 +78,7 @@ fn merkle_proof_to_vec(proof: &merkle_tree::Proof<PoseidonHash>) -> Vec<Field> {
 /// Generates the nullifier hash
 #[must_use]
 pub fn generate_nullifier_hash(identity: &Identity, external_nullifier: Field) -> Field {
-    poseidon_hash(&[external_nullifier, identity.nullifier])
+    poseidon::hash2(external_nullifier, identity.nullifier)
 }
 
 #[derive(Error, Debug)]
@@ -89,6 +89,8 @@ pub enum ProofError {
     WitnessError(color_eyre::Report),
     #[error("Error producing proof: {0}")]
     SynthesisError(#[from] SynthesisError),
+    #[error("Error converting public input: {0}")]
+    ToFieldError(#[from] ruint::ToFieldError),
 }
 
 /// Generates a semaphore proof
@@ -111,6 +113,11 @@ pub fn generate_proof(
     )
 }
 
+/// Generates a semaphore proof from entropy
+///
+/// # Errors
+///
+/// Returns a [`ProofError`] if proving fails.
 pub fn generate_proof_rng(
     identity: &Identity,
     merkle_proof: &merkle_tree::Proof<PoseidonHash>,
@@ -147,7 +154,7 @@ fn generate_proof_rs(
     let inputs = inputs.into_iter().map(|(name, values)| {
         (
             name.to_string(),
-            values.iter().copied().map(Into::into).collect::<Vec<_>>(),
+            values.iter().map(Into::into).collect::<Vec<_>>(),
         )
     });
 
@@ -167,13 +174,14 @@ fn generate_proof_rs(
     println!("witness generation took: {:.2?}", now.elapsed());
 
     let now = Instant::now();
+    let zkey = &ZKEY;
     let ark_proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
-        &ZKEY.0,
+        &zkey.0,
         r,
         s,
-        &ZKEY.1,
-        ZKEY.1.num_instance_variables,
-        ZKEY.1.num_constraints,
+        &zkey.1,
+        zkey.1.num_instance_variables,
+        zkey.1.num_constraints,
         full_assignment.as_slice(),
     )?;
     let proof = ark_proof.into();
@@ -195,14 +203,14 @@ pub fn verify_proof(
     external_nullifier_hash: Field,
     proof: &Proof,
 ) -> Result<bool, ProofError> {
-    let pvk = prepare_verifying_key(&ZKEY.0.vk);
+    let zkey = &ZKEY;
+    let pvk = prepare_verifying_key(&zkey.0.vk);
 
-    let public_inputs = [
-        root.into(),
-        nullifier_hash.into(),
-        signal_hash.into(),
-        external_nullifier_hash.into(),
-    ];
+    let public_inputs = [root, nullifier_hash, signal_hash, external_nullifier_hash]
+        .iter()
+        .map(Fr::try_from)
+        .collect::<Result<Vec<_>, _>>()?;
+
     let ark_proof = (*proof).into();
     let result = ark_groth16::verify_proof(&pvk, &ark_proof, &public_inputs[..])?;
     Ok(result)
