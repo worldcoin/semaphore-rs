@@ -26,7 +26,6 @@ use ethabi::{decode, encode, ParamType, Token};
 use primitive_types::U256;
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::time::Instant;
 use thiserror::Error;
 use wasmi::Module;
 
@@ -236,8 +235,6 @@ fn generate_proof_rs(
         )
     });
 
-    let now = Instant::now();
-
     let module = Module::from_buffer(WASM).expect("ddd");
     let full_assignment = WitnessCalculator::from_module(module).expect("ddd")
         .calculate_witness_element::<Bn254, _>(inputs, false)
@@ -249,9 +246,6 @@ fn generate_proof_rs(
     //     .calculate_witness_element::<Bn254, _>(inputs, false)
     //     .map_err(ProofError::WitnessError)?;
 
-    println!("witness generation took: {:.2?}", now.elapsed());
-
-    let now = Instant::now();
     let zkey = &ZKEY;
     let ark_proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
         &zkey.0,
@@ -263,7 +257,6 @@ fn generate_proof_rs(
         full_assignment.as_slice(),
     )?;
     let proof = ark_proof.into();
-    println!("proof generation took: {:.2?}", now.elapsed());
 
     Ok(proof)
 }
