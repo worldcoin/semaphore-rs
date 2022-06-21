@@ -6,9 +6,10 @@ use crate::{
     poseidon_tree::PoseidonHash,
     Field,
 };
-use ark_bn254::{Bn254, Fr, Parameters};
+use ark_bn254::{Bn254, Fr, FrParameters, Parameters};
 use ark_circom::CircomReduction;
 use ark_ec::bn::Bn;
+use ark_ff::Fp256;
 use ark_groth16::{
     create_proof_with_reduction_and_matrices, prepare_verifying_key, Proof as ArkProof,
 };
@@ -18,7 +19,6 @@ use color_eyre::Result;
 use primitive_types::U256;
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
-use std::time::Instant;
 use thiserror::Error;
 
 // Matches the private G1Tup type in ark-circom.
@@ -26,6 +26,33 @@ pub type G1 = (U256, U256);
 
 // Matches the private G2Tup type in ark-circom.
 pub type G2 = ([U256; 2], [U256; 2]);
+
+/// Wrap a proof object so we have serde support
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Witness(Vec<Fp256<FrParameters>>);
+
+impl From<Vec<Field>> for Witness {
+    fn from(witness: Vec<Field>) -> Self {
+        Self(
+            witness
+                .into_iter()
+                .map(Fr::try_from)
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap(),
+        )
+    }
+}
+
+impl From<Witness> for Vec<Field> {
+    fn from(witness: Witness) -> Self {
+            witness
+                .0
+                .into_iter()
+                .map(Field::try_from)
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap()
+    }
+}
 
 /// Wrap a proof object so we have serde support
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -111,6 +138,15 @@ pub fn generate_proof(
     )
 }
 
+/// Generates a semaphore proof
+///
+/// # Errors
+///
+/// Returns a [`ProofError`] if proving fails.
+pub fn generate_proof_with_witness(witness: Witness) -> Result<Proof, ProofError> {
+    generate_proof_rng_with_witness(witness, &mut thread_rng())
+}
+
 /// Generates a semaphore proof from entropy
 ///
 /// # Errors
@@ -123,24 +159,48 @@ pub fn generate_proof_rng(
     signal_hash: Field,
     rng: &mut impl Rng,
 ) -> Result<Proof, ProofError> {
-    generate_proof_rs(
-        identity,
-        merkle_proof,
-        external_nullifier_hash,
-        signal_hash,
-        ark_bn254::Fr::rand(rng),
-        ark_bn254::Fr::rand(rng),
-    )
+    let witness = generate_witness(identity, merkle_proof, external_nullifier_hash, signal_hash)
+        .map_err(ProofError::WitnessError)?;
+    generate_proof_rng_with_witness(witness, rng)
+}
+
+/// Generates a semaphore proof from entropy
+///
+/// # Errors
+///
+/// Returns a [`ProofError`] if proving fails.
+pub fn generate_proof_rng_with_witness(
+    witness: Witness,
+    rng: &mut impl Rng,
+) -> Result<Proof, ProofError> {
+    generate_proof_rs(witness, ark_bn254::Fr::rand(rng), ark_bn254::Fr::rand(rng))
 }
 
 fn generate_proof_rs(
+    witness: Witness,
+    r: ark_bn254::Fr,
+    s: ark_bn254::Fr,
+) -> Result<Proof, ProofError> {
+    let zkey = zkey();
+    let ark_proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
+        &zkey.0,
+        r,
+        s,
+        &zkey.1,
+        zkey.1.num_instance_variables,
+        zkey.1.num_constraints,
+        witness.0.as_slice(),
+    )?;
+    let proof = ark_proof.into();
+    Ok(proof)
+}
+
+pub fn generate_witness(
     identity: &Identity,
     merkle_proof: &merkle_tree::Proof<PoseidonHash>,
     external_nullifier_hash: Field,
     signal_hash: Field,
-    r: ark_bn254::Fr,
-    s: ark_bn254::Fr,
-) -> Result<Proof, ProofError> {
+) -> Result<Witness> {
     let inputs = [
         ("identityNullifier", vec![identity.nullifier]),
         ("identityTrapdoor", vec![identity.trapdoor]),
@@ -156,31 +216,13 @@ fn generate_proof_rs(
         )
     });
 
-    let now = Instant::now();
-
-    let full_assignment = witness_calculator()
-        .lock()
-        .expect("witness_calculator mutex should not get poisoned")
-        .calculate_witness_element::<Bn254, _>(inputs, false)
-        .map_err(ProofError::WitnessError)?;
-
-    println!("witness generation took: {:.2?}", now.elapsed());
-
-    let now = Instant::now();
-    let zkey = zkey();
-    let ark_proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
-        &zkey.0,
-        r,
-        s,
-        &zkey.1,
-        zkey.1.num_instance_variables,
-        zkey.1.num_constraints,
-        full_assignment.as_slice(),
-    )?;
-    let proof = ark_proof.into();
-    println!("proof generation took: {:.2?}", now.elapsed());
-
-    Ok(proof)
+    Ok(Witness(
+        witness_calculator()
+            .lock()
+            .expect("witness_calculator mutex should not get poisoned")
+            .calculate_witness_element::<Bn254, _>(inputs, false)
+            .map_err(ProofError::WitnessError)?,
+    ))
 }
 
 /// Verifies a given semaphore proof
