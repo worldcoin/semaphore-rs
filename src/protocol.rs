@@ -45,12 +45,12 @@ impl From<Vec<Field>> for Witness {
 
 impl From<Witness> for Vec<Field> {
     fn from(witness: Witness) -> Self {
-            witness
-                .0
-                .into_iter()
-                .map(Field::try_from)
-                .collect::<Result<Vec<_>, _>>()
-                .unwrap()
+        witness
+            .0
+            .into_iter()
+            .map(Field::try_from)
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap()
     }
 }
 
