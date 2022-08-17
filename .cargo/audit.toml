@@ -1,0 +1,13 @@
+[advisories]
+ignore = [
+     # serde_cbot is unavoidably included through criterion, which is only
+     # used in dev builds. It is save to ignore it.
+     # See <https://github.com/bheisler/criterion.rs/issues/534>
+    "RUSTSEC-2021-0127",
+
+    # Well know problems in the chrono crate that are blocked upstream.
+    # See <https://github.com/chronotope/chrono/issues/499>
+    "RUSTSEC-2020-0159",
+    # Chrono forces dependency time down to a broken version.
+    "RUSTSEC-2020-0071",
+]
