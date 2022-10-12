@@ -27,6 +27,8 @@ pub type G1 = (U256, U256);
 // Matches the private G2Tup type in ark-circom.
 pub type G2 = ([U256; 2], [U256; 2]);
 
+pub const CIRCUIT_BATCH_SIZE: usize = 10;
+
 /// Wrap a proof object so we have serde support
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Proof(G1, G2, G1);
@@ -109,6 +111,96 @@ pub fn generate_proof(
         signal_hash,
         &mut thread_rng(),
     )
+}
+
+/// Generates a batch insertion proof
+///
+/// # Errors
+///
+/// Returns a [`ProofError`] if proving fails.
+pub fn generate_batch_proof(
+    identities: [&Identity; CIRCUIT_BATCH_SIZE],
+    merkle_proofs: [&merkle_tree::Proof<PoseidonHash>; CIRCUIT_BATCH_SIZE],
+    initial_root: Field,
+    start_leaf_idx: ruint::Uint<256, 4>,
+) -> Result<Proof, ProofError> {
+    generate_batch_proof_rng(
+        identities,
+        merkle_proofs,
+        initial_root,
+        start_leaf_idx,
+        &mut thread_rng(),
+    )
+}
+
+pub fn generate_batch_proof_rng(
+    identities: [&Identity; CIRCUIT_BATCH_SIZE],
+    merkle_proofs: [&merkle_tree::Proof<PoseidonHash>; CIRCUIT_BATCH_SIZE],
+    initial_root: Field,
+    start_leaf_idx: ruint::Uint<256, 4>,
+    rng: &mut impl Rng,
+) -> Result<Proof, ProofError> {
+    generate_batch_proof_rs(
+        identities,
+        merkle_proofs,
+        initial_root,
+        start_leaf_idx,
+        ark_bn254::Fr::rand(rng),
+        ark_bn254::Fr::rand(rng),
+    )
+}
+
+fn generate_batch_proof_rs(
+    identities: [&Identity; CIRCUIT_BATCH_SIZE],
+    merkle_proofs: [&merkle_tree::Proof<PoseidonHash>; CIRCUIT_BATCH_SIZE],
+    initial_root: Field,
+    start_leaf_idx: ruint::Uint<256, 4>,
+    r: ark_bn254::Fr,
+    s: ark_bn254::Fr,
+) -> Result<Proof, ProofError> {
+
+    /*
+    let inputs = [
+        ("identityCommitments", vec![identities[0].commitment()]),
+        ("treePathIndices", merkle_proofs[0].path_index()),
+        ("treeSiblings", merkle_proof_to_vec(merkle_proofs[0])),
+        ("startLeafIdx", vec![start_leaf_idx]),
+        ("initialRoot", vec![initial_root]),
+    ];
+    */
+
+    let inputs = inputs.into_iter().map(|(name, values)| {
+        (
+            name.to_string(),
+            values.iter().map(Into::into).collect::<Vec<_>>(),
+        )
+    });
+
+    let now = Instant::now();
+
+    let full_assignment = witness_calculator()
+        .lock()
+        .expect("witness_calculator mutex should not get poisoned")
+        .calculate_witness_element::<Bn254, _>([], false)
+        .map_err(ProofError::WitnessError)?;
+
+    println!("witness generation took: {:.2?}", now.elapsed());
+
+    let now = Instant::now();
+    let zkey = zkey();
+    let ark_proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
+        &zkey.0,
+        r,
+        s,
+        &zkey.1,
+        zkey.1.num_instance_variables,
+        zkey.1.num_constraints,
+        full_assignment.as_slice(),
+    )?;
+    let proof = ark_proof.into();
+    println!("proof generation took: {:.2?}", now.elapsed());
+
+    Ok(proof)
 }
 
 /// Generates a semaphore proof from entropy
