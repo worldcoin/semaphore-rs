@@ -15,7 +15,7 @@ use ark_groth16::{
 use ark_relations::r1cs::SynthesisError;
 use ark_std::UniformRand;
 use color_eyre::Result;
-use primitive_types::U256;
+use ethers_core::types::U256;
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
