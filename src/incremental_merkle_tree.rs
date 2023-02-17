@@ -1,6 +1,9 @@
 #![feature("incremental_tree")]
 
-use crate::merkle_tree::{Hasher, Proof};
+use crate::{
+    merkle_tree::{Branch, Hasher, Proof},
+    mimc_hash::hash,
+};
 use std::{
     borrow::Borrow,
     iter::{once, repeat, successors},
@@ -35,6 +38,10 @@ impl<H: Hasher> IncrementalMerkleTree<H> {
 
     pub fn proof(&self, index: usize) -> Proof<H> {
         self.0.proof(index)
+    }
+
+    pub fn verify(&self, value: H::Hash, proof: &Proof<H>) -> bool {
+        proof.root(value) == self.root()
     }
 
     #[must_use]
@@ -104,14 +111,23 @@ impl<H: Hasher> AnyTree<H> {
     }
 
     fn proof(&self, index: usize) -> Proof<H> {
-        assert!(index < (1 << self.0.depth()));
+        assert!(index < (1 << self.depth()));
         let mut path = Vec::with_capacity(self.depth());
         match self {
             Self::Empty(tree) => tree.write_proof(index, &mut path),
             Self::Sparse(tree) => tree.write_proof(index, &mut path),
             Self::Dense(tree) => tree.write_proof(index, &mut path),
         }
-        
+        path.reverse();
+        Proof(path)
+    }
+
+    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H>>) {
+        match self {
+            Self::Empty(tree) => tree.write_proof(index, path),
+            Self::Sparse(tree) => tree.write_proof(index, path),
+            Self::Dense(tree) => tree.write_proof(index, path),
+        }
     }
 
     fn update_with_destruction_condition(
@@ -178,6 +194,18 @@ impl<H: Hasher> EmptyTree<H> {
         Self {
             depth,
             empty_tree_values,
+        }
+    }
+
+    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H>>) {
+        for depth in (1..self.depth + 1).rev() {
+            let val = self.empty_tree_values[depth - 1].clone();
+            let branch = if get_turn_at_depth(index, depth) == Turn::Left {
+                Branch::Left(val)
+            } else {
+                Branch::Right(val)
+            };
+            path.push(branch);
         }
     }
 
@@ -298,6 +326,18 @@ impl<H: Hasher> SparseTree<H> {
         }
     }
 
+    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H>>) {
+        if let Some(children) = &self.children {
+            if get_turn_at_depth(index, self.depth) == Turn::Left {
+                path.push(Branch::Left(children.right.root()));
+                children.left.write_proof(index, path);
+            } else {
+                path.push(Branch::Right(children.left.root()));
+                children.right.write_proof(index, path);
+            }
+        }
+    }
+
     #[must_use]
     fn update_with_destruction_condition(
         &self,
@@ -365,6 +405,10 @@ impl<H: Hasher> DenseTree<H> {
             locked_storage: &self.storage,
         };
         fun(r)
+    }
+
+    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H>>) {
+        self.with_ref(|r| r.write_proof(index, path))
     }
 
     fn update_with_destruction_condition(
@@ -462,6 +506,19 @@ impl<'a, H: Hasher> DenseTreeRef<'a, H> {
             root_index:     2 * self.root_index + 1,
             storage:        self.storage,
             locked_storage: self.locked_storage,
+        }
+    }
+
+    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H>>) {
+        if self.depth == 0 {
+            return;
+        }
+        if get_turn_at_depth(index, self.depth) == Turn::Left {
+            path.push(Branch::Left(self.right().root()));
+            self.left().write_proof(index, path);
+        } else {
+            path.push(Branch::Right(self.left().root()));
+            self.right().write_proof(index, path);
         }
     }
 
@@ -581,5 +638,37 @@ mod tests {
             tree.root(),
             hex!("a9bb8c3f1f12e9aa903a50c47f314b57610a3ab32f2d463293f58836def38d36")
         );
+    }
+
+    #[test]
+    fn test_proof() {
+        let tree = IncrementalMerkleTree::<Keccak256>::new_with_dense_prefix(2, 1, [0; 32]);
+        let tree = tree.update_destructively(
+            0,
+            &hex!("0000000000000000000000000000000000000000000000000000000000000001"),
+        );
+        let tree = tree.update_destructively(
+            1,
+            &hex!("0000000000000000000000000000000000000000000000000000000000000002"),
+        );
+        let tree = tree.update_destructively(
+            2,
+            &hex!("0000000000000000000000000000000000000000000000000000000000000003"),
+        );
+        let tree = tree.update_destructively(
+            3,
+            &hex!("0000000000000000000000000000000000000000000000000000000000000004"),
+        );
+
+        let proof = tree.proof(2);
+        assert_eq!(proof.leaf_index(), 2);
+        assert!(tree.verify(
+            hex!("0000000000000000000000000000000000000000000000000000000000000003"),
+            &proof
+        ));
+        assert!(!tree.verify(
+            hex!("0000000000000000000000000000000000000000000000000000000000000001"),
+            &proof
+        ));
     }
 }
