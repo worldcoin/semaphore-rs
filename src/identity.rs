@@ -37,11 +37,10 @@ impl Identity {
         }
     }
 
-    pub fn from_secret(secret: &[u8], trapdoor_seed: Option<&str>) -> Self {
-        trapdoor_seed.unwrap_or(b"identity_trapdoor");
-        let secret_hex = seed_hex(seed);
+    pub fn from_secret(secret: &[u8], trapdoor_seed: Option<&[u8]>) -> Self {
+        let secret_hex = seed_hex(secret);
         Self {
-            trapdoor:  derive_field(&secret_hex, &trapdoor_seed),
+            trapdoor:  derive_field(&secret_hex, &trapdoor_seed.unwrap_or(b"identity_trapdoor")),
             nullifier: derive_field(&secret_hex, b"identity_nullifier"),
         }
     }
