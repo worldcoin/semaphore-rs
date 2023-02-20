@@ -1,5 +1,6 @@
 /target
 *.profraw
 .*
+!.github
 Cargo.lock
 snarkfiles_tmp
