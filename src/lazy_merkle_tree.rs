@@ -1,10 +1,6 @@
-#![feature("lazy_tree")]
-
 use crate::merkle_tree::{Branch, Hasher, Proof};
 use std::{
-    borrow::Borrow,
     iter::{once, repeat, successors},
-    ops::Deref,
     sync::{Arc, Mutex},
 };
 
@@ -19,7 +15,7 @@ use std::{
 /// The update method also allows to specify a mutability hint, which can be
 /// used to vastly improve storage characteristics, but also requires the caller
 /// to ensure certain additional invariants hold. See
-/// [LazyMerkleTree::update_with_mutation] for details.
+/// [`LazyMerkleTree::update_with_mutation`] for details.
 pub struct LazyMerkleTree<H: Hasher>(AnyTree<H>);
 
 impl<H: Hasher> LazyMerkleTree<H> {
@@ -31,13 +27,13 @@ impl<H: Hasher> LazyMerkleTree<H> {
 
     /// Creates a new tree with a dense prefix of the given depth.
     #[must_use]
-    pub fn new_with_dense_prefix(depth: usize, prefix_depth: usize, empty_value: H::Hash) -> Self {
+    pub fn new_with_dense_prefix(depth: usize, prefix_depth: usize, empty_value: &H::Hash) -> Self {
         AnyTree::new_with_dense_prefix(depth, prefix_depth, empty_value).into()
     }
 
     /// Returns the depth of the tree.
     #[must_use]
-    pub fn depth(&self) -> usize {
+    pub const fn depth(&self) -> usize {
         self.0.depth()
     }
 
@@ -100,7 +96,6 @@ impl<H: Hasher> LazyMerkleTree<H> {
     }
 
     /// Returns an iterator over all leaves.
-    #[must_use]
     pub fn leaves(&self) -> impl Iterator<Item = H::Hash> + '_ {
         // TODO this could be made faster by a custom iterator
         (0..(1 << self.depth())).map(|i| self.get_leaf(i))
@@ -124,7 +119,7 @@ impl<H: Hasher> AnyTree<H> {
         Self::Empty(EmptyTree::new(depth, empty_value))
     }
 
-    fn new_with_dense_prefix(depth: usize, prefix_depth: usize, empty_value: H::Hash) -> Self {
+    fn new_with_dense_prefix(depth: usize, prefix_depth: usize, empty_value: &H::Hash) -> Self {
         assert!(depth >= prefix_depth);
         let mut result: Self = EmptyTree::new(prefix_depth, empty_value.clone())
             .alloc_dense()
@@ -141,7 +136,7 @@ impl<H: Hasher> AnyTree<H> {
         result
     }
 
-    fn depth(&self) -> usize {
+    const fn depth(&self) -> usize {
         match self {
             Self::Empty(tree) => tree.depth,
             Self::Sparse(tree) => tree.depth,
@@ -190,9 +185,9 @@ impl<H: Hasher> AnyTree<H> {
             Self::Sparse(tree) => tree
                 .update_with_mutation_condition(index, value, is_mutation_allowed)
                 .into(),
-            Self::Dense(tree) => tree
-                .update_with_mutation_condition(index, value, is_mutation_allowed)
-                .into(),
+            Self::Dense(tree) => {
+                tree.update_with_mutation_condition(index, value, is_mutation_allowed)
+            }
         }
     }
 
@@ -253,7 +248,7 @@ impl<H: Hasher> EmptyTree<H> {
     }
 
     fn write_proof(&self, index: usize, path: &mut Vec<Branch<H>>) {
-        for depth in (1..self.depth + 1).rev() {
+        for depth in (1..=self.depth).rev() {
             let val = self.empty_tree_values[depth - 1].clone();
             let branch = if get_turn_at_depth(index, depth) == Turn::Left {
                 Branch::Left(val)
@@ -280,7 +275,7 @@ impl<H: Hasher> EmptyTree<H> {
         if self.depth == 0 {
             SparseTree::new_leaf(self.root())
         } else {
-            let next_child: Self = EmptyTree {
+            let next_child: Self = Self {
                 depth:             self.depth - 1,
                 empty_tree_values: self.empty_tree_values.clone(),
             };
@@ -334,11 +329,7 @@ enum Turn {
     Right,
 }
 
-const fn log2(x: usize) -> usize {
-    usize::BITS as usize - x.leading_zeros() as usize - 1
-}
-
-fn get_turn_at_depth(index: usize, depth: usize) -> Turn {
+const fn get_turn_at_depth(index: usize, depth: usize) -> Turn {
     if index & (1 << (depth - 1)) == 0 {
         Turn::Left
     } else {
@@ -346,7 +337,7 @@ fn get_turn_at_depth(index: usize, depth: usize) -> Turn {
     }
 }
 
-fn clear_turn_at_depth(index: usize, depth: usize) -> usize {
+const fn clear_turn_at_depth(index: usize, depth: usize) -> usize {
     index & !(1 << (depth - 1))
 }
 
@@ -377,7 +368,7 @@ impl<H: Hasher> SparseTree<H> {
         children.into()
     }
 
-    fn new_leaf(value: H::Hash) -> Self {
+    const fn new_leaf(value: H::Hash) -> Self {
         Self {
             depth:    0,
             root:     value,
@@ -437,16 +428,17 @@ impl<H: Hasher> SparseTree<H> {
     }
 
     fn get_leaf(&self, index: usize) -> H::Hash {
-        if let Some(children) = &self.children {
-            let next_index = clear_turn_at_depth(index, self.depth);
-            if get_turn_at_depth(index, self.depth) == Turn::Left {
-                children.left.get_leaf(next_index)
-            } else {
-                children.right.get_leaf(next_index)
-            }
-        } else {
-            self.root.clone()
-        }
+        self.children.as_ref().map_or_else(
+            || self.root.clone(),
+            |children| {
+                let next_index = clear_turn_at_depth(index, self.depth);
+                if get_turn_at_depth(index, self.depth) == Turn::Left {
+                    children.left.get_leaf(next_index)
+                } else {
+                    children.right.get_leaf(next_index)
+                }
+            },
+        )
     }
 }
 
@@ -483,7 +475,7 @@ impl<H: Hasher> DenseTree<H> {
     }
 
     fn write_proof(&self, index: usize, path: &mut Vec<Branch<H>>) {
-        self.with_ref(|r| r.write_proof(index, path))
+        self.with_ref(|r| r.write_proof(index, path));
     }
 
     fn get_leaf(&self, index: usize) -> H::Hash {
@@ -503,11 +495,7 @@ impl<H: Hasher> DenseTree<H> {
             self.update_with_mutation(index, value);
             self.clone().into()
         } else {
-            self.with_ref(|r| {
-                let x = r.update(index, value);
-                x
-            })
-            .into()
+            self.with_ref(|r| r.update(index, value)).into()
         }
     }
 
@@ -526,22 +514,6 @@ impl<H: Hasher> DenseTree<H> {
 
     fn root(&self) -> H::Hash {
         self.storage.lock().unwrap()[self.root_index].clone()
-    }
-
-    fn left(&self) -> DenseTree<H> {
-        Self {
-            depth:      self.depth - 1,
-            root_index: 2 * self.root_index,
-            storage:    self.storage.clone(),
-        }
-    }
-
-    fn right(&self) -> DenseTree<H> {
-        Self {
-            depth:      self.depth - 1,
-            root_index: 2 * self.root_index,
-            storage:    self.storage.clone(),
-        }
     }
 }
 
@@ -573,7 +545,7 @@ impl<'a, H: Hasher> DenseTreeRef<'a, H> {
         self.storage[self.root_index].clone()
     }
 
-    fn left(&self) -> DenseTreeRef<'a, H> {
+    const fn left(&self) -> DenseTreeRef<'a, H> {
         Self {
             depth:          self.depth - 1,
             root_index:     2 * self.root_index,
@@ -582,7 +554,7 @@ impl<'a, H: Hasher> DenseTreeRef<'a, H> {
         }
     }
 
-    fn right(&self) -> DenseTreeRef<'a, H> {
+    const fn right(&self) -> DenseTreeRef<'a, H> {
         Self {
             depth:          self.depth - 1,
             root_index:     2 * self.root_index + 1,
@@ -671,7 +643,7 @@ mod tests {
 
     #[test]
     fn test_updates_in_dense() {
-        let tree_1 = LazyMerkleTree::<TestHasher>::new_with_dense_prefix(2, 2, 0);
+        let tree_1 = LazyMerkleTree::<TestHasher>::new_with_dense_prefix(2, 2, &0);
         assert_eq!(tree_1.root(), 4);
         let tree_2 = tree_1.update(0, &1);
         assert_eq!(tree_1.root(), 4);
@@ -683,8 +655,9 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::let_underscore_drop)]
     fn test_mutable_updates_in_dense() {
-        let tree = LazyMerkleTree::<Keccak256>::new_with_dense_prefix(2, 2, [0; 32]);
+        let tree = LazyMerkleTree::<Keccak256>::new_with_dense_prefix(2, 2, &[0; 32]);
         assert_eq!(
             tree.root(),
             hex!("b4c11951957c6f8f642c4af61cd6b24640fec6dc7fc607ee8206a99e92410d30")
@@ -725,12 +698,12 @@ mod tests {
 
     #[test]
     fn test_mutable_updates_in_dense_with_dense_prefix() {
-        let h0 = [0 as u8; 32];
+        let h0 = [0; 32];
         let h1 = hex!("0000000000000000000000000000000000000000000000000000000000000001");
         let h2 = hex!("0000000000000000000000000000000000000000000000000000000000000002");
         let h3 = hex!("0000000000000000000000000000000000000000000000000000000000000003");
         let h4 = hex!("0000000000000000000000000000000000000000000000000000000000000004");
-        let tree = LazyMerkleTree::<Keccak256>::new_with_dense_prefix(2, 1, [0; 32]);
+        let tree = LazyMerkleTree::<Keccak256>::new_with_dense_prefix(2, 1, &[0; 32]);
         assert_eq!(
             tree.root(),
             hex!("b4c11951957c6f8f642c4af61cd6b24640fec6dc7fc607ee8206a99e92410d30")
@@ -755,7 +728,6 @@ mod tests {
             t4.root(),
             hex!("a9bb8c3f1f12e9aa903a50c47f314b57610a3ab32f2d463293f58836def38d36")
         );
-        let original_leaves = tree.leaves().collect::<Vec<_>>();
         // first two leaves are in the dense subtree, the rest is sparse, therefore only
         // first 2 get updated inplace.
         assert_eq!(tree.leaves().collect::<Vec<_>>(), vec![h1, h2, h0, h0]);
@@ -765,7 +737,7 @@ mod tests {
 
     #[test]
     fn test_proof() {
-        let tree = LazyMerkleTree::<Keccak256>::new_with_dense_prefix(2, 1, [0; 32]);
+        let tree = LazyMerkleTree::<Keccak256>::new_with_dense_prefix(2, 1, &[0; 32]);
         let tree = tree.update_with_mutation(
             0,
             &hex!("0000000000000000000000000000000000000000000000000000000000000001"),

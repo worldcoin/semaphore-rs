@@ -18,7 +18,7 @@ default = []
 bench = ["criterion", "proptest"]
 mimc = []
 dylib = ["wasmer/dylib", "wasmer-engine-dylib", "wasmer-compiler-cranelift"]
-lazy_tree = []
+lazy-tree = []
 
 [[bench]]
 name = "criterion"

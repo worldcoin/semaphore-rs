@@ -13,8 +13,8 @@ pub mod poseidon_tree;
 pub mod protocol;
 pub mod util;
 
-#[cfg(feature = "incremental_tree")]
-pub mod incremental_merkle_tree;
+#[cfg(feature = "lazy-tree")]
+pub mod lazy_merkle_tree;
 #[cfg(feature = "mimc")]
 pub mod mimc_hash;
 #[cfg(feature = "mimc")]
