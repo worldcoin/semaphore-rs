@@ -1,5 +1,10 @@
 # 🦀 semaphore-rs
 
+![lines of code](https://img.shields.io/tokei/lines/github/worldcoin/semaphore-rs)
+[![dependency status](https://deps.rs/repo/github/worldcoin/semaphore-rs/status.svg)](https://deps.rs/repo/github/worldcoin/semaphore-rs)
+[![codecov](https://codecov.io/gh/worldcoin/semaphore-rs/branch/main/graph/badge.svg?token=WBPZ9U4TTO)](https://codecov.io/gh/worldcoin/semaphore-rs)
+[![CI](https://github.com/worldcoin/semaphore-rs/actions/workflows/build-test-deploy.yml/badge.svg)](https://github.com/worldcoin/semaphore-rs/actions/workflows/build-test-deploy.yml)
+
 Rust support library for using [semaphore](https://github.com/appliedzkp/semaphore). It's mostly a Rust rewrite of [zk-kit](https://github.com/appliedzkp/zk-kit), but just focuses on semaphore (for now) and still covers a much smaller scope. It's using [ark-circom](https://github.com/gakonst/ark-circom) under the hood for generating the groth16 proofs.
 
 ## Usage

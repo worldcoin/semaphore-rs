@@ -1,10 +1,7 @@
 # See: https://github.com/rust-lang/rustfmt/blob/master/Configurations.md
-edition = "2021"
-# group_imports = "One"
 imports_granularity = "Crate"
 use_field_init_shorthand = true
 wrap_comments = true
-comment_width = 80
 struct_field_align_threshold = 20
 enum_discrim_align_threshold = 20
 condense_wildcard_suffixes = true
