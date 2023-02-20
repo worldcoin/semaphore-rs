@@ -28,11 +28,21 @@ fn seed_hex(seed: &[u8]) -> [u8; 64] {
 
 impl Identity {
     #[must_use]
+    #[deprecated(since="0.2.0", note="please use `from_secret` instead")]
     pub fn from_seed(seed: &[u8]) -> Self {
         let seed_hex = seed_hex(seed);
         Self {
             trapdoor:  derive_field(&seed_hex, b"identity_trapdoor"),
             nullifier: derive_field(&seed_hex, b"identity_nullifier"),
+        }
+    }
+
+    pub fn from_secret(secret: &[u8], trapdoor_seed: Option<&str>) -> Self {
+        trapdoor_seed.unwrap_or(b"identity_trapdoor");
+        let secret_hex = seed_hex(seed);
+        Self {
+            trapdoor:  derive_field(&secret_hex, &trapdoor_seed),
+            nullifier: derive_field(&secret_hex, b"identity_nullifier"),
         }
     }
 
