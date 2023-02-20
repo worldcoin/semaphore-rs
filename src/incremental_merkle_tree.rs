@@ -1,9 +1,6 @@
-#![feature("incremental_tree")]
+#![feature("lazy_tree")]
 
-use crate::{
-    merkle_tree::{Branch, Hasher, Proof},
-    mimc_hash::hash,
-};
+use crate::merkle_tree::{Branch, Hasher, Proof};
 use std::{
     borrow::Borrow,
     iter::{once, repeat, successors},
@@ -11,56 +8,106 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-pub struct IncrementalMerkleTree<H: Hasher>(AnyTree<H>);
+/// A storage-optimized merkle tree. It has a certain linear-buffer represented
+/// prefix subtree and the rest of the tree is represented using lazy,
+/// pointer-based structures. This allows to hold even large trees in memory,
+/// assuming only a relatively small subset is ever modified.
+///
+/// It exposes an immutable API, so that multiple versions can be kept in memory
+/// reusing as much structure as possible.
+///
+/// The update method also allows to specify a mutability hint, which can be
+/// used to vastly improve storage characteristics, but also requires the caller
+/// to ensure certain additional invariants hold. See
+/// [LazyMerkleTree::update_with_mutation] for details.
+pub struct LazyMerkleTree<H: Hasher>(AnyTree<H>);
 
-impl<H: Hasher> IncrementalMerkleTree<H> {
+impl<H: Hasher> LazyMerkleTree<H> {
+    /// Creates a new, fully lazy (without any dense prefix) tree.
+    #[must_use]
     pub fn new(depth: usize, empty_value: H::Hash) -> Self {
         AnyTree::new(depth, empty_value).into()
     }
 
+    /// Creates a new tree with a dense prefix of the given depth.
+    #[must_use]
     pub fn new_with_dense_prefix(depth: usize, prefix_depth: usize, empty_value: H::Hash) -> Self {
         AnyTree::new_with_dense_prefix(depth, prefix_depth, empty_value).into()
     }
 
+    /// Returns the depth of the tree.
+    #[must_use]
     pub fn depth(&self) -> usize {
         self.0.depth()
     }
 
+    /// Returns the root of the tree.
+    #[must_use]
     pub fn root(&self) -> H::Hash {
         self.0.root()
     }
 
+    /// Sets the value at the given index to the given value. This is fully
+    /// immutable, returning a new tree and leaving the old one unchanged.
+    /// Reuses as much memory as possible, allocating only `depth` nodes.
+    #[must_use]
     pub fn update(&self, index: usize, value: &H::Hash) -> Self {
         self.0
-            .update_with_destruction_condition(index, value, false)
+            .update_with_mutation_condition(index, value, false)
             .into()
     }
 
+    /// Returns the Merkle proof for the given index.
+    #[must_use]
     pub fn proof(&self, index: usize) -> Proof<H> {
         self.0.proof(index)
     }
 
+    /// Verifies the given proof for the given value.
+    #[must_use]
     pub fn verify(&self, value: H::Hash, proof: &Proof<H>) -> bool {
         proof.root(value) == self.root()
     }
 
+    /// Sets the value at the given index to the given value. This is a mutable
+    /// operation, that will modify any dense subtrees in place.
+    ///
+    /// This has potential consequences for the soundness of the whole
+    /// structure: 1. `self` is only valid after calling this if the tree it
+    /// represents is fully dense or fully sparse. If it is a mix, it will
+    /// be left in an invalid state.
+    /// 2. It has the potential to invalidate some trees that share nodes with
+    /// this one, so if many versions are kept at once, special care must be
+    /// taken when calling this. The only trees that are guaranteed to still be
+    /// valid after this operation, are those that already specify the same
+    /// value at the given index. For example, if a linear history of updates is
+    /// kept in memory, this operation is a good way to "flatten" updates into
+    /// the oldest kept version.
+    ///
+    /// This operation is useful for storage optimizations, as it avoids
+    /// allocating any new memory in dense subtrees.
     #[must_use]
-    pub fn update_destructively(&self, index: usize, value: &H::Hash) -> Self {
+    pub fn update_with_mutation(&self, index: usize, value: &H::Hash) -> Self {
         self.0
-            .update_with_destruction_condition(index, value, true)
+            .update_with_mutation_condition(index, value, true)
             .into()
     }
 
-    // pub fn generate_proof(&self, index: usize, value: &H::Hash) -> Vec<H::Hash> {
-    //     self.0.generate_proof(index, value)
-    // }
-    //
-    // pub fn verify_proof(&self, index: usize, value: &H::Hash, proof: &[H::Hash])
-    // -> bool {     self.0.verify_proof(index, value, proof)
-    // }
+    /// Returns the value at the given index.
+    #[must_use]
+    pub fn get_leaf(&self, index: usize) -> H::Hash {
+        self.0.get_leaf(index)
+    }
+
+    /// Returns an iterator over all leaves.
+    #[must_use]
+    pub fn leaves(&self) -> impl Iterator<Item = H::Hash> + '_ {
+        // TODO this could be made faster by a custom iterator
+        (0..(1 << self.depth())).map(|i| self.get_leaf(i))
+    }
 }
 
-impl<H: Hasher> From<AnyTree<H>> for IncrementalMerkleTree<H> {
+impl<H: Hasher> From<AnyTree<H>> for LazyMerkleTree<H> {
     fn from(tree: AnyTree<H>) -> Self {
         Self(tree)
     }
@@ -130,22 +177,30 @@ impl<H: Hasher> AnyTree<H> {
         }
     }
 
-    fn update_with_destruction_condition(
+    fn update_with_mutation_condition(
         &self,
         index: usize,
         value: &H::Hash,
-        destructive: bool,
+        is_mutation_allowed: bool,
     ) -> Self {
         match self {
             Self::Empty(tree) => tree
-                .update_with_destruction_condition(index, value, destructive)
+                .update_with_mutation_condition(index, value, is_mutation_allowed)
                 .into(),
             Self::Sparse(tree) => tree
-                .update_with_destruction_condition(index, value, destructive)
+                .update_with_mutation_condition(index, value, is_mutation_allowed)
                 .into(),
             Self::Dense(tree) => tree
-                .update_with_destruction_condition(index, value, destructive)
+                .update_with_mutation_condition(index, value, is_mutation_allowed)
                 .into(),
+        }
+    }
+
+    fn get_leaf(&self, index: usize) -> H::Hash {
+        match self {
+            Self::Empty(tree) => tree.get_leaf(),
+            Self::Sparse(tree) => tree.get_leaf(index),
+            Self::Dense(tree) => tree.get_leaf(index),
         }
     }
 }
@@ -210,14 +265,14 @@ impl<H: Hasher> EmptyTree<H> {
     }
 
     #[must_use]
-    fn update_with_destruction_condition(
+    fn update_with_mutation_condition(
         &self,
         index: usize,
         value: &H::Hash,
-        destructive: bool,
+        is_mutation_allowed: bool,
     ) -> SparseTree<H> {
         self.alloc_sparse()
-            .update_with_destruction_condition(index, value, destructive)
+            .update_with_mutation_condition(index, value, is_mutation_allowed)
     }
 
     #[must_use]
@@ -255,6 +310,10 @@ impl<H: Hasher> EmptyTree<H> {
     #[must_use]
     fn root(&self) -> H::Hash {
         self.empty_tree_values[self.depth].clone()
+    }
+
+    fn get_leaf(&self) -> H::Hash {
+        self.empty_tree_values[0].clone()
     }
 }
 
@@ -328,22 +387,23 @@ impl<H: Hasher> SparseTree<H> {
 
     fn write_proof(&self, index: usize, path: &mut Vec<Branch<H>>) {
         if let Some(children) = &self.children {
+            let next_index = clear_turn_at_depth(index, self.depth);
             if get_turn_at_depth(index, self.depth) == Turn::Left {
                 path.push(Branch::Left(children.right.root()));
-                children.left.write_proof(index, path);
+                children.left.write_proof(next_index, path);
             } else {
                 path.push(Branch::Right(children.left.root()));
-                children.right.write_proof(index, path);
+                children.right.write_proof(next_index, path);
             }
         }
     }
 
     #[must_use]
-    fn update_with_destruction_condition(
+    fn update_with_mutation_condition(
         &self,
         index: usize,
         value: &H::Hash,
-        destructive: bool,
+        is_mutation_allowed: bool,
     ) -> Self {
         let Some(children) = &self.children else {
             // no children – this is a leaf
@@ -353,14 +413,16 @@ impl<H: Hasher> SparseTree<H> {
         let next_index = clear_turn_at_depth(index, self.depth);
         let children = if get_turn_at_depth(index, self.depth) == Turn::Left {
             let left = &children.left;
-            let new_left = left.update_with_destruction_condition(next_index, value, destructive);
+            let new_left =
+                left.update_with_mutation_condition(next_index, value, is_mutation_allowed);
             Children {
                 left:  Arc::new(new_left),
                 right: children.right.clone(),
             }
         } else {
             let right = &children.right;
-            let new_right = right.update_with_destruction_condition(next_index, value, destructive);
+            let new_right =
+                right.update_with_mutation_condition(next_index, value, is_mutation_allowed);
             Children {
                 left:  children.left.clone(),
                 right: Arc::new(new_right),
@@ -372,6 +434,19 @@ impl<H: Hasher> SparseTree<H> {
 
     fn root(&self) -> H::Hash {
         self.root.clone()
+    }
+
+    fn get_leaf(&self, index: usize) -> H::Hash {
+        if let Some(children) = &self.children {
+            let next_index = clear_turn_at_depth(index, self.depth);
+            if get_turn_at_depth(index, self.depth) == Turn::Left {
+                children.left.get_leaf(next_index)
+            } else {
+                children.right.get_leaf(next_index)
+            }
+        } else {
+            self.root.clone()
+        }
     }
 }
 
@@ -411,14 +486,21 @@ impl<H: Hasher> DenseTree<H> {
         self.with_ref(|r| r.write_proof(index, path))
     }
 
-    fn update_with_destruction_condition(
+    fn get_leaf(&self, index: usize) -> H::Hash {
+        self.with_ref(|r| {
+            let leaf_index_in_dense_tree = index + (self.root_index << self.depth);
+            r.storage[leaf_index_in_dense_tree].clone()
+        })
+    }
+
+    fn update_with_mutation_condition(
         &self,
         index: usize,
         value: &H::Hash,
-        destructive: bool,
+        is_mutation_allowed: bool,
     ) -> AnyTree<H> {
-        if destructive {
-            self.update_destructively(index, value);
+        if is_mutation_allowed {
+            self.update_with_mutation(index, value);
             self.clone().into()
         } else {
             self.with_ref(|r| {
@@ -429,7 +511,7 @@ impl<H: Hasher> DenseTree<H> {
         }
     }
 
-    fn update_destructively(&self, index: usize, value: &H::Hash) {
+    fn update_with_mutation(&self, index: usize, value: &H::Hash) {
         let mut storage = self.storage.lock().expect("lock poisoned, terminating");
         let leaf_index_in_dense_tree = index + (self.root_index << self.depth);
         storage[leaf_index_in_dense_tree] = value.clone();
@@ -513,12 +595,13 @@ impl<'a, H: Hasher> DenseTreeRef<'a, H> {
         if self.depth == 0 {
             return;
         }
+        let next_index = clear_turn_at_depth(index, self.depth);
         if get_turn_at_depth(index, self.depth) == Turn::Left {
             path.push(Branch::Left(self.right().root()));
-            self.left().write_proof(index, path);
+            self.left().write_proof(next_index, path);
         } else {
             path.push(Branch::Right(self.left().root()));
-            self.right().write_proof(index, path);
+            self.right().write_proof(next_index, path);
         }
     }
 
@@ -575,7 +658,7 @@ mod tests {
 
     #[test]
     fn test_updates_in_sparse() {
-        let tree_1 = IncrementalMerkleTree::<TestHasher>::new(2, 0);
+        let tree_1 = LazyMerkleTree::<TestHasher>::new(2, 0);
         assert_eq!(tree_1.root(), 4);
         let tree_2 = tree_1.update(0, &1);
         assert_eq!(tree_1.root(), 4);
@@ -588,7 +671,7 @@ mod tests {
 
     #[test]
     fn test_updates_in_dense() {
-        let tree_1 = IncrementalMerkleTree::<TestHasher>::new_with_dense_prefix(2, 2, 0);
+        let tree_1 = LazyMerkleTree::<TestHasher>::new_with_dense_prefix(2, 2, 0);
         assert_eq!(tree_1.root(), 4);
         let tree_2 = tree_1.update(0, &1);
         assert_eq!(tree_1.root(), 4);
@@ -601,12 +684,12 @@ mod tests {
 
     #[test]
     fn test_mutable_updates_in_dense() {
-        let tree = IncrementalMerkleTree::<Keccak256>::new_with_dense_prefix(2, 2, [0; 32]);
+        let tree = LazyMerkleTree::<Keccak256>::new_with_dense_prefix(2, 2, [0; 32]);
         assert_eq!(
             tree.root(),
             hex!("b4c11951957c6f8f642c4af61cd6b24640fec6dc7fc607ee8206a99e92410d30")
         );
-        let _ = tree.update_destructively(
+        let _ = tree.update_with_mutation(
             0,
             &hex!("0000000000000000000000000000000000000000000000000000000000000001"),
         );
@@ -614,7 +697,7 @@ mod tests {
             tree.root(),
             hex!("c1ba1812ff680ce84c1d5b4f1087eeb08147a4d510f3496b2849df3a73f5af95")
         );
-        let _ = tree.update_destructively(
+        let _ = tree.update_with_mutation(
             1,
             &hex!("0000000000000000000000000000000000000000000000000000000000000002"),
         );
@@ -622,7 +705,7 @@ mod tests {
             tree.root(),
             hex!("893760ec5b5bee236f29e85aef64f17139c3c1b7ff24ce64eb6315fca0f2485b")
         );
-        let _ = tree.update_destructively(
+        let _ = tree.update_with_mutation(
             2,
             &hex!("0000000000000000000000000000000000000000000000000000000000000003"),
         );
@@ -630,7 +713,7 @@ mod tests {
             tree.root(),
             hex!("222ff5e0b5877792c2bc1670e2ccd0c2c97cd7bb1672a57d598db05092d3d72c")
         );
-        let _ = tree.update_destructively(
+        let _ = tree.update_with_mutation(
             3,
             &hex!("0000000000000000000000000000000000000000000000000000000000000004"),
         );
@@ -641,21 +724,61 @@ mod tests {
     }
 
     #[test]
+    fn test_mutable_updates_in_dense_with_dense_prefix() {
+        let h0 = [0 as u8; 32];
+        let h1 = hex!("0000000000000000000000000000000000000000000000000000000000000001");
+        let h2 = hex!("0000000000000000000000000000000000000000000000000000000000000002");
+        let h3 = hex!("0000000000000000000000000000000000000000000000000000000000000003");
+        let h4 = hex!("0000000000000000000000000000000000000000000000000000000000000004");
+        let tree = LazyMerkleTree::<Keccak256>::new_with_dense_prefix(2, 1, [0; 32]);
+        assert_eq!(
+            tree.root(),
+            hex!("b4c11951957c6f8f642c4af61cd6b24640fec6dc7fc607ee8206a99e92410d30")
+        );
+        let t1 = tree.update_with_mutation(0, &h1);
+        assert_eq!(
+            t1.root(),
+            hex!("c1ba1812ff680ce84c1d5b4f1087eeb08147a4d510f3496b2849df3a73f5af95")
+        );
+        let t2 = t1.update_with_mutation(1, &h2);
+        assert_eq!(
+            t2.root(),
+            hex!("893760ec5b5bee236f29e85aef64f17139c3c1b7ff24ce64eb6315fca0f2485b")
+        );
+        let t3 = t2.update_with_mutation(2, &h3);
+        assert_eq!(
+            t3.root(),
+            hex!("222ff5e0b5877792c2bc1670e2ccd0c2c97cd7bb1672a57d598db05092d3d72c")
+        );
+        let t4 = t3.update_with_mutation(3, &h4);
+        assert_eq!(
+            t4.root(),
+            hex!("a9bb8c3f1f12e9aa903a50c47f314b57610a3ab32f2d463293f58836def38d36")
+        );
+        let original_leaves = tree.leaves().collect::<Vec<_>>();
+        // first two leaves are in the dense subtree, the rest is sparse, therefore only
+        // first 2 get updated inplace.
+        assert_eq!(tree.leaves().collect::<Vec<_>>(), vec![h1, h2, h0, h0]);
+        // all leaves are updated in the properly tracked tree
+        assert_eq!(t4.leaves().collect::<Vec<_>>(), vec![h1, h2, h3, h4]);
+    }
+
+    #[test]
     fn test_proof() {
-        let tree = IncrementalMerkleTree::<Keccak256>::new_with_dense_prefix(2, 1, [0; 32]);
-        let tree = tree.update_destructively(
+        let tree = LazyMerkleTree::<Keccak256>::new_with_dense_prefix(2, 1, [0; 32]);
+        let tree = tree.update_with_mutation(
             0,
             &hex!("0000000000000000000000000000000000000000000000000000000000000001"),
         );
-        let tree = tree.update_destructively(
+        let tree = tree.update_with_mutation(
             1,
             &hex!("0000000000000000000000000000000000000000000000000000000000000002"),
         );
-        let tree = tree.update_destructively(
+        let tree = tree.update_with_mutation(
             2,
             &hex!("0000000000000000000000000000000000000000000000000000000000000003"),
         );
-        let tree = tree.update_destructively(
+        let tree = tree.update_with_mutation(
             3,
             &hex!("0000000000000000000000000000000000000000000000000000000000000004"),
         );
