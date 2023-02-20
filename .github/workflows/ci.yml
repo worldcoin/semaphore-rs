@@ -4,11 +4,13 @@ on:
   - pull_request
 
 jobs:
-  build:
-    name: Test Build
+  build-and-test:
+    name: Build and tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -16,14 +18,6 @@ jobs:
         with:
           command: build
           args: --release --all-features
-  test:
-    name: Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
       - uses: actions-rs/cargo@v1
         with:
           command: test
