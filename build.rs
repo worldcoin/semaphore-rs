@@ -1,13 +1,26 @@
 use color_eyre::eyre::{eyre, Result};
 use std::{
+    fs::{create_dir, File},
+    io,
+    io::Cursor,
     path::{Component, Path, PathBuf},
-    fs::{File, create_dir}
 };
-use std::io;
 extern crate reqwest;
 
 const SEMAPHORE_FILES_PATH: &str = "semaphore_files";
 const SEMAPHORE_DOWNLOAD_URL: &str = "https://www.trusted-setup-pse.org/semaphore";
+
+#[must_use]
+pub const fn depth() -> usize {
+    #[cfg(feature = "depth_16")]
+    return 16;
+    #[cfg(feature = "depth_21")]
+    return 21;
+    #[cfg(feature = "depth_30")]
+    return 30;
+
+    21
+}
 
 // See <https://internals.rust-lang.org/t/path-to-lexical-absolute/14940>
 fn absolute(path: &str) -> Result<PathBuf> {
@@ -31,35 +44,36 @@ fn absolute(path: &str) -> Result<PathBuf> {
 
 fn fetch_url(url: String, file_name: &str) -> Result<()> {
     let resp = reqwest::blocking::get(url).expect("failed to download file");
-    let body = resp.text().expect("body invalid");
+    let body = resp.bytes().expect("body invalid");
+    let mut content = Cursor::new(body);
     let mut out = File::create(file_name).expect("failed to create file");
-    io::copy(&mut body.as_bytes(), &mut out).expect("failed to copy content");
+    io::copy(&mut content, &mut out).expect("failed to copy content");
     Ok(())
 }
 
-fn build_circuit(depth: i8) -> Result<()> {
+fn build_circuit() -> Result<()> {
     if !Path::new(SEMAPHORE_FILES_PATH).exists() {
         create_dir(SEMAPHORE_FILES_PATH)?;
     }
 
-    let depth = &depth.to_string()[..];
+    let depth_str = &depth().to_string()[..];
     let extensions = ["wasm", "zkey"];
 
-    let folder = [SEMAPHORE_FILES_PATH, &depth].join("/");
+    let folder = [SEMAPHORE_FILES_PATH, depth_str].join("/");
     if !Path::new(&folder).exists() {
         create_dir(&folder)?;
     }
 
     for extension in extensions {
         let filename = ["semaphore", extension].join(".");
-        let download_url = [SEMAPHORE_DOWNLOAD_URL, &depth, &filename].join("/");
-        let path = [SEMAPHORE_FILES_PATH, &depth, &filename].join("/");
+        let download_url = [SEMAPHORE_DOWNLOAD_URL, depth_str, &filename].join("/");
+        let path = [SEMAPHORE_FILES_PATH, depth_str, &filename].join("/");
         fetch_url(download_url, &path)?;
     }
 
     // Compute absolute paths
-    let zkey_file = absolute(&[SEMAPHORE_FILES_PATH, &depth, "semaphore.zkey"].join("/"))?;
-    let wasm_file = absolute(&[SEMAPHORE_FILES_PATH, &depth, "semaphore.wasm"].join("/"))?;
+    let zkey_file = absolute(&[SEMAPHORE_FILES_PATH, depth_str, "semaphore.zkey"].join("/"))?;
+    let wasm_file = absolute(&[SEMAPHORE_FILES_PATH, depth_str, "semaphore.wasm"].join("/"))?;
 
     assert!(zkey_file.exists());
     assert!(wasm_file.exists());
@@ -112,7 +126,7 @@ fn build_dylib() -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    build_circuit(16)?;
+    build_circuit()?;
     #[cfg(feature = "dylib")]
     build_dylib()?;
     Ok(())

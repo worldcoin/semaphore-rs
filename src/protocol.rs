@@ -212,7 +212,7 @@ pub fn verify_proof(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{hash_to_field, poseidon_tree::PoseidonTree};
+    use crate::{depth, hash_to_field, poseidon_tree::PoseidonTree};
     use rand::SeedableRng as _;
     use rand_chacha::ChaChaRng;
     use serde_json::json;
@@ -227,7 +227,7 @@ mod test {
 
         // generate merkle tree
         let leaf = Field::from(0);
-        let mut tree = PoseidonTree::new(21, leaf);
+        let mut tree = PoseidonTree::new(depth() + 1, leaf);
         tree.set(0, id.commitment());
 
         let merkle_proof = tree.proof(0).expect("proof should exist");
@@ -264,22 +264,22 @@ mod test {
             json,
             json!([
                 [
-                    "0x249ae469686987ee9368da60dd177a8c42891c02f5760e955e590c79d55cfab2",
-                    "0xf22e25870f49388459d388afb24dcf6ec11bb2d4def1e2ec26d6e42f373aad8"
+                    "0x2dc1c2e7730f1128093959e41f919c50dfc419fc2dca6252711d50e63ba7d68a",
+                    "0x1c34d763e6536d8fe4a0e430ae19ee8c1b743952f1052a64dfd4a5301aeaf6a5"
                 ],
                 [
                     [
-                        "0x17bd25dbd7436c30ea5b8a3a47aadf11ed646c4b25cc14a84ff8cbe0252ff1f8",
-                        "0x1c140668c56688367416534d57b4a14e5a825efdd5e121a6a2099f6dc4cd277b"
+                        "0x2fc277f691436f00c5b134d650c5124ae5866643d1e4a471c122d282642e8d4f",
+                        "0x188fe757f7ed01bb366e5a49af6aa21c2a8620473f4edc33906b146236edcb40"
                     ],
                     [
-                        "0x26a8524759d969ea0682a092cf7a551697d81962d6c998f543f81e52d83e05e1",
-                        "0x273eb3f796fd1807b9df9c6d769d983e3dabdc61677b75d48bb7691303b2c8dd"
+                        "0x25fe981d0f6347432361ebb0e99bfbb4e5138a9f510fd7e3c71fba82688a7407",
+                        "0x27b55862741532def73d6f485302a272db7e8fefd335f2e8780e52f920313def"
                     ]
                 ],
                 [
-                    "0x62715c53a0eb4c46dbb5f73f1fd7449b9c63d37c1ece65debc39b472065a90f",
-                    "0x114f7becc66f1cd7a8b01c89db8233622372fc0b6fc037c4313bca41e2377fd9"
+                    "0x28fa77c6243a50ffee1c2f04eb79477185704fcde9049f5816b1a559edcefddc",
+                    "0x2f6e55a4eaf2a8d9fc15cdae184d4f6914a2cd4b30944f059601c07e61109e94"
                 ]
             ])
         );
