@@ -18,6 +18,9 @@ default = []
 bench = [ "criterion", "proptest" ]
 mimc = []
 dylib = [ "wasmer/dylib", "wasmer-engine-dylib", "wasmer-compiler-cranelift" ]
+depth_16 = []
+depth_21 = []
+depth_30 = []
 
 [[bench]]
 name = "criterion"
