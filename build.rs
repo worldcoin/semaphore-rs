@@ -42,7 +42,7 @@ fn absolute(path: &str) -> Result<PathBuf> {
     Ok(absolute)
 }
 
-fn fetch_url(url: String, file_name: &str) -> Result<()> {
+fn download_and_store_binary(url: String, file_name: &str) -> Result<()> {
     let resp = reqwest::blocking::get(url).expect("failed to download file");
     let body = resp.bytes().expect("body invalid");
     let mut content = Cursor::new(body);
@@ -59,21 +59,21 @@ fn build_circuit() -> Result<()> {
     let depth_str = &depth().to_string()[..];
     let extensions = ["wasm", "zkey"];
 
-    let folder = [SEMAPHORE_FILES_PATH, depth_str].join("/");
+    let folder = format!("{SEMAPHORE_FILES_PATH}/{depth_str}");
     if !Path::new(&folder).exists() {
         create_dir(&folder)?;
     }
 
     for extension in extensions {
-        let filename = ["semaphore", extension].join(".");
-        let download_url = [SEMAPHORE_DOWNLOAD_URL, depth_str, &filename].join("/");
-        let path = [SEMAPHORE_FILES_PATH, depth_str, &filename].join("/");
-        fetch_url(download_url, &path)?;
+        let filename = "semaphore";
+        let download_url = format!("{SEMAPHORE_DOWNLOAD_URL}/{depth_str}/{filename}.{extension}");
+        let path = format!("{SEMAPHORE_FILES_PATH}/{depth_str}/{filename}.{extension}");
+        download_and_store_binary(download_url, &path)?;
     }
 
     // Compute absolute paths
-    let zkey_file = absolute(&[SEMAPHORE_FILES_PATH, depth_str, "semaphore.zkey"].join("/"))?;
-    let wasm_file = absolute(&[SEMAPHORE_FILES_PATH, depth_str, "semaphore.wasm"].join("/"))?;
+    let zkey_file = absolute(&format!("{SEMAPHORE_FILES_PATH}/{depth_str}/semaphore.zkey"))?;
+    let wasm_file = absolute(&format!("{SEMAPHORE_FILES_PATH}/{depth_str}/semaphore.wasm"))?;
 
     assert!(zkey_file.exists());
     assert!(wasm_file.exists());
