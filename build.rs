@@ -61,8 +61,6 @@ fn build_circuit() -> Result<()> {
         create_dir(&depth_subfolder)?;
     }
 
-    println!("zzzzz");
-
     for extension in extensions {
         let filename = "semaphore";
         let download_url = format!("{SEMAPHORE_DOWNLOAD_URL}/{depth_str}/{filename}.{extension}");
@@ -81,8 +79,6 @@ fn build_circuit() -> Result<()> {
     println!("cargo:rustc-env=BUILD_RS_ZKEY_FILE={}", zkey_file.display());
     println!("cargo:rustc-env=BUILD_RS_WASM_FILE={}", wasm_file.display());
 
-    println!("zzzzz");
-
     Ok(())
 }
 
@@ -94,7 +90,6 @@ fn build_dylib() -> Result<()> {
     use wasmer_compiler_cranelift::Cranelift;
     use wasmer_engine_dylib::Dylib;
 
-    println!("sddssddsdsds");
     let wasm_file = absolute(semaphore_file_path("semaphore.wasm"))?;
     assert!(wasm_file.exists());
 
