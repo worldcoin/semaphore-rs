@@ -10,7 +10,7 @@ const SEMAPHORE_DOWNLOAD_URL: &str = "https://www.trusted-setup-pse.org/semaphor
 
 #[cfg(feature = "depth_30")]
 static SUPPORTED_DEPTH: usize = 30;
-#[cfg(feature = "depth_21")]
+#[cfg(feature = "depth_20")]
 static SUPPORTED_DEPTH: usize = 21;
 #[cfg(feature = "depth_16")]
 static SUPPORTED_DEPTH: usize = 16;
@@ -34,9 +34,10 @@ fn absolute(path: PathBuf) -> Result<PathBuf> {
     Ok(absolute)
 }
 
-fn download_and_store_binary(url: &str, file_name: &str) -> Result<()> {
+fn download_and_store_binary(url: &str, path: &Path) -> Result<()> {
     let mut resp = reqwest::blocking::get(url).expect(&format!("Failed to download file: {url}"));
-    let mut file = File::create(file_name).expect(&format!("Failed to create file: {file_name}"));
+    let path_str = path.to_str().unwrap();
+    let mut file = File::create(path).expect(&format!("Failed to create file: {path_str}"));
     resp.copy_to(&mut file)?;
     Ok(())
 }
@@ -64,7 +65,7 @@ fn build_circuit() -> Result<()> {
     for extension in extensions {
         let filename = "semaphore";
         let download_url = format!("{SEMAPHORE_DOWNLOAD_URL}/{depth_str}/{filename}.{extension}");
-        let path = format!("{SEMAPHORE_FILES_PATH}/{depth_str}/{filename}.{extension}");
+        let path = Path::new(&depth_subfolder).join(format!("{filename}.{extension}"));
         download_and_store_binary(&download_url, &path)?;
     }
 

@@ -248,7 +248,6 @@ mod test {
         .unwrap()
     }
 
-    #[cfg(feature = "depth_16")]
     #[test]
     fn test_proof_cast_roundtrip() {
         let proof = arb_proof(123);
@@ -257,42 +256,56 @@ mod test {
         assert_eq!(proof, result);
     }
 
-    #[cfg(feature = "depth_21")]
-    #[test]
-    fn test_proof_cast_roundtrip() {
-        let proof = arb_proof(123);
-        let ark_proof: ArkProof<Bn<Parameters>> = proof.into();
-        let result: Proof = ark_proof.into();
-        assert_eq!(proof, result);
-    }
-
-    #[cfg(feature = "depth_16")]
     #[test]
     fn test_proof_serialize() {
         let proof = arb_proof(456);
         let json = serde_json::to_value(&proof).unwrap();
+        #[cfg(feature = "depth_16")]
+        let valid_values = json!([
+            [
+                "0xe4267974945a50a541e90a399ed9211752216a3e4e1cefab1f0bcd8925ea56e",
+                "0xdd9ada36c50d3f1bf75abe5c5ad7d0a29355b74fc3f604aa108b8886a6ac7f8"
+            ],
+            [
+                [
+                    "0x1621577ad2f90fe2e7ec6f675751693515c3b7e91ee228f1db47fe3aba7c0450",
+                    "0x2b07bc915b377f8c7126c2d46636632cdbcb426b446a06edf3320939ee4e1911"
+                ],
+                [
+                    "0xf40e93e057c7521720448b3d443eac36ff48705312181c41bd78981923be41a",
+                    "0x9ce138011687b44a08b979a85b3b122e7335254a02d4fbae7b38b57653c7eb0"
+                ]
+            ],
+            [
+                "0x295b30c0c025a2b176de1220acdb5f95119a8938689d73076f02bb6d01601fbb",
+                "0xc71250468b955584be8769b047f79614df1176a7a64683f14c27889d47e614"
+            ]
+        ]);
+
+        #[cfg(feature = "depth_20")]
+        let valid_values = json!([
+            [
+                "0x2dc1c2e7730f1128093959e41f919c50dfc419fc2dca6252711d50e63ba7d68a",
+                "0x1c34d763e6536d8fe4a0e430ae19ee8c1b743952f1052a64dfd4a5301aeaf6a5"
+            ],
+            [
+                [
+                    "0x2fc277f691436f00c5b134d650c5124ae5866643d1e4a471c122d282642e8d4f",
+                    "0x188fe757f7ed01bb366e5a49af6aa21c2a8620473f4edc33906b146236edcb40"
+                ],
+                [
+                    "0x25fe981d0f6347432361ebb0e99bfbb4e5138a9f510fd7e3c71fba82688a7407",
+                    "0x27b55862741532def73d6f485302a272db7e8fefd335f2e8780e52f920313def"
+                ]
+            ],
+            [
+                "0x28fa77c6243a50ffee1c2f04eb79477185704fcde9049f5816b1a559edcefddc",
+                "0x2f6e55a4eaf2a8d9fc15cdae184d4f6914a2cd4b30944f059601c07e61109e94"
+            ]
+        ]);
         assert_eq!(
             json,
-            json!([
-                [
-                    "0xe4267974945a50a541e90a399ed9211752216a3e4e1cefab1f0bcd8925ea56e",
-                    "0xdd9ada36c50d3f1bf75abe5c5ad7d0a29355b74fc3f604aa108b8886a6ac7f8"
-                ],
-                [
-                    [
-                        "0x1621577ad2f90fe2e7ec6f675751693515c3b7e91ee228f1db47fe3aba7c0450",
-                        "0x2b07bc915b377f8c7126c2d46636632cdbcb426b446a06edf3320939ee4e1911"
-                    ],
-                    [
-                        "0xf40e93e057c7521720448b3d443eac36ff48705312181c41bd78981923be41a",
-                        "0x9ce138011687b44a08b979a85b3b122e7335254a02d4fbae7b38b57653c7eb0"
-                    ]
-                ],
-                [
-                    "0x295b30c0c025a2b176de1220acdb5f95119a8938689d73076f02bb6d01601fbb",
-                    "0xc71250468b955584be8769b047f79614df1176a7a64683f14c27889d47e614"
-                ]
-            ])
+            valid_values
         );
     }
 }

@@ -15,7 +15,7 @@ pub mod util;
 
 #[cfg(feature = "depth_30")]
 pub static SUPPORTED_DEPTH: usize = 30;
-#[cfg(feature = "depth_21")]
+#[cfg(feature = "depth_20")]
 pub static SUPPORTED_DEPTH: usize = 21;
 #[cfg(feature = "depth_16")]
 pub static SUPPORTED_DEPTH: usize = 16;
