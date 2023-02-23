@@ -1,8 +1,6 @@
 use color_eyre::eyre::{eyre, Result};
 use std::{
     fs::{create_dir, File},
-    io,
-    io::Cursor,
     path::{Component, Path, PathBuf},
 };
 extern crate reqwest;
@@ -10,21 +8,15 @@ extern crate reqwest;
 const SEMAPHORE_FILES_PATH: &str = "semaphore_files";
 const SEMAPHORE_DOWNLOAD_URL: &str = "https://www.trusted-setup-pse.org/semaphore";
 
-#[must_use]
-pub const fn depth() -> usize {
-    #[cfg(feature = "depth_16")]
-    return 16;
-    #[cfg(feature = "depth_21")]
-    return 21;
-    #[cfg(feature = "depth_30")]
-    return 30;
-
-    21
-}
+#[cfg(feature = "depth_30")]
+static SUPPORTED_DEPTH: usize = 30;
+#[cfg(feature = "depth_21")]
+static SUPPORTED_DEPTH: usize = 21;
+#[cfg(feature = "depth_16")]
+static SUPPORTED_DEPTH: usize = 16;
 
 // See <https://internals.rust-lang.org/t/path-to-lexical-absolute/14940>
-fn absolute(path: &str) -> Result<PathBuf> {
-    let path = Path::new(path);
+fn absolute(path: PathBuf ) -> Result<PathBuf> {
     let mut absolute = if path.is_absolute() {
         PathBuf::new()
     } else {
@@ -42,38 +34,43 @@ fn absolute(path: &str) -> Result<PathBuf> {
     Ok(absolute)
 }
 
-fn download_and_store_binary(url: String, file_name: &str) -> Result<()> {
-    let resp = reqwest::blocking::get(url).expect("failed to download file");
-    let body = resp.bytes().expect("body invalid");
-    let mut content = Cursor::new(body);
-    let mut out = File::create(file_name).expect("failed to create file");
-    io::copy(&mut content, &mut out).expect("failed to copy content");
+fn download_and_store_binary(url: &str, file_name: &str) -> Result<()> {
+    let mut resp = reqwest::blocking::get(url).expect(&format!("Failed to download file: {url}"));
+    let mut file = File::create(file_name).expect(&format!("Failed to create file: {file_name}"));
+    resp.copy_to(&mut file)?;
     Ok(())
 }
 
+fn semaphore_file_path(file_name: &str) -> PathBuf {
+    Path::new(SEMAPHORE_FILES_PATH).join(&SUPPORTED_DEPTH.to_string()).join(file_name)
+}
+
 fn build_circuit() -> Result<()> {
-    if !Path::new(SEMAPHORE_FILES_PATH).exists() {
-        create_dir(SEMAPHORE_FILES_PATH)?;
+    let base_path = Path::new(SEMAPHORE_FILES_PATH);
+    if !base_path.exists() {
+        create_dir(base_path)?;
     }
 
-    let depth_str = &depth().to_string()[..];
+    let depth_str = &SUPPORTED_DEPTH.to_string();
     let extensions = ["wasm", "zkey"];
 
-    let folder = format!("{SEMAPHORE_FILES_PATH}/{depth_str}");
-    if !Path::new(&folder).exists() {
-        create_dir(&folder)?;
+    let depth_subfolder = base_path.join(depth_str);
+    if !Path::new(&depth_subfolder).exists() {
+        create_dir(&depth_subfolder)?;
     }
+
+    println!("zzzzz");
 
     for extension in extensions {
         let filename = "semaphore";
         let download_url = format!("{SEMAPHORE_DOWNLOAD_URL}/{depth_str}/{filename}.{extension}");
         let path = format!("{SEMAPHORE_FILES_PATH}/{depth_str}/{filename}.{extension}");
-        download_and_store_binary(download_url, &path)?;
+        download_and_store_binary(&download_url, &path)?;
     }
 
     // Compute absolute paths
-    let zkey_file = absolute(&format!("{SEMAPHORE_FILES_PATH}/{depth_str}/semaphore.zkey"))?;
-    let wasm_file = absolute(&format!("{SEMAPHORE_FILES_PATH}/{depth_str}/semaphore.wasm"))?;
+    let zkey_file = absolute(semaphore_file_path("semaphore.zkey"))?;
+    let wasm_file = absolute(semaphore_file_path("semaphore.wasm"))?;
 
     assert!(zkey_file.exists());
     assert!(wasm_file.exists());
@@ -81,6 +78,8 @@ fn build_circuit() -> Result<()> {
     // Export generated paths
     println!("cargo:rustc-env=BUILD_RS_ZKEY_FILE={}", zkey_file.display());
     println!("cargo:rustc-env=BUILD_RS_WASM_FILE={}", wasm_file.display());
+
+    println!("zzzzz");
 
     Ok(())
 }
@@ -93,7 +92,8 @@ fn build_dylib() -> Result<()> {
     use wasmer_compiler_cranelift::Cranelift;
     use wasmer_engine_dylib::Dylib;
 
-    let wasm_file = absolute(WASM_FILE)?;
+    println!("sddssddsdsds");
+    let wasm_file = absolute(semaphore_file_path("semaphore.wasm"))?;
     assert!(wasm_file.exists());
 
     let out_dir = env::var("OUT_DIR")?;

@@ -13,17 +13,12 @@ pub mod poseidon_tree;
 pub mod protocol;
 pub mod util;
 
-#[must_use]
-pub const fn depth() -> usize {
-    #[cfg(feature = "depth_16")]
-    return 16;
-    #[cfg(feature = "depth_21")]
-    return 21;
-    #[cfg(feature = "depth_30")]
-    return 30;
-
-    21
-}
+#[cfg(feature = "depth_30")]
+static SUPPORTED_DEPTH: usize = 30;
+#[cfg(feature = "depth_21")]
+static SUPPORTED_DEPTH: usize = 21;
+#[cfg(feature = "depth_16")]
+static SUPPORTED_DEPTH: usize = 16;
 
 #[cfg(feature = "mimc")]
 pub mod mimc_hash;
@@ -45,7 +40,7 @@ pub type EthereumGroth16Proof = ark_circom::ethereum::Proof;
 #[cfg(test)]
 mod test {
     use crate::{
-        depth, hash_to_field,
+        hash_to_field,
         identity::Identity,
         poseidon_tree::PoseidonTree,
         protocol::{generate_nullifier_hash, generate_proof, verify_proof},
@@ -71,7 +66,7 @@ mod test {
         let id = Identity::from_seed(identity);
 
         // generate merkle tree
-        let mut tree = PoseidonTree::new(depth() + 1, leaf);
+        let mut tree = PoseidonTree::new(SUPPORTED_DEPTH + 1, leaf);
         tree.set(0, id.commitment());
 
         let merkle_proof = tree.proof(0).expect("proof should exist");
@@ -117,8 +112,8 @@ mod test {
 #[cfg(feature = "bench")]
 pub mod bench {
     use crate::{
-        depth, hash_to_field, identity::Identity, poseidon_tree::PoseidonTree,
-        protocol::generate_proof, Field,
+        hash_to_field, identity::Identity, poseidon_tree::PoseidonTree, protocol::generate_proof,
+        Field,
     };
     use criterion::Criterion;
 
@@ -135,7 +130,7 @@ pub mod bench {
 
         // Create tree
         let id = Identity::from_seed(b"hello");
-        let mut tree = PoseidonTree::new(depth() + 1, leaf);
+        let mut tree = PoseidonTree::new(SUPPORTED_DEPTH + 1, leaf);
         tree.set(0, id.commitment());
         let merkle_proof = tree.proof(0).expect("proof should exist");
 

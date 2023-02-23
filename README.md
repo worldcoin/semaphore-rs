@@ -23,15 +23,17 @@ Example as in `src/lib.rs`, run with `cargo test`.
 
 ```rust
 use semaphore::{hash_to_field, Field, identity::Identity, poseidon_tree::PoseidonTree,
-    protocol::*, depth };
+    protocol::* };
 use num_bigint::BigInt;
+
+static SUPPORTED_DEPTH: usize = 21;
 
 // generate identity
 let id = Identity::from_seed(b"secret");
 
 // generate merkle tree
 let leaf = Field::from(0);
-let mut tree = PoseidonTree::new(depth() + 1, leaf);
+let mut tree = PoseidonTree::new(SUPPORTED_DEPTH + 1, leaf);
 tree.set(0, id.commitment());
 
 let merkle_proof = tree.proof(0).expect("proof should exist");
