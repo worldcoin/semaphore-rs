@@ -23,13 +23,8 @@ Example as in `src/lib.rs`, run with `cargo test`.
 
 ```rust
 use semaphore::{hash_to_field, Field, identity::Identity, poseidon_tree::PoseidonTree,
-    protocol::* };
+    protocol::*, SUPPORTED_DEPTH };
 use num_bigint::BigInt;
-
-#[cfg(feature = "depth_20")]
-static SUPPORTED_DEPTH: usize = 21;
-#[cfg(feature = "depth_16")]
-static SUPPORTED_DEPTH: usize = 16;
 
 // generate identity
 let id = Identity::from_seed(b"secret");
