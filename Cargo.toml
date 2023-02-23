@@ -18,6 +18,9 @@ default = []
 bench = [ "criterion", "proptest" ]
 mimc = []
 dylib = [ "wasmer/dylib", "wasmer-engine-dylib", "wasmer-compiler-cranelift" ]
+depth_16 = []
+depth_20 = []
+depth_30 = []
 
 [[bench]]
 name = "criterion"
@@ -65,6 +68,7 @@ tracing-test = "0.2"
 [build-dependencies]
 color-eyre = "0.6"
 enumset = "1.0.8"
+reqwest = { version = "0.11", features = ["blocking"] }
 wasmer = { version = "2.0" }
 wasmer-engine-dylib = { version = "2.2.1", optional = true }
 wasmer-compiler-cranelift = { version = "2.2.1", optional = true }
