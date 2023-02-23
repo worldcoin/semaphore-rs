@@ -303,9 +303,6 @@ mod test {
                 "0x2f6e55a4eaf2a8d9fc15cdae184d4f6914a2cd4b30944f059601c07e61109e94"
             ]
         ]);
-        assert_eq!(
-            json,
-            valid_values
-        );
+        assert_eq!(json, valid_values);
     }
 }
