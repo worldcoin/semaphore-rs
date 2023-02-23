@@ -212,7 +212,7 @@ pub fn verify_proof(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{depth, hash_to_field, poseidon_tree::PoseidonTree};
+    use crate::{SUPPORTED_DEPTH, hash_to_field, poseidon_tree::PoseidonTree};
     use rand::SeedableRng as _;
     use rand_chacha::ChaChaRng;
     use serde_json::json;
@@ -227,7 +227,7 @@ mod test {
 
         // generate merkle tree
         let leaf = Field::from(0);
-        let mut tree = PoseidonTree::new(depth() + 1, leaf);
+        let mut tree = PoseidonTree::new(SUPPORTED_DEPTH + 1, leaf);
         tree.set(0, id.commitment());
 
         let merkle_proof = tree.proof(0).expect("proof should exist");

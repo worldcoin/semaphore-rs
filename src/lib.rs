@@ -14,11 +14,11 @@ pub mod protocol;
 pub mod util;
 
 #[cfg(feature = "depth_30")]
-static SUPPORTED_DEPTH: usize = 30;
+pub static SUPPORTED_DEPTH: usize = 30;
 #[cfg(feature = "depth_21")]
-static SUPPORTED_DEPTH: usize = 21;
+pub static SUPPORTED_DEPTH: usize = 21;
 #[cfg(feature = "depth_16")]
-static SUPPORTED_DEPTH: usize = 16;
+pub static SUPPORTED_DEPTH: usize = 16;
 
 #[cfg(feature = "mimc")]
 pub mod mimc_hash;
@@ -45,6 +45,7 @@ mod test {
         poseidon_tree::PoseidonTree,
         protocol::{generate_nullifier_hash, generate_proof, verify_proof},
         Field,
+        SUPPORTED_DEPTH,
     };
     use std::thread::spawn;
 
