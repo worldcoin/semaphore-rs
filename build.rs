@@ -16,7 +16,7 @@ static SUPPORTED_DEPTH: usize = 21;
 static SUPPORTED_DEPTH: usize = 16;
 
 // See <https://internals.rust-lang.org/t/path-to-lexical-absolute/14940>
-fn absolute(path: PathBuf ) -> Result<PathBuf> {
+fn absolute(path: PathBuf) -> Result<PathBuf> {
     let mut absolute = if path.is_absolute() {
         PathBuf::new()
     } else {
@@ -42,7 +42,9 @@ fn download_and_store_binary(url: &str, file_name: &str) -> Result<()> {
 }
 
 fn semaphore_file_path(file_name: &str) -> PathBuf {
-    Path::new(SEMAPHORE_FILES_PATH).join(&SUPPORTED_DEPTH.to_string()).join(file_name)
+    Path::new(SEMAPHORE_FILES_PATH)
+        .join(&SUPPORTED_DEPTH.to_string())
+        .join(file_name)
 }
 
 fn build_circuit() -> Result<()> {

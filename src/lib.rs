@@ -44,8 +44,7 @@ mod test {
         identity::Identity,
         poseidon_tree::PoseidonTree,
         protocol::{generate_nullifier_hash, generate_proof, verify_proof},
-        Field,
-        SUPPORTED_DEPTH,
+        Field, SUPPORTED_DEPTH,
     };
     use std::thread::spawn;
 

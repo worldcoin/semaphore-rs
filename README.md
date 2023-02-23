@@ -26,7 +26,10 @@ use semaphore::{hash_to_field, Field, identity::Identity, poseidon_tree::Poseido
     protocol::* };
 use num_bigint::BigInt;
 
+#[cfg(feature = "depth_21")]
 static SUPPORTED_DEPTH: usize = 21;
+#[cfg(feature = "depth_16")]
+static SUPPORTED_DEPTH: usize = 16;
 
 // generate identity
 let id = Identity::from_seed(b"secret");
