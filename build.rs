@@ -1,15 +1,22 @@
 use color_eyre::eyre::{eyre, Result};
 use std::{
+    fs::{create_dir, File},
     path::{Component, Path, PathBuf},
-    process::Command,
 };
+extern crate reqwest;
 
-const ZKEY_FILE: &str = "./semaphore/build/snark/semaphore_final.zkey";
-const WASM_FILE: &str = "./semaphore/build/snark/semaphore.wasm";
+const SEMAPHORE_FILES_PATH: &str = "semaphore_files";
+const SEMAPHORE_DOWNLOAD_URL: &str = "https://www.trusted-setup-pse.org/semaphore";
+
+#[cfg(feature = "depth_30")]
+static SUPPORTED_DEPTH: usize = 30;
+#[cfg(feature = "depth_20")]
+static SUPPORTED_DEPTH: usize = 21;
+#[cfg(feature = "depth_16")]
+static SUPPORTED_DEPTH: usize = 16;
 
 // See <https://internals.rust-lang.org/t/path-to-lexical-absolute/14940>
-fn absolute(path: &str) -> Result<PathBuf> {
-    let path = Path::new(path);
+fn absolute(path: PathBuf) -> Result<PathBuf> {
     let mut absolute = if path.is_absolute() {
         PathBuf::new()
     } else {
@@ -27,31 +34,45 @@ fn absolute(path: &str) -> Result<PathBuf> {
     Ok(absolute)
 }
 
+fn download_and_store_binary(url: &str, path: &Path) -> Result<()> {
+    let mut resp = reqwest::blocking::get(url).expect(&format!("Failed to download file: {url}"));
+    let path_str = path.to_str().unwrap();
+    let mut file = File::create(path).expect(&format!("Failed to create file: {path_str}"));
+    resp.copy_to(&mut file)?;
+    Ok(())
+}
+
+fn semaphore_file_path(file_name: &str) -> PathBuf {
+    Path::new(SEMAPHORE_FILES_PATH)
+        .join(&SUPPORTED_DEPTH.to_string())
+        .join(file_name)
+}
+
 fn build_circuit() -> Result<()> {
-    println!("cargo:rerun-if-changed=./semaphore");
-    let run = |cmd: &[&str]| -> Result<()> {
-        // TODO: Use ExitCode::exit_ok() when stable.
-        Command::new(cmd[0])
-            .args(cmd[1..].iter())
-            .current_dir("./semaphore")
-            .status()?
-            .success()
-            .then(|| ())
-            .ok_or(eyre!("procees returned failure"))?;
-        Ok(())
-    };
+    let base_path = Path::new(SEMAPHORE_FILES_PATH);
+    if !base_path.exists() {
+        create_dir(base_path)?;
+    }
+
+    let depth_str = &SUPPORTED_DEPTH.to_string();
+    let extensions = ["wasm", "zkey"];
+
+    let depth_subfolder = base_path.join(depth_str);
+    if !Path::new(&depth_subfolder).exists() {
+        create_dir(&depth_subfolder)?;
+    }
+
+    for extension in extensions {
+        let filename = "semaphore";
+        let download_url = format!("{SEMAPHORE_DOWNLOAD_URL}/{depth_str}/{filename}.{extension}");
+        let path = Path::new(&depth_subfolder).join(format!("{filename}.{extension}"));
+        download_and_store_binary(&download_url, &path)?;
+    }
 
     // Compute absolute paths
-    let zkey_file = absolute(ZKEY_FILE)?;
-    let wasm_file = absolute(WASM_FILE)?;
+    let zkey_file = absolute(semaphore_file_path("semaphore.zkey"))?;
+    let wasm_file = absolute(semaphore_file_path("semaphore.wasm"))?;
 
-    // Build circuits if not exists
-    // TODO: This does not rebuild if the semaphore submodule is changed.
-    // NOTE: This requires npm / nodejs to be installed.
-    if !(zkey_file.exists() && wasm_file.exists()) {
-        run(&["npm", "install"])?;
-        run(&["npm", "exec", "ts-node", "./scripts/compile-circuits.ts"])?;
-    }
     assert!(zkey_file.exists());
     assert!(wasm_file.exists());
 
@@ -70,7 +91,7 @@ fn build_dylib() -> Result<()> {
     use wasmer_compiler_cranelift::Cranelift;
     use wasmer_engine_dylib::Dylib;
 
-    let wasm_file = absolute(WASM_FILE)?;
+    let wasm_file = absolute(semaphore_file_path("semaphore.wasm"))?;
     assert!(wasm_file.exists());
 
     let out_dir = env::var("OUT_DIR")?;

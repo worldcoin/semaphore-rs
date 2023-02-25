@@ -13,6 +13,13 @@ pub mod poseidon_tree;
 pub mod protocol;
 pub mod util;
 
+#[cfg(feature = "depth_30")]
+pub static SUPPORTED_DEPTH: usize = 30;
+#[cfg(feature = "depth_20")]
+pub static SUPPORTED_DEPTH: usize = 21;
+#[cfg(feature = "depth_16")]
+pub static SUPPORTED_DEPTH: usize = 16;
+
 #[cfg(feature = "lazy-tree")]
 pub mod lazy_merkle_tree;
 #[cfg(feature = "mimc")]
@@ -39,7 +46,7 @@ mod test {
         identity::Identity,
         poseidon_tree::PoseidonTree,
         protocol::{generate_nullifier_hash, generate_proof, verify_proof},
-        Field,
+        Field, SUPPORTED_DEPTH,
     };
     use std::thread::spawn;
 
@@ -61,7 +68,7 @@ mod test {
         let id = Identity::from_seed(identity);
 
         // generate merkle tree
-        let mut tree = PoseidonTree::new(21, leaf);
+        let mut tree = PoseidonTree::new(SUPPORTED_DEPTH + 1, leaf);
         tree.set(0, id.commitment());
 
         let merkle_proof = tree.proof(0).expect("proof should exist");
@@ -125,7 +132,7 @@ pub mod bench {
 
         // Create tree
         let id = Identity::from_seed(b"hello");
-        let mut tree = PoseidonTree::new(21, leaf);
+        let mut tree = PoseidonTree::new(SUPPORTED_DEPTH + 1, leaf);
         tree.set(0, id.commitment());
         let merkle_proof = tree.proof(0).expect("proof should exist");
 
