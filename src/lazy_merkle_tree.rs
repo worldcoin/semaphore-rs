@@ -4,59 +4,83 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+pub trait VersionMarker {}
+#[derive(Debug)]
+pub struct Canonical;
+impl VersionMarker for Canonical {}
+#[derive(Debug)]
+pub struct Derived;
+impl VersionMarker for Derived {}
+
 /// A storage-optimized merkle tree. It has a certain linear-buffer represented
 /// prefix subtree and the rest of the tree is represented using lazy,
-/// pointer-based structures. This allows to hold even large trees in memory,
-/// assuming only a relatively small subset is ever modified.
+/// pointer-based structures. This makes it possible to hold even large trees in
+/// memory, assuming only a relatively small subset is ever modified.
 ///
 /// It exposes an immutable API, so that multiple versions can be kept in memory
-/// reusing as much structure as possible.
+/// while reusing as much structure as possible.
 ///
-/// The update method also allows to specify a mutability hint, which can be
-/// used to vastly improve storage characteristics, but also requires the caller
-/// to ensure certain additional invariants hold. See
+/// The update method also allows the specification of a mutability hint, which
+/// can be used to vastly improve storage characteristics, but also requires the
+/// caller to ensure certain additional invariants hold. See
 /// [`LazyMerkleTree::update_with_mutation`] for details.
-pub struct LazyMerkleTree<H: Hasher>(AnyTree<H>);
+pub struct LazyMerkleTree<H: Hasher, V: VersionMarker = Derived> {
+    tree:     AnyTree<H>,
+    _version: V,
+}
 
-impl<H: Hasher> LazyMerkleTree<H> {
+impl<H: Hasher, Version: VersionMarker> LazyMerkleTree<H, Version> {
     /// Creates a new, fully lazy (without any dense prefix) tree.
     #[must_use]
-    pub fn new(depth: usize, empty_value: H::Hash) -> Self {
-        AnyTree::new(depth, empty_value).into()
+    pub fn new(depth: usize, empty_value: H::Hash) -> LazyMerkleTree<H, Canonical> {
+        LazyMerkleTree {
+            tree:     AnyTree::new(depth, empty_value),
+            _version: Canonical,
+        }
     }
 
     /// Creates a new tree with a dense prefix of the given depth.
     #[must_use]
-    pub fn new_with_dense_prefix(depth: usize, prefix_depth: usize, empty_value: &H::Hash) -> Self {
-        AnyTree::new_with_dense_prefix(depth, prefix_depth, empty_value).into()
+    pub fn new_with_dense_prefix(
+        depth: usize,
+        prefix_depth: usize,
+        empty_value: &H::Hash,
+    ) -> LazyMerkleTree<H, Canonical> {
+        LazyMerkleTree {
+            tree:     AnyTree::new_with_dense_prefix(depth, prefix_depth, empty_value),
+            _version: Canonical,
+        }
     }
 
     /// Returns the depth of the tree.
     #[must_use]
     pub const fn depth(&self) -> usize {
-        self.0.depth()
+        self.tree.depth()
     }
 
     /// Returns the root of the tree.
     #[must_use]
     pub fn root(&self) -> H::Hash {
-        self.0.root()
+        self.tree.root()
     }
 
     /// Sets the value at the given index to the given value. This is fully
     /// immutable, returning a new tree and leaving the old one unchanged.
     /// Reuses as much memory as possible, allocating only `depth` nodes.
     #[must_use]
-    pub fn update(&self, index: usize, value: &H::Hash) -> Self {
-        self.0
-            .update_with_mutation_condition(index, value, false)
-            .into()
+    pub fn update(&self, index: usize, value: &H::Hash) -> LazyMerkleTree<H, Derived> {
+        LazyMerkleTree {
+            tree:     self
+                .tree
+                .update_with_mutation_condition(index, value, false),
+            _version: Derived,
+        }
     }
 
     /// Returns the Merkle proof for the given index.
     #[must_use]
     pub fn proof(&self, index: usize) -> Proof<H> {
-        self.0.proof(index)
+        self.tree.proof(index)
     }
 
     /// Verifies the given proof for the given value.
@@ -65,14 +89,26 @@ impl<H: Hasher> LazyMerkleTree<H> {
         proof.root(value) == self.root()
     }
 
+    /// Returns the value at the given index.
+    #[must_use]
+    pub fn get_leaf(&self, index: usize) -> H::Hash {
+        self.tree.get_leaf(index)
+    }
+
+    /// Returns an iterator over all leaves.
+    pub fn leaves(&self) -> impl Iterator<Item = H::Hash> + '_ {
+        // TODO this could be made faster by a custom iterator
+        (0..(1 << self.depth())).map(|i| self.get_leaf(i))
+    }
+}
+
+impl<H: Hasher> LazyMerkleTree<H, Canonical> {
     /// Sets the value at the given index to the given value. This is a mutable
     /// operation, that will modify any dense subtrees in place.
     ///
     /// This has potential consequences for the soundness of the whole
-    /// structure: 1. `self` is only valid after calling this if the tree it
-    /// represents is fully dense or fully sparse. If it is a mix, it will
-    /// be left in an invalid state.
-    /// 2. It has the potential to invalidate some trees that share nodes with
+    /// structure:
+    /// it has the potential to invalidate some trees that share nodes with
     /// this one, so if many versions are kept at once, special care must be
     /// taken when calling this. The only trees that are guaranteed to still be
     /// valid after this operation, are those that already specify the same
@@ -83,28 +119,21 @@ impl<H: Hasher> LazyMerkleTree<H> {
     /// This operation is useful for storage optimizations, as it avoids
     /// allocating any new memory in dense subtrees.
     #[must_use]
-    pub fn update_with_mutation(&self, index: usize, value: &H::Hash) -> Self {
-        self.0
-            .update_with_mutation_condition(index, value, true)
-            .into()
+    pub fn update_with_mutation(self, index: usize, value: &H::Hash) -> Self {
+        Self {
+            tree:     self.tree.update_with_mutation_condition(index, value, true),
+            _version: Canonical,
+        }
     }
 
-    /// Returns the value at the given index.
+    /// Gives a `Derived` version of this tree. Useful for initializing
+    /// versioned trees.
     #[must_use]
-    pub fn get_leaf(&self, index: usize) -> H::Hash {
-        self.0.get_leaf(index)
-    }
-
-    /// Returns an iterator over all leaves.
-    pub fn leaves(&self) -> impl Iterator<Item = H::Hash> + '_ {
-        // TODO this could be made faster by a custom iterator
-        (0..(1 << self.depth())).map(|i| self.get_leaf(i))
-    }
-}
-
-impl<H: Hasher> From<AnyTree<H>> for LazyMerkleTree<H> {
-    fn from(tree: AnyTree<H>) -> Self {
-        Self(tree)
+    pub fn derived(&self) -> LazyMerkleTree<H, Derived> {
+        LazyMerkleTree {
+            tree:     self.tree.clone(),
+            _version: Derived,
+        }
     }
 }
 
@@ -196,6 +225,16 @@ impl<H: Hasher> AnyTree<H> {
             Self::Empty(tree) => tree.get_leaf(),
             Self::Sparse(tree) => tree.get_leaf(index),
             Self::Dense(tree) => tree.get_leaf(index),
+        }
+    }
+}
+
+impl<H: Hasher> Clone for AnyTree<H> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Empty(t) => t.clone().into(),
+            Self::Sparse(t) => t.clone().into(),
+            Self::Dense(t) => t.clone().into(),
         }
     }
 }
@@ -317,6 +356,15 @@ struct Children<H: Hasher> {
     right: Arc<AnyTree<H>>,
 }
 
+impl<H: Hasher> Clone for Children<H> {
+    fn clone(&self) -> Self {
+        Self {
+            left:  self.left.clone(),
+            right: self.right.clone(),
+        }
+    }
+}
+
 struct SparseTree<H: Hasher> {
     depth:    usize,
     root:     H::Hash,
@@ -343,6 +391,7 @@ const fn clear_turn_at_depth(index: usize, depth: usize) -> usize {
 
 impl<H: Hasher> From<Children<H>> for SparseTree<H> {
     fn from(children: Children<H>) -> Self {
+        assert_eq!(children.left.depth(), children.right.depth());
         let (depth, root) = {
             let left = children.left.clone();
             let right = children.right.clone();
@@ -354,6 +403,16 @@ impl<H: Hasher> From<Children<H>> for SparseTree<H> {
             depth,
             root,
             children: Some(children),
+        }
+    }
+}
+
+impl<H: Hasher> Clone for SparseTree<H> {
+    fn clone(&self) -> Self {
+        Self {
+            depth:    self.depth,
+            root:     self.root.clone(),
+            children: self.children.clone(),
         }
     }
 }
@@ -655,43 +714,46 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::let_underscore_drop)]
     fn test_mutable_updates_in_dense() {
         let tree = LazyMerkleTree::<Keccak256>::new_with_dense_prefix(2, 2, &[0; 32]);
+        let original_tree = LazyMerkleTree {
+            tree:     tree.tree.clone(),
+            _version: Derived,
+        };
         assert_eq!(
-            tree.root(),
+            original_tree.root(),
             hex!("b4c11951957c6f8f642c4af61cd6b24640fec6dc7fc607ee8206a99e92410d30")
         );
-        let _ = tree.update_with_mutation(
+        let tree = tree.update_with_mutation(
             0,
             &hex!("0000000000000000000000000000000000000000000000000000000000000001"),
         );
         assert_eq!(
-            tree.root(),
+            original_tree.root(),
             hex!("c1ba1812ff680ce84c1d5b4f1087eeb08147a4d510f3496b2849df3a73f5af95")
         );
-        let _ = tree.update_with_mutation(
+        let tree = tree.update_with_mutation(
             1,
             &hex!("0000000000000000000000000000000000000000000000000000000000000002"),
         );
         assert_eq!(
-            tree.root(),
+            original_tree.root(),
             hex!("893760ec5b5bee236f29e85aef64f17139c3c1b7ff24ce64eb6315fca0f2485b")
         );
-        let _ = tree.update_with_mutation(
+        let tree = tree.update_with_mutation(
             2,
             &hex!("0000000000000000000000000000000000000000000000000000000000000003"),
         );
         assert_eq!(
-            tree.root(),
+            original_tree.root(),
             hex!("222ff5e0b5877792c2bc1670e2ccd0c2c97cd7bb1672a57d598db05092d3d72c")
         );
-        let _ = tree.update_with_mutation(
+        let _tree = tree.update_with_mutation(
             3,
             &hex!("0000000000000000000000000000000000000000000000000000000000000004"),
         );
         assert_eq!(
-            tree.root(),
+            original_tree.root(),
             hex!("a9bb8c3f1f12e9aa903a50c47f314b57610a3ab32f2d463293f58836def38d36")
         );
     }
@@ -704,6 +766,10 @@ mod tests {
         let h3 = hex!("0000000000000000000000000000000000000000000000000000000000000003");
         let h4 = hex!("0000000000000000000000000000000000000000000000000000000000000004");
         let tree = LazyMerkleTree::<Keccak256>::new_with_dense_prefix(2, 1, &[0; 32]);
+        let original_tree = LazyMerkleTree {
+            tree:     tree.tree.clone(),
+            _version: Derived,
+        };
         assert_eq!(
             tree.root(),
             hex!("b4c11951957c6f8f642c4af61cd6b24640fec6dc7fc607ee8206a99e92410d30")
@@ -730,7 +796,9 @@ mod tests {
         );
         // first two leaves are in the dense subtree, the rest is sparse, therefore only
         // first 2 get updated inplace.
-        assert_eq!(tree.leaves().collect::<Vec<_>>(), vec![h1, h2, h0, h0]);
+        assert_eq!(original_tree.leaves().collect::<Vec<_>>(), vec![
+            h1, h2, h0, h0
+        ]);
         // all leaves are updated in the properly tracked tree
         assert_eq!(t4.leaves().collect::<Vec<_>>(), vec![h1, h2, h3, h4]);
     }
@@ -765,5 +833,44 @@ mod tests {
             hex!("0000000000000000000000000000000000000000000000000000000000000001"),
             &proof
         ));
+    }
+
+    #[test]
+    fn test_giant_trees() {
+        let h0 = [0; 32];
+        let h1 = hex!("0000000000000000000000000000000000000000000000000000000000000001");
+        let h2 = hex!("0000000000000000000000000000000000000000000000000000000000000002");
+        let h3 = hex!("0000000000000000000000000000000000000000000000000000000000000003");
+        let h4 = hex!("0000000000000000000000000000000000000000000000000000000000000004");
+        let updates: Vec<(usize, _)> = vec![
+            (1, h1),
+            (2, h2),
+            (1_000_000_000, h3),
+            (1_000_000_000_000, h4),
+        ];
+        let mut tree = LazyMerkleTree::<Keccak256>::new_with_dense_prefix(63, 10, &h0).derived();
+        for (ix, hash) in &updates {
+            tree = tree.update(*ix, hash);
+        }
+        for (ix, hash) in &updates {
+            let proof = tree.proof(*ix);
+            assert_eq!(proof.root(*hash), tree.root());
+        }
+        let first_three_leaves = tree.leaves().take(3).collect::<Vec<_>>();
+        assert_eq!(first_three_leaves, vec![h0, h1, h2]);
+
+        let mut tree = LazyMerkleTree::<Keccak256>::new_with_dense_prefix(63, 10, &h0);
+        let original_tree = tree.derived();
+        for (ix, hash) in &updates {
+            tree = tree.update_with_mutation(*ix, hash);
+        }
+        for (ix, hash) in &updates {
+            let proof = tree.proof(*ix);
+            assert_eq!(proof.root(*hash), tree.root());
+        }
+        let first_three_leaves = original_tree.leaves().take(3).collect::<Vec<_>>();
+        assert_eq!(first_three_leaves, vec![h0, h1, h2]);
+        let first_three_leaves = tree.leaves().take(3).collect::<Vec<_>>();
+        assert_eq!(first_three_leaves, vec![h0, h1, h2]);
     }
 }
