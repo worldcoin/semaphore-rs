@@ -1,4 +1,4 @@
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::Result;
 use std::{
     fs::{create_dir, File},
     path::{Component, Path, PathBuf},
@@ -11,7 +11,7 @@ const SEMAPHORE_DOWNLOAD_URL: &str = "https://www.trusted-setup-pse.org/semaphor
 #[cfg(feature = "depth_30")]
 static SUPPORTED_DEPTH: usize = 30;
 #[cfg(feature = "depth_20")]
-static SUPPORTED_DEPTH: usize = 21;
+static SUPPORTED_DEPTH: usize = 20;
 #[cfg(feature = "depth_16")]
 static SUPPORTED_DEPTH: usize = 16;
 
