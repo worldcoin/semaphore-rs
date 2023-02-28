@@ -14,7 +14,7 @@ use std::{
 /// Hash types, values and algorithms for a Merkle tree
 pub trait Hasher {
     /// Type of the leaf and node hashes
-    type Hash: Clone + Eq + Serialize;
+    type Hash: Clone + Eq + Serialize + Debug;
 
     /// Compute the hash of an intermediate node
     fn hash_node(left: &Self::Hash, right: &Self::Hash) -> Self::Hash;
@@ -229,7 +229,7 @@ pub mod test {
     use hex_literal::hex;
     use tiny_keccak::{Hasher as _, Keccak};
 
-    struct Keccak256;
+    pub struct Keccak256;
 
     impl Hasher for Keccak256 {
         type Hash = [u8; 32];

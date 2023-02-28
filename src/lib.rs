@@ -20,6 +20,8 @@ pub static SUPPORTED_DEPTH: usize = 21;
 #[cfg(feature = "depth_16")]
 pub static SUPPORTED_DEPTH: usize = 16;
 
+#[cfg(feature = "lazy-tree")]
+pub mod lazy_merkle_tree;
 #[cfg(feature = "mimc")]
 pub mod mimc_hash;
 #[cfg(feature = "mimc")]
