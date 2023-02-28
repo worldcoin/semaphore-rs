@@ -27,7 +27,7 @@ use semaphore::{hash_to_field, Field, identity::Identity, poseidon_tree::Poseido
 use num_bigint::BigInt;
 
 // generate identity
-let id = Identity::from_seed(b"secret");
+let id = Identity::from_secret(b"secret", None);
 
 // generate merkle tree
 let leaf = Field::from(0);

@@ -223,7 +223,7 @@ mod test {
 
         // generate identity
         let seed: [u8; 16] = rng.gen();
-        let id = Identity::from_seed(&seed);
+        let id = Identity::from_secret(&seed, None);
 
         // generate merkle tree
         let leaf = Field::from(0);
@@ -285,22 +285,22 @@ mod test {
         #[cfg(feature = "depth_20")]
         let valid_values = json!([
             [
-                "0x2dc1c2e7730f1128093959e41f919c50dfc419fc2dca6252711d50e63ba7d68a",
-                "0x1c34d763e6536d8fe4a0e430ae19ee8c1b743952f1052a64dfd4a5301aeaf6a5"
+                "0x2296e314c88daf893769f4ed0cad8a7f584b39db6ebd4bba230591b5d78f48b3",
+                "0x2e5d33bf993b8e4aba7c06ee82ff7dd674857b491c46f53eda4365ecbf3e5fde"
             ],
             [
                 [
-                    "0x2fc277f691436f00c5b134d650c5124ae5866643d1e4a471c122d282642e8d4f",
-                    "0x188fe757f7ed01bb366e5a49af6aa21c2a8620473f4edc33906b146236edcb40"
+                    "0x277c239fa1cf9e8a7ca65ef09371bee470aad7936583a0b48e60f6a76f17a97c",
+                    "0x2b21c607eff04f704e546451dcd27c5f090639074a54b45e345337e09d0ab3d0"
                 ],
                 [
-                    "0x25fe981d0f6347432361ebb0e99bfbb4e5138a9f510fd7e3c71fba82688a7407",
-                    "0x27b55862741532def73d6f485302a272db7e8fefd335f2e8780e52f920313def"
+                    "0x73fde4daa004ecb853159e54b98cdd204e7874008f91581601881c968607451",
+                    "0x171ee4d007b9286d91b581f6d38902e5befc3876b96c71bc178b5f5e8dbf1e40"
                 ]
             ],
             [
-                "0x28fa77c6243a50ffee1c2f04eb79477185704fcde9049f5816b1a559edcefddc",
-                "0x2f6e55a4eaf2a8d9fc15cdae184d4f6914a2cd4b30944f059601c07e61109e94"
+                "0x25afbb8fef95d8481e9e49b4a94848473794447d032fdde2cd73a0d6318b6c3c",
+                "0x2a24e19699e2d8495357cf9b65fb215cebbcda2817b1627758a330e57db5c4b9"
             ]
         ]);
         assert_eq!(json, valid_values);

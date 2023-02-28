@@ -16,7 +16,7 @@ pub mod util;
 #[cfg(feature = "depth_30")]
 pub static SUPPORTED_DEPTH: usize = 30;
 #[cfg(feature = "depth_20")]
-pub static SUPPORTED_DEPTH: usize = 21;
+pub static SUPPORTED_DEPTH: usize = 20;
 #[cfg(feature = "depth_16")]
 pub static SUPPORTED_DEPTH: usize = 16;
 
@@ -65,7 +65,7 @@ mod test {
         let leaf = Field::from(0);
 
         // generate identity
-        let id = Identity::from_seed(identity);
+        let id = Identity::from_secret(identity, None);
 
         // generate merkle tree
         let mut tree = PoseidonTree::new(SUPPORTED_DEPTH + 1, leaf);
