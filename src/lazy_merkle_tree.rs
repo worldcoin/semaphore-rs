@@ -137,6 +137,15 @@ impl<H: Hasher> LazyMerkleTree<H, Canonical> {
     }
 }
 
+impl<H: Hasher> Clone for LazyMerkleTree<H, Derived> {
+    fn clone(&self) -> Self {
+        Self {
+            tree:     self.tree.clone(),
+            _version: Derived,
+        }
+    }
+}
+
 enum AnyTree<H: Hasher> {
     Empty(EmptyTree<H>),
     Sparse(SparseTree<H>),
