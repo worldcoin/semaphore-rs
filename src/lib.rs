@@ -20,7 +20,6 @@ pub static SUPPORTED_DEPTH: usize = 20;
 #[cfg(feature = "depth_16")]
 pub static SUPPORTED_DEPTH: usize = 16;
 
-#[cfg(feature = "lazy-tree")]
 pub mod lazy_merkle_tree;
 #[cfg(feature = "mimc")]
 pub mod mimc_hash;
@@ -44,7 +43,7 @@ mod test {
     use crate::{
         hash_to_field,
         identity::Identity,
-        poseidon_tree::PoseidonTree,
+        poseidon_tree::LazyPoseidonTree,
         protocol::{generate_nullifier_hash, generate_proof, verify_proof},
         Field, SUPPORTED_DEPTH,
     };
@@ -68,10 +67,10 @@ mod test {
         let id = Identity::from_secret(identity, None);
 
         // generate merkle tree
-        let mut tree = PoseidonTree::new(SUPPORTED_DEPTH + 1, leaf);
-        tree.set(0, id.commitment());
+        let mut tree = LazyPoseidonTree::new(SUPPORTED_DEPTH, leaf).derived();
+        tree = tree.update(0, &id.commitment());
 
-        let merkle_proof = tree.proof(0).expect("proof should exist");
+        let merkle_proof = tree.proof(0);
         let root = tree.root();
 
         let signal_hash = hash_to_field(signal);
@@ -114,8 +113,8 @@ mod test {
 #[cfg(feature = "bench")]
 pub mod bench {
     use crate::{
-        hash_to_field, identity::Identity, poseidon_tree::PoseidonTree, protocol::generate_proof,
-        Field,
+        hash_to_field, identity::Identity, poseidon_tree::LazyPoseidonTree,
+        protocol::generate_proof, Field, SUPPORTED_DEPTH,
     };
     use criterion::Criterion;
 
@@ -132,9 +131,9 @@ pub mod bench {
 
         // Create tree
         let id = Identity::from_seed(b"hello");
-        let mut tree = PoseidonTree::new(SUPPORTED_DEPTH + 1, leaf);
-        tree.set(0, id.commitment());
-        let merkle_proof = tree.proof(0).expect("proof should exist");
+        let mut tree = LazyPoseidonTree::new(SUPPORTED_DEPTH, leaf).derived();
+        tree = tree.update(0, &id.commitment());
+        let merkle_proof = tree.proof(0);
 
         // change signal and external_nullifier here
         let signal_hash = hash_to_field(b"xxx");

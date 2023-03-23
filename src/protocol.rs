@@ -164,7 +164,7 @@ fn generate_proof_rs(
         .calculate_witness_element::<Bn254, _>(inputs, false)
         .map_err(ProofError::WitnessError)?;
 
-    println!("witness generation took: {:.2?}", now.elapsed());
+    // println!("witness generation took: {:.2?}", now.elapsed());
 
     let now = Instant::now();
     let zkey = zkey();
@@ -178,7 +178,7 @@ fn generate_proof_rs(
         full_assignment.as_slice(),
     )?;
     let proof = ark_proof.into();
-    println!("proof generation took: {:.2?}", now.elapsed());
+    // println!("proof generation took: {:.2?}", now.elapsed());
 
     Ok(proof)
 }
@@ -212,7 +212,11 @@ pub fn verify_proof(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{hash_to_field, poseidon_tree::PoseidonTree, SUPPORTED_DEPTH};
+    use crate::{
+        hash_to_field,
+        poseidon_tree::{LazyPoseidonTree, PoseidonTree},
+        SUPPORTED_DEPTH,
+    };
     use rand::SeedableRng as _;
     use rand_chacha::ChaChaRng;
     use serde_json::json;
@@ -227,10 +231,10 @@ mod test {
 
         // generate merkle tree
         let leaf = Field::from(0);
-        let mut tree = PoseidonTree::new(SUPPORTED_DEPTH + 1, leaf);
-        tree.set(0, id.commitment());
+        let mut tree = LazyPoseidonTree::new(SUPPORTED_DEPTH, leaf).derived();
+        tree = tree.update(0, &id.commitment());
 
-        let merkle_proof = tree.proof(0).expect("proof should exist");
+        let merkle_proof = tree.proof(0);
 
         let external_nullifier: [u8; 16] = rng.gen();
         let external_nullifier_hash = hash_to_field(&external_nullifier);
@@ -303,6 +307,8 @@ mod test {
                 "0x2a24e19699e2d8495357cf9b65fb215cebbcda2817b1627758a330e57db5c4b9"
             ]
         ]);
+
+        #[cfg(not(feature = "depth_30"))]
         assert_eq!(json, valid_values);
     }
 }
