@@ -8,6 +8,7 @@ env:
 jobs:
   test:
     name: Test
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         depth: ["depth_16", "depth_20", "depth_30"]
