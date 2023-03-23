@@ -17,7 +17,7 @@ license-file = "mit-license.md"
 default = []
 bench = ["criterion", "proptest"]
 mimc = []
-dylib = ["wasmer/dylib", "wasmer-engine-dylib", "wasmer-compiler-llvm"]
+dylib = ["wasmer/dylib", "wasmer-engine-dylib", "wasmer-compiler-cranelift"]
 depth_16 = []
 depth_20 = []
 depth_30 = []
@@ -50,7 +50,7 @@ serde = "1.0"
 sha2 = "0.10.1"
 thiserror = "1.0.0"
 tiny-keccak = { version = "2.0.2" }
-wasmer = { version = "2.0" }
+wasmer = { version = "2.3.0" }
 
 # Use the same `ethers-core` version as ark-circom
 # TODO: Remove
@@ -69,9 +69,9 @@ tracing-test = "0.2"
 color-eyre = "0.6"
 enumset = "1.0.8"
 reqwest = { version = "0.11", features = ["blocking"] }
-wasmer = { version = "2.0" }
+wasmer = { version = "2.3.0" }
 wasmer-engine-dylib = { version = "2.3.0", optional = true }
-wasmer-compiler-llvm = { version = "2.3.0", optional = true }
+wasmer-compiler-cranelift = { version = "2.3.0", optional = true }
 
 [profile.release]
 codegen-units = 1

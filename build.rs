@@ -3,6 +3,7 @@ use std::{
     fs::{create_dir, File},
     path::{Component, Path, PathBuf},
 };
+use wasmer::Cranelift;
 
 extern crate reqwest;
 
@@ -90,7 +91,7 @@ fn build_dylib() -> Result<()> {
     use enumset::enum_set;
     use std::{env, str::FromStr};
     use wasmer::{Module, Store, Target, Triple};
-    use wasmer_compiler_llvm::{LLVMOptLevel, LLVM};
+    use wasmer_compiler_cranelift::Cranelift;
     use wasmer_engine_dylib::Dylib;
 
     let wasm_file = absolute(semaphore_file_path("semaphore.wasm"))?;
@@ -112,9 +113,7 @@ fn build_dylib() -> Result<()> {
     let triple = Triple::from_str(&env::var("TARGET")?).map_err(|e| eyre!(e))?;
     let cpu_features = enum_set!();
     let target = Target::new(triple, cpu_features);
-    let mut llvm = LLVM::new();
-    llvm.opt_level(LLVMOptLevel::Aggressive);
-    let engine = Dylib::new(llvm).target(target).engine();
+    let engine = Dylib::new(Cranelift::default()).target(target).engine();
 
     // Compile the WASM module
     let store = Store::new(&engine);
