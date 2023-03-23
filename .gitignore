@@ -1,6 +1,6 @@
 /target
 *.profraw
-.*
 Cargo.lock
 snarkfiles_tmp
 semaphore_files
+.idea
