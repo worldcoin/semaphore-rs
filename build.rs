@@ -85,6 +85,7 @@ fn build_circuit() -> Result<()> {
 
 #[cfg(feature = "dylib")]
 fn build_dylib() -> Result<()> {
+    use color_eyre::eyre::eyre;
     use enumset::enum_set;
     use std::{env, str::FromStr};
     use wasmer::{Module, Store, Target, Triple};
