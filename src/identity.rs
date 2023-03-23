@@ -28,7 +28,7 @@ fn seed_hex(seed: &[u8]) -> [u8; 64] {
 
 impl Identity {
     #[must_use]
-    #[deprecated(since="0.2.0", note="please use `from_secret` instead")]
+    #[deprecated(since = "0.2.0", note = "please use `from_secret` instead")]
     pub fn from_seed(seed: &[u8]) -> Self {
         let seed_hex = seed_hex(seed);
         Self {
