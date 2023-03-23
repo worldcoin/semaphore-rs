@@ -6,7 +6,7 @@ use crate::{
     poseidon_tree::PoseidonHash,
     Field,
 };
-use ark_bn254::{Bn254, Fr, Parameters};
+use ark_bn254::{Bn254, Parameters};
 use ark_circom::CircomReduction;
 use ark_ec::bn::Bn;
 use ark_groth16::{
@@ -29,7 +29,7 @@ pub type G2 = ([U256; 2], [U256; 2]);
 
 /// Wrap a proof object so we have serde support
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Proof(G1, G2, G1);
+pub struct Proof(pub G1, pub G2, pub G1);
 
 impl From<ArkProof<Bn<Parameters>>> for Proof {
     fn from(proof: ArkProof<Bn<Parameters>>) -> Self {
@@ -201,7 +201,7 @@ pub fn verify_proof(
 
     let public_inputs = [root, nullifier_hash, signal_hash, external_nullifier_hash]
         .iter()
-        .map(Fr::try_from)
+        .map(ark_bn254::Fr::try_from)
         .collect::<Result<Vec<_>, _>>()?;
 
     let ark_proof = (*proof).into();
