@@ -23,4 +23,4 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --features lazy_tree,${{ matrix.depth }},${{ matrix.dylib }}
+          args: --features lazy-tree,${{ matrix.depth }},${{ matrix.dylib }}
