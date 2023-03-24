@@ -3,7 +3,6 @@ use std::{
     fs::{create_dir, File},
     path::{Component, Path, PathBuf},
 };
-use wasmer::Cranelift;
 
 extern crate reqwest;
 
