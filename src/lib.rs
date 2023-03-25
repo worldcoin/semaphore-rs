@@ -13,13 +13,6 @@ pub mod poseidon_tree;
 pub mod protocol;
 pub mod util;
 
-#[cfg(feature = "depth_30")]
-pub static SUPPORTED_DEPTH: usize = 30;
-#[cfg(feature = "depth_20")]
-pub static SUPPORTED_DEPTH: usize = 20;
-#[cfg(feature = "depth_16")]
-pub static SUPPORTED_DEPTH: usize = 16;
-
 pub mod lazy_merkle_tree;
 #[cfg(feature = "mimc")]
 pub mod mimc_hash;
@@ -31,6 +24,8 @@ use ark_ec::bn::Bn;
 
 // Export types
 pub use crate::field::{hash_to_field, Field};
+
+pub use semaphore_depth_config::get_supported_depths;
 
 #[cfg(feature = "dylib")]
 pub use circuit::initialize;
@@ -45,8 +40,9 @@ mod test {
         identity::Identity,
         poseidon_tree::LazyPoseidonTree,
         protocol::{generate_nullifier_hash, generate_proof, verify_proof},
-        Field, SUPPORTED_DEPTH,
+        Field,
     };
+    use semaphore_depth_macros::test_all_depths;
     use std::thread::spawn;
 
     #[test]
@@ -57,7 +53,7 @@ mod test {
         assert_eq!(value, deserialized);
     }
 
-    fn test_end_to_end(identity: &[u8], external_nullifier: &[u8], signal: &[u8]) {
+    fn test_end_to_end(identity: &[u8], external_nullifier: &[u8], signal: &[u8], depth: usize) {
         // const LEAF: Hash = Hash::from_bytes_be(hex!(
         //     "0000000000000000000000000000000000000000000000000000000000000000"
         // ));
@@ -67,7 +63,7 @@ mod test {
         let id = Identity::from_secret(identity, None);
 
         // generate merkle tree
-        let mut tree = LazyPoseidonTree::new(SUPPORTED_DEPTH, leaf).derived();
+        let mut tree = LazyPoseidonTree::new(depth, leaf).derived();
         tree = tree.update(0, &id.commitment());
 
         let merkle_proof = tree.proof(0);
@@ -87,24 +83,25 @@ mod test {
                 signal_hash,
                 external_nullifier_hash,
                 &proof,
+                depth,
             )
             .unwrap();
             assert!(success);
         }
     }
-    #[test]
-    fn test_single() {
+    #[test_all_depths]
+    fn test_single(depth: usize) {
         // Note that rust will still run tests in parallel
-        test_end_to_end(b"hello", b"appId", b"xxx");
+        test_end_to_end(b"hello", b"appId", b"xxx", depth);
     }
 
-    #[test]
-    fn test_parallel() {
+    #[test_all_depths]
+    fn test_parallel(depth: usize) {
         // Note that this does not guarantee a concurrency issue will be detected.
         // For that we need much more sophisticated static analysis tooling like
         // loom. See <https://github.com/tokio-rs/loom>
-        let a = spawn(|| test_end_to_end(b"hello", b"appId", b"xxx"));
-        let b = spawn(|| test_end_to_end(b"secret", b"test", b"signal"));
+        let a = spawn(move || test_end_to_end(b"hello", b"appId", b"xxx", depth));
+        let b = spawn(move || test_end_to_end(b"secret", b"test", b"signal", depth));
         a.join().unwrap();
         b.join().unwrap();
     }
@@ -114,24 +111,27 @@ mod test {
 pub mod bench {
     use crate::{
         hash_to_field, identity::Identity, poseidon_tree::LazyPoseidonTree,
-        protocol::generate_proof, Field, SUPPORTED_DEPTH,
+        protocol::generate_proof, Field,
     };
     use criterion::Criterion;
+    use semaphore_depth_config::get_supported_depths;
 
     pub fn group(criterion: &mut Criterion) {
         #[cfg(feature = "mimc")]
         crate::mimc_hash::bench::group(criterion);
         #[cfg(feature = "mimc")]
         crate::mimc_tree::bench::group(criterion);
-        bench_proof(criterion);
+        for depth in get_supported_depths() {
+            bench_proof(criterion, *depth);
+        }
     }
 
-    fn bench_proof(criterion: &mut Criterion) {
+    fn bench_proof(criterion: &mut Criterion, depth: usize) {
         let leaf = Field::from(0);
 
         // Create tree
         let id = Identity::from_seed(b"hello");
-        let mut tree = LazyPoseidonTree::new(SUPPORTED_DEPTH, leaf).derived();
+        let mut tree = LazyPoseidonTree::new(depth, leaf).derived();
         tree = tree.update(0, &id.commitment());
         let merkle_proof = tree.proof(0);
 
@@ -139,7 +139,7 @@ pub mod bench {
         let signal_hash = hash_to_field(b"xxx");
         let external_nullifier_hash = hash_to_field(b"appId");
 
-        criterion.bench_function("proof", move |b| {
+        criterion.bench_function(&format!("proof_{depth}"), move |b| {
             b.iter(|| {
                 generate_proof(&id, &merkle_proof, external_nullifier_hash, signal_hash).unwrap();
             });

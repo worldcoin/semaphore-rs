@@ -13,14 +13,17 @@ categories = ["cryptography"]
 readme = "Readme.md"
 license-file = "mit-license.md"
 
+[workspace]
+members = ["crates/*"]
+
 [features]
 default = []
 bench = ["criterion", "proptest"]
 mimc = []
-dylib = [ "wasmer/dylib", "wasmer-engine-dylib", "wasmer-compiler-cranelift" ]
-depth_16 = []
-depth_20 = []
-depth_30 = []
+dylib = ["wasmer/dylib", "wasmer-engine-dylib", "wasmer-compiler-cranelift"]
+depth_16 = ["semaphore-depth-config/depth_16", "semaphore-depth-macros/depth_16"]
+depth_20 = ["semaphore-depth-config/depth_20", "semaphore-depth-macros/depth_20"]
+depth_30 = ["semaphore-depth-config/depth_30", "semaphore-depth-macros/depth_30"]
 
 [[bench]]
 name = "criterion"
@@ -46,11 +49,13 @@ proptest = { version = "1.0", optional = true }
 rand = "0.8.4"
 rayon = "1.5.1"
 ruint = { version = "1.2.0", features = ["serde", "num-bigint", "ark-ff"] }
+semaphore-depth-config = { path = "crates/semaphore-depth-config" }
 serde = "1.0"
 sha2 = "0.10.1"
 thiserror = "1.0.0"
 tiny-keccak = { version = "2.0.2" }
 wasmer = { version = "2.0" }
+semaphore-depth-macros = { path = "crates/semaphore-depth-macros" }
 
 # Use the same `ethers-core` version as ark-circom
 # TODO: Remove
@@ -72,6 +77,7 @@ reqwest = { version = "0.11", features = ["blocking"] }
 wasmer = { version = "2.0" }
 wasmer-engine-dylib = { version = "2.2.1", optional = true }
 wasmer-compiler-cranelift = { version = "2.2.1", optional = true }
+semaphore-depth-config = { path = "crates/semaphore-depth-config" }
 
 [profile.release]
 codegen-units = 1

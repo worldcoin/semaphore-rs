@@ -1,0 +1,19 @@
+[package]
+name = "semaphore-depth-macros"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[features]
+depth_16 = ["semaphore-depth-config/depth_16"]
+depth_20 = ["semaphore-depth-config/depth_20"]
+depth_30 = ["semaphore-depth-config/depth_30"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+semaphore-depth-config = { path = "../semaphore-depth-config" }
+itertools = "0.10.5"
+syn = { version = "2.0.9", features = ["full"] }
+quote = "1.0.26"

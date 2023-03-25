@@ -141,6 +141,7 @@ fn generate_proof_rs(
     r: ark_bn254::Fr,
     s: ark_bn254::Fr,
 ) -> Result<Proof, ProofError> {
+    let depth = merkle_proof.0.len();
     let inputs = [
         ("identityNullifier", vec![identity.nullifier]),
         ("identityTrapdoor", vec![identity.trapdoor]),
@@ -158,7 +159,7 @@ fn generate_proof_rs(
 
     let now = Instant::now();
 
-    let full_assignment = witness_calculator()
+    let full_assignment = witness_calculator(depth)
         .lock()
         .expect("witness_calculator mutex should not get poisoned")
         .calculate_witness_element::<Bn254, _>(inputs, false)
@@ -167,7 +168,7 @@ fn generate_proof_rs(
     // println!("witness generation took: {:.2?}", now.elapsed());
 
     let now = Instant::now();
-    let zkey = zkey();
+    let zkey = zkey(depth);
     let ark_proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
         &zkey.0,
         r,
@@ -195,8 +196,9 @@ pub fn verify_proof(
     signal_hash: Field,
     external_nullifier_hash: Field,
     proof: &Proof,
+    tree_depth: usize,
 ) -> Result<bool, ProofError> {
-    let zkey = zkey();
+    let zkey = zkey(tree_depth);
     let pvk = prepare_verifying_key(&zkey.0.vk);
 
     let public_inputs = [root, nullifier_hash, signal_hash, external_nullifier_hash]
@@ -212,14 +214,13 @@ pub fn verify_proof(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{
-        hash_to_field,
-        poseidon_tree::{LazyPoseidonTree, PoseidonTree},
-        SUPPORTED_DEPTH,
-    };
+    use crate::{hash_to_field, poseidon_tree::LazyPoseidonTree};
     use rand::SeedableRng as _;
     use rand_chacha::ChaChaRng;
+    use semaphore_depth_macros::test_all_depths;
     use serde_json::json;
+
+    const SUPPORTED_DEPTH: usize = 30;
 
     fn arb_proof(seed: u64) -> Proof {
         // Deterministic randomness for testing
@@ -252,8 +253,8 @@ mod test {
         .unwrap()
     }
 
-    #[test]
-    fn test_proof_cast_roundtrip() {
+    #[test_all_depths]
+    fn test_proof_cast_roundtrip(depth: usize) {
         let proof = arb_proof(123);
         let ark_proof: ArkProof<Bn<Parameters>> = proof.into();
         let result: Proof = ark_proof.into();

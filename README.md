@@ -22,16 +22,19 @@ semaphore = { git = "https://github.com/worldcoin/semaphore-rs" }
 Example as in `src/lib.rs`, run with `cargo test`.
 
 ```rust
-use semaphore::{hash_to_field, Field, identity::Identity, poseidon_tree::LazyPoseidonTree,
-    protocol::*, SUPPORTED_DEPTH };
+use semaphore::{get_supported_depths, hash_to_field, Field, identity::Identity,
+                poseidon_tree::LazyPoseidonTree, protocol::*};
 use num_bigint::BigInt;
 
 // generate identity
 let id = Identity::from_secret(b"secret", None);
 
+// Get the first available tree depth. This is controlled by the crate features.
+let depth = get_supported_depths()[0];
+
 // generate merkle tree
 let leaf = Field::from(0);
-let mut tree = LazyPoseidonTree::new(SUPPORTED_DEPTH, leaf).derived();
+let mut tree = LazyPoseidonTree::new(depth, leaf).derived();
 tree = tree.update(0, &id.commitment());
 
 let merkle_proof = tree.proof(0);
@@ -44,7 +47,7 @@ let external_nullifier_hash = hash_to_field(b"appId");
 let nullifier_hash = generate_nullifier_hash(&id, external_nullifier_hash);
 
 let proof = generate_proof(&id, &merkle_proof, external_nullifier_hash, signal_hash).unwrap();
-let success = verify_proof(root, nullifier_hash, signal_hash, external_nullifier_hash, &proof).unwrap();
+let success = verify_proof(root, nullifier_hash, signal_hash, external_nullifier_hash, &proof, depth).unwrap();
 
 assert!(success);
 ```
