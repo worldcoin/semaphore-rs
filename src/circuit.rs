@@ -57,16 +57,14 @@ fn from_dylib(path: &Path) -> Mutex<WitnessCalculator> {
 
 #[must_use]
 pub fn zkey(depth: usize) -> &'static (ProvingKey<Bn254>, ConstraintMatrices<Fr>) {
-    let index =
-        get_depth_index(depth).unwrap_or_else(|| panic!("depth {} is not supported", depth));
+    let index = get_depth_index(depth).unwrap_or_else(|| panic!("depth {depth} is not supported"));
     &ZKEY[index]
 }
 
 #[cfg(feature = "dylib")]
 #[must_use]
 pub fn witness_calculator(depth: usize) -> &'static Mutex<WitnessCalculator> {
-    let index =
-        get_depth_index(depth).unwrap_or_else(|| panic!("depth {} is not supported", depth));
+    let index = get_depth_index(depth).unwrap_or_else(|| panic!("depth {depth} is not supported"));
     let var_name = format!("CIRCUIT_WASM_DYLIB_{}", depth);
     WITNESS_CALCULATOR[index].get_or_init(|| {
         let path = env::var(&var_name).unwrap_or_else(|_| {
@@ -84,7 +82,7 @@ pub fn witness_calculator(depth: usize) -> &'static Mutex<WitnessCalculator> {
 #[cfg(not(feature = "dylib"))]
 #[must_use]
 pub fn witness_calculator(depth: usize) -> &'static Mutex<WitnessCalculator> {
-    let index = get_depth_index(depth).expect(&format!("depth {} is not supported", depth));
+    let index = get_depth_index(depth).unwrap_or_else(|| panic!("depth {depth} is not supported"));
     WITNESS_CALCULATOR[index].get_or_init(|| {
         let store = Store::default();
         let module = Module::from_binary(&store, WASM[index]).expect("wasm should be valid");

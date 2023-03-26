@@ -80,7 +80,7 @@ pub(crate) fn deserialize_bytes<'de, const N: usize, D: Deserializer<'de>>(
             where
                 E: DeError,
             {
-                bytes_from_hex(value).map_err(|e| E::custom(format!("Error in hex: {}", e)))
+                bytes_from_hex(value).map_err(|e| E::custom(format!("Error in hex: {e}")))
             }
         }
         deserializer.deserialize_str(StrVisitor)

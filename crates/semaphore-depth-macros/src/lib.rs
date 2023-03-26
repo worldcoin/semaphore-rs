@@ -86,7 +86,7 @@ impl Parse for MacroArgs {
 impl MacroArgs {
     fn tokens(&self) -> proc_macro2::TokenStream {
         let args = &self.args;
-        (quote! { #(#args),* }).into()
+        quote! { #(#args),* }
     }
 }
 
