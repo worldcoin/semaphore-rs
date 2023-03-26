@@ -27,7 +27,7 @@ jobs:
       - name: Run Clippy
         uses: actions-rs/clippy-check@v1
         with:
-          token: #{{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           args: --features mimc,depth_16,depth_20,depth_30
   test:
     name: Test
