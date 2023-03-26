@@ -71,9 +71,9 @@ pub fn witness_calculator(depth: usize) -> &'static Mutex<WitnessCalculator> {
     WITNESS_CALCULATOR[index].get_or_init(|| {
         let path = env::var(&var_name).unwrap_or_else(|_| {
             panic!(
-                "Semaphore-rs is not initialized. The \
-                 library needs to be initialized before use when build with the `dylib` feature. You \
-                 can initialize by calling `initialize` or setting the `{}` environment variable.",
+                "Semaphore-rs is not initialized. The library needs to be initialized before use \
+                 when build with the `dylib` feature. You can initialize by calling `initialize` \
+                 or setting the `{}` environment variable.",
                 var_name
             )
         });

@@ -3,7 +3,7 @@ use sha2::{Digest, Sha256};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Identity {
-    pub trapdoor: Field,
+    pub trapdoor:  Field,
     pub nullifier: Field,
 }
 
@@ -32,7 +32,7 @@ impl Identity {
     pub fn from_seed(seed: &[u8]) -> Self {
         let seed_hex = seed_hex(seed);
         Self {
-            trapdoor: derive_field(&seed_hex, b"identity_trapdoor"),
+            trapdoor:  derive_field(&seed_hex, b"identity_trapdoor"),
             nullifier: derive_field(&seed_hex, b"identity_nullifier"),
         }
     }
@@ -41,7 +41,7 @@ impl Identity {
     pub fn from_secret(secret: &[u8], trapdoor_seed: Option<&[u8]>) -> Self {
         let secret_hex = seed_hex(secret);
         Self {
-            trapdoor: derive_field(&secret_hex, trapdoor_seed.unwrap_or(b"identity_trapdoor")),
+            trapdoor:  derive_field(&secret_hex, trapdoor_seed.unwrap_or(b"identity_trapdoor")),
             nullifier: derive_field(&secret_hex, b"identity_nullifier"),
         }
     }

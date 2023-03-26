@@ -1,9 +1,12 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use semaphore_depth_config::get_supported_depths;
-use syn::parse::{Parse, ParseStream};
-use syn::visit_mut::VisitMut;
-use syn::{parse_macro_input, parse_quote, Ident, Token};
+use syn::{
+    parse::{Parse, ParseStream},
+    parse_macro_input, parse_quote,
+    visit_mut::VisitMut,
+    Ident, Token,
+};
 
 /// This macro is used to generate a test for each supported depth.
 /// It expects to annotate a function with a single argument, and will generate
@@ -26,12 +29,12 @@ use syn::{parse_macro_input, parse_quote, Ident, Token};
 ///
 /// #[test]
 /// fn test_depth_non_zero_depth_16() {
-///    test_depth_non_zero(16);
+///     test_depth_non_zero(16);
 /// }
 ///
 /// #[test]
 /// fn test_depth_non_zero_depth_30() {
-///   test_depth_non_zero(30);
+///     test_depth_non_zero(30);
 /// }
 /// ```
 #[proc_macro_attribute]
@@ -58,7 +61,7 @@ pub fn test_all_depths(_attr: TokenStream, item: TokenStream) -> TokenStream {
 #[derive(Debug)]
 struct ArrayForDepthsInput {
     replaced_ident: Ident,
-    expr: syn::Expr,
+    expr:           syn::Expr,
 }
 
 #[derive(Debug)]
