@@ -29,9 +29,11 @@ fn absolute(path: PathBuf) -> Result<PathBuf> {
 }
 
 fn download_and_store_binary(url: &str, path: &Path) -> Result<()> {
-    let mut resp = reqwest::blocking::get(url).expect(&format!("Failed to download file: {url}"));
+    let mut resp =
+        reqwest::blocking::get(url).unwrap_or_else(|_| panic!("Failed to download file: {url}"));
     let path_str = path.to_str().unwrap();
-    let mut file = File::create(path).expect(&format!("Failed to create file: {path_str}"));
+    let mut file =
+        File::create(path).unwrap_or_else(|_| panic!("Failed to create file: {path_str}"));
     resp.copy_to(&mut file)?;
     Ok(())
 }

@@ -3,7 +3,7 @@ use sha2::{Digest, Sha256};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Identity {
-    pub trapdoor:  Field,
+    pub trapdoor: Field,
     pub nullifier: Field,
 }
 
@@ -22,25 +22,26 @@ fn seed_hex(seed: &[u8]) -> [u8; 64] {
     hasher.update(seed);
     let bytes: [u8; 32] = hasher.finalize().into();
     let mut result = [0_u8; 64];
-    hex::encode_to_slice(&bytes, &mut result[..]).expect("output buffer is correctly sized");
+    hex::encode_to_slice(bytes, &mut result[..]).expect("output buffer is correctly sized");
     result
 }
 
 impl Identity {
     #[must_use]
-    #[deprecated(since="0.2.0", note="please use `from_secret` instead")]
+    #[deprecated(since = "0.2.0", note = "please use `from_secret` instead")]
     pub fn from_seed(seed: &[u8]) -> Self {
         let seed_hex = seed_hex(seed);
         Self {
-            trapdoor:  derive_field(&seed_hex, b"identity_trapdoor"),
+            trapdoor: derive_field(&seed_hex, b"identity_trapdoor"),
             nullifier: derive_field(&seed_hex, b"identity_nullifier"),
         }
     }
 
+    #[must_use]
     pub fn from_secret(secret: &[u8], trapdoor_seed: Option<&[u8]>) -> Self {
         let secret_hex = seed_hex(secret);
         Self {
-            trapdoor:  derive_field(&secret_hex, &trapdoor_seed.unwrap_or(b"identity_trapdoor")),
+            trapdoor: derive_field(&secret_hex, trapdoor_seed.unwrap_or(b"identity_trapdoor")),
             nullifier: derive_field(&secret_hex, b"identity_nullifier"),
         }
     }

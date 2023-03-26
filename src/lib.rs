@@ -130,7 +130,7 @@ pub mod bench {
         let leaf = Field::from(0);
 
         // Create tree
-        let id = Identity::from_seed(b"hello");
+        let id = Identity::from_secret(b"hello", None);
         let mut tree = LazyPoseidonTree::new(depth, leaf).derived();
         tree = tree.update(0, &id.commitment());
         let merkle_proof = tree.proof(0);

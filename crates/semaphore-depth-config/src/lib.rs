@@ -15,6 +15,7 @@ pub const fn get_supported_depth_count() -> usize {
     res
 }
 
+#[allow(unused_assignments)]
 const fn gen_supported_depths() -> [usize; get_supported_depth_count()] {
     let mut res = [0; get_supported_depth_count()];
     let mut i = 0;
@@ -64,6 +65,7 @@ pub const fn is_depth_supported(depth: usize) -> bool {
     false
 }
 
+#[allow(unused_assignments)]
 pub const fn get_depth_index(depth: usize) -> Option<usize> {
     let mut i = 0;
     #[cfg(feature = "depth_16")]

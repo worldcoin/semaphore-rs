@@ -165,7 +165,7 @@ fn generate_proof_rs(
         .calculate_witness_element::<Bn254, _>(inputs, false)
         .map_err(ProofError::WitnessError)?;
 
-    // println!("witness generation took: {:.2?}", now.elapsed());
+    println!("witness generation took: {:.2?}", now.elapsed());
 
     let now = Instant::now();
     let zkey = zkey(depth);
@@ -179,7 +179,7 @@ fn generate_proof_rs(
         full_assignment.as_slice(),
     )?;
     let proof = ark_proof.into();
-    // println!("proof generation took: {:.2?}", now.elapsed());
+    println!("proof generation took: {:.2?}", now.elapsed());
 
     Ok(proof)
 }
@@ -220,9 +220,7 @@ mod test {
     use semaphore_depth_macros::test_all_depths;
     use serde_json::json;
 
-    const SUPPORTED_DEPTH: usize = 30;
-
-    fn arb_proof(seed: u64) -> Proof {
+    fn arb_proof(seed: u64, depth: usize) -> Proof {
         // Deterministic randomness for testing
         let mut rng = ChaChaRng::seed_from_u64(seed);
 
@@ -232,7 +230,7 @@ mod test {
 
         // generate merkle tree
         let leaf = Field::from(0);
-        let mut tree = LazyPoseidonTree::new(SUPPORTED_DEPTH, leaf).derived();
+        let mut tree = LazyPoseidonTree::new(depth, leaf).derived();
         tree = tree.update(0, &id.commitment());
 
         let merkle_proof = tree.proof(0);
@@ -255,61 +253,79 @@ mod test {
 
     #[test_all_depths]
     fn test_proof_cast_roundtrip(depth: usize) {
-        let proof = arb_proof(123);
+        let proof = arb_proof(123, depth);
         let ark_proof: ArkProof<Bn<Parameters>> = proof.into();
         let result: Proof = ark_proof.into();
         assert_eq!(proof, result);
     }
 
-    #[test]
-    fn test_proof_serialize() {
-        let proof = arb_proof(456);
+    #[test_all_depths]
+    fn test_proof_serialize(depth: usize) {
+        let proof = arb_proof(456, depth);
         let json = serde_json::to_value(&proof).unwrap();
-        #[cfg(feature = "depth_16")]
-        let valid_values = json!([
-            [
-                "0xe4267974945a50a541e90a399ed9211752216a3e4e1cefab1f0bcd8925ea56e",
-                "0xdd9ada36c50d3f1bf75abe5c5ad7d0a29355b74fc3f604aa108b8886a6ac7f8"
-            ],
-            [
+        let valid_values = match depth {
+            16 => json!([
                 [
-                    "0x1621577ad2f90fe2e7ec6f675751693515c3b7e91ee228f1db47fe3aba7c0450",
-                    "0x2b07bc915b377f8c7126c2d46636632cdbcb426b446a06edf3320939ee4e1911"
+                    "0xe4267974945a50a541e90a399ed9211752216a3e4e1cefab1f0bcd8925ea56e",
+                    "0xdd9ada36c50d3f1bf75abe5c5ad7d0a29355b74fc3f604aa108b8886a6ac7f8"
                 ],
                 [
-                    "0xf40e93e057c7521720448b3d443eac36ff48705312181c41bd78981923be41a",
-                    "0x9ce138011687b44a08b979a85b3b122e7335254a02d4fbae7b38b57653c7eb0"
-                ]
-            ],
-            [
-                "0x295b30c0c025a2b176de1220acdb5f95119a8938689d73076f02bb6d01601fbb",
-                "0xc71250468b955584be8769b047f79614df1176a7a64683f14c27889d47e614"
-            ]
-        ]);
-
-        #[cfg(feature = "depth_20")]
-        let valid_values = json!([
-            [
-                "0x2296e314c88daf893769f4ed0cad8a7f584b39db6ebd4bba230591b5d78f48b3",
-                "0x2e5d33bf993b8e4aba7c06ee82ff7dd674857b491c46f53eda4365ecbf3e5fde"
-            ],
-            [
-                [
-                    "0x277c239fa1cf9e8a7ca65ef09371bee470aad7936583a0b48e60f6a76f17a97c",
-                    "0x2b21c607eff04f704e546451dcd27c5f090639074a54b45e345337e09d0ab3d0"
+                    [
+                        "0x1621577ad2f90fe2e7ec6f675751693515c3b7e91ee228f1db47fe3aba7c0450",
+                        "0x2b07bc915b377f8c7126c2d46636632cdbcb426b446a06edf3320939ee4e1911"
+                    ],
+                    [
+                        "0xf40e93e057c7521720448b3d443eac36ff48705312181c41bd78981923be41a",
+                        "0x9ce138011687b44a08b979a85b3b122e7335254a02d4fbae7b38b57653c7eb0"
+                    ]
                 ],
                 [
-                    "0x73fde4daa004ecb853159e54b98cdd204e7874008f91581601881c968607451",
-                    "0x171ee4d007b9286d91b581f6d38902e5befc3876b96c71bc178b5f5e8dbf1e40"
+                    "0x295b30c0c025a2b176de1220acdb5f95119a8938689d73076f02bb6d01601fbb",
+                    "0xc71250468b955584be8769b047f79614df1176a7a64683f14c27889d47e614"
                 ]
-            ],
-            [
-                "0x25afbb8fef95d8481e9e49b4a94848473794447d032fdde2cd73a0d6318b6c3c",
-                "0x2a24e19699e2d8495357cf9b65fb215cebbcda2817b1627758a330e57db5c4b9"
-            ]
-        ]);
-
-        #[cfg(not(feature = "depth_30"))]
+            ]),
+            20 => json!([
+                [
+                    "0x2296e314c88daf893769f4ed0cad8a7f584b39db6ebd4bba230591b5d78f48b3",
+                    "0x2e5d33bf993b8e4aba7c06ee82ff7dd674857b491c46f53eda4365ecbf3e5fde"
+                ],
+                [
+                    [
+                        "0x277c239fa1cf9e8a7ca65ef09371bee470aad7936583a0b48e60f6a76f17a97c",
+                        "0x2b21c607eff04f704e546451dcd27c5f090639074a54b45e345337e09d0ab3d0"
+                    ],
+                    [
+                        "0x73fde4daa004ecb853159e54b98cdd204e7874008f91581601881c968607451",
+                        "0x171ee4d007b9286d91b581f6d38902e5befc3876b96c71bc178b5f5e8dbf1e40"
+                    ]
+                ],
+                [
+                    "0x25afbb8fef95d8481e9e49b4a94848473794447d032fdde2cd73a0d6318b6c3c",
+                    "0x2a24e19699e2d8495357cf9b65fb215cebbcda2817b1627758a330e57db5c4b9"
+                ]
+            ]),
+            30 => json!([
+                [
+                    "0x19ded61ab5c58fdb12367526c6bc04b9186d0980c4b6fd48a44093e80f9b4206",
+                    "0x2e619a034be10e9aab294f1c77a480378e84782c8519449aef0c8f6952382bda"
+                ],
+                [
+                    [
+                        "0x2202954c0cdb43dc240d56c3a60d125dbc676f8d97bfeac5987500eb0ff4b9a1",
+                        "0x35f5b9d8bfba1341fe9fabef6f46d242e1b22c4006ed3ae3f240f0409b20799"
+                    ],
+                    [
+                        "0x13ef645aeaffda30d38c1df68d79d9682d3d002a388e5672fe9b9c7f3224acd7",
+                        "0x10a45a9a99cfaf9aef84ab40c5fdad411e800e24471f24ec76addb74b9e041af"
+                    ]
+                ],
+                [
+                    "0x1f72d009494e8694cf608c54131e7d565625d59e4637ea77cbf2620c719e8c77",
+                    "0x19ee17159b599f6f4b2294d4fb29760d2dc1b58adc0519ce546ad274928f6bc4"
+                ]
+            ]),
+            _ => panic!("unexpected depth: {}", depth),
+        };
         assert_eq!(json, valid_values);
     }
 }
