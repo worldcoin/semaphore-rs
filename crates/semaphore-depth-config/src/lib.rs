@@ -43,28 +43,6 @@ pub fn get_supported_depths() -> &'static [usize] {
     &SUPPORTED_DEPTHS
 }
 
-pub const fn is_depth_supported(depth: usize) -> bool {
-    #[cfg(feature = "depth_16")]
-    {
-        if depth == 16 {
-            return true;
-        }
-    }
-    #[cfg(feature = "depth_20")]
-    {
-        if depth == 20 {
-            return true;
-        }
-    }
-    #[cfg(feature = "depth_30")]
-    {
-        if depth == 30 {
-            return true;
-        }
-    }
-    false
-}
-
 #[allow(unused_assignments)]
 pub const fn get_depth_index(depth: usize) -> Option<usize> {
     let mut i = 0;
