@@ -66,7 +66,7 @@ impl Debug for Hash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let hex = bytes_to_hex::<32, 66>(&self.0);
         let hex_str = str::from_utf8(&hex).expect("hex is always valid utf8");
-        write!(f, "Field({})", hex_str)
+        write!(f, "Field({hex_str})")
     }
 }
 
@@ -74,7 +74,7 @@ impl Display for Hash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let hex = bytes_to_hex::<32, 66>(&self.0);
         let hex_str = str::from_utf8(&hex).expect("hex is always valid utf8");
-        write!(f, "{}", hex_str)
+        write!(f, "{hex_str}")
     }
 }
 

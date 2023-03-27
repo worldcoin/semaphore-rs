@@ -1,0 +1,49 @@
+name: Build and Test
+on: push
+
+env:
+  RUST_VERSION: 1.65
+  NIGHTLY_VERSION: nightly-2022-11-04
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ env.NIGHTLY_VERSION }}
+          override: true
+          components: rustfmt, clippy
+      - name: Check Formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+      - name: Run Clippy
+        uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --features mimc,depth_16,depth_20,depth_30
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ env.RUST_VERSION }}
+          override: true
+      - name: Run Tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          # TODO: also test with `dylib` when we get a better runner
+          args: --features mimc,depth_16,depth_20,depth_30
