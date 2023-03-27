@@ -1,0 +1,10 @@
+[package]
+name = "semaphore-depth-config"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[features]
+depth_16 = []
+depth_20 = []
+depth_30 = []

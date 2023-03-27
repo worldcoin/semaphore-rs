@@ -1,4 +1,5 @@
 use crate::{
+    lazy_merkle_tree::LazyMerkleTree,
     merkle_tree::{self, Hasher, MerkleTree},
     poseidon, Field,
 };
@@ -6,6 +7,9 @@ use serde::{Deserialize, Serialize};
 
 #[allow(dead_code)]
 pub type PoseidonTree = MerkleTree<PoseidonHash>;
+#[allow(dead_code)]
+#[allow(clippy::module_name_repetitions)]
+pub type LazyPoseidonTree = LazyMerkleTree<PoseidonHash>;
 #[allow(dead_code)]
 pub type Branch = merkle_tree::Branch<PoseidonHash>;
 #[allow(dead_code)]

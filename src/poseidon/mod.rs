@@ -85,9 +85,9 @@ pub fn hash1(value: U256) -> U256 {
         state[1] += C1[i][1];
 
         // SubWords, S-Box: Exponentiate
-        state[0] = state[0].pow(&[5]);
+        state[0] = state[0].pow([5]);
         if !(4..60).contains(&i) {
-            state[1] = state[1].pow(&[5]);
+            state[1] = state[1].pow([5]);
         }
 
         // MixLayer: Multiply by maximum distance separable matrix
@@ -117,10 +117,10 @@ pub fn hash2(left: U256, right: U256) -> U256 {
         state[2] += C[i][2];
 
         // SubWords, S-Box: Exponentiate
-        state[0] = state[0].pow(&[5]);
+        state[0] = state[0].pow([5]);
         if !(4..61).contains(&i) {
-            state[1] = state[1].pow(&[5]);
-            state[2] = state[2].pow(&[5]);
+            state[1] = state[1].pow([5]);
+            state[2] = state[2].pow([5]);
         }
 
         // MixLayer: Multiply by maximum distance separable matrix
