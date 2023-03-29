@@ -61,16 +61,17 @@ impl From<Proof> for ArkProof<Bn<Parameters>> {
     }
 }
 
-/// Helper to merkle proof into a bigint vector
-/// TODO: we should create a From trait for this
-fn merkle_proof_to_vec(proof: &merkle_tree::Proof<PoseidonHash>) -> Vec<Field> {
-    proof
-        .0
-        .iter()
-        .map(|x| match x {
-            Branch::Left(value) | Branch::Right(value) => *value,
-        })
-        .collect()
+/// Helper to turn merkle proof into a [Vec] of [Field]
+impl From<&merkle_tree::Proof<PoseidonHash>> for Vec<Field> {
+    fn from(proof: &merkle_tree::Proof<PoseidonHash>) -> Self {
+        proof
+            .0
+            .iter()
+            .map(|x| match x {
+                Branch::Left(value) | Branch::Right(value) => *value,
+            })
+            .collect()
+    }
 }
 
 /// Generates the nullifier hash
@@ -146,7 +147,7 @@ fn generate_proof_rs(
         ("identityNullifier", vec![identity.nullifier]),
         ("identityTrapdoor", vec![identity.trapdoor]),
         ("treePathIndices", merkle_proof.path_index()),
-        ("treeSiblings", merkle_proof_to_vec(merkle_proof)),
+        ("treeSiblings", merkle_proof.into()),
         ("externalNullifier", vec![external_nullifier_hash]),
         ("signalHash", vec![signal_hash]),
     ];
