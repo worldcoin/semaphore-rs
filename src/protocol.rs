@@ -4,7 +4,7 @@ use crate::{
     merkle_tree::{self, Branch},
     poseidon,
     poseidon_tree::PoseidonHash,
-    Field,
+    Field, util::{bytes_from_hex, serialize_bytes, deserialize_bytes, bytes_to_hex},
 };
 use ark_bn254::{Bn254, Parameters};
 use ark_circom::CircomReduction;
@@ -15,10 +15,11 @@ use ark_groth16::{
 use ark_relations::r1cs::SynthesisError;
 use ark_std::UniformRand;
 use color_eyre::Result;
+use ethabi::{Token, encode, decode, ParamType};
 use ethers_core::types::U256;
 use rand::{thread_rng, Rng};
-use serde::{Deserialize, Serialize};
-use std::time::Instant;
+use serde::{Deserialize, Serialize, Deserializer, Serializer};
+use std::{time::Instant, str::{FromStr, from_utf8}, fmt::Display};
 use thiserror::Error;
 
 // Matches the private G1Tup type in ark-circom.
@@ -30,6 +31,10 @@ pub type G2 = ([U256; 2], [U256; 2]);
 /// Wrap a proof object so we have serde support
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Proof(pub G1, pub G2, pub G1);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PackedProof([u8; 256]);
+
 
 impl From<ArkProof<Bn<Parameters>>> for Proof {
     fn from(proof: ArkProof<Bn<Parameters>>) -> Self {
@@ -58,6 +63,72 @@ impl From<Proof> for ArkProof<Bn<Parameters>> {
             },
         };
         eth_proof.into()
+    }
+}
+
+impl From<Proof> for PackedProof {
+    fn from(proof: Proof) -> Self {
+        let tokens = Token::FixedArray(vec![
+            Token::Uint(proof.0 .0),
+            Token::Uint(proof.0 .1),
+            Token::Uint(proof.1 .0[0]),
+            Token::Uint(proof.1 .0[1]),
+            Token::Uint(proof.1 .1[0]),
+            Token::Uint(proof.1 .1[1]),
+            Token::Uint(proof.2 .0),
+            Token::Uint(proof.2 .1),
+        ]);
+
+        let bytes = encode(&[tokens]);
+        let mut encoded = [0u8; 256];
+        encoded.copy_from_slice(&bytes[..256]);
+        Self(encoded)
+    }
+}
+
+impl From<PackedProof> for Proof {
+    fn from(proof: PackedProof) -> Self {
+        let decoded = decode(&vec![ParamType::Uint(256); 8], &proof.0).unwrap();
+        let decoded_uints = decoded
+            .into_iter()
+            .map(|x| x.into_uint().unwrap())
+            .collect::<Vec<U256>>();
+
+        let a = (decoded_uints[0], decoded_uints[1]);
+        let b = ([decoded_uints[2], decoded_uints[3]], [
+            decoded_uints[4],
+            decoded_uints[5],
+        ]);
+        let c = (decoded_uints[6], decoded_uints[7]);
+        Self(a, b, c)
+    }
+}
+
+impl Display for PackedProof {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let hex = bytes_to_hex::<256, 514>(&self.0);
+        write!(f, "{}", from_utf8(&hex).expect("failed to convert to string"))
+    }
+}
+
+impl FromStr for PackedProof {
+    type Err = hex::FromHexError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        bytes_from_hex::<256>(s).map(Self)
+    }
+}
+
+impl Serialize for PackedProof {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serialize_bytes::<256, 514, S>(serializer, &self.0)
+    }
+}
+
+impl<'de> Deserialize<'de> for PackedProof {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let bytes = deserialize_bytes::<256, _>(deserializer)?;
+        Ok(Self(bytes))
     }
 }
 
@@ -327,5 +398,22 @@ mod test {
             _ => panic!("unexpected depth: {}", depth),
         };
         assert_eq!(json, valid_values);
+    }
+
+    #[test]
+    fn test_proof_packed() {
+        let proof = PackedProof::from(arb_proof(456, 20));
+        assert_eq!(
+            format!("{}", proof),
+            "0x2296e314c88daf893769f4ed0cad8a7f584b39db6ebd4bba230591b5d78f48b32e5d33bf993b8e4aba7c06ee82ff7dd674857b491c46f53eda4365ecbf3e5fde277c239fa1cf9e8a7ca65ef09371bee470aad7936583a0b48e60f6a76f17a97c2b21c607eff04f704e546451dcd27c5f090639074a54b45e345337e09d0ab3d0073fde4daa004ecb853159e54b98cdd204e7874008f91581601881c968607451171ee4d007b9286d91b581f6d38902e5befc3876b96c71bc178b5f5e8dbf1e4025afbb8fef95d8481e9e49b4a94848473794447d032fdde2cd73a0d6318b6c3c2a24e19699e2d8495357cf9b65fb215cebbcda2817b1627758a330e57db5c4b9"
+        );
+    }
+
+    #[test]
+    fn test_proof_pack_unpack() {
+        let proof = arb_proof(456, 20);
+        let proof_packed = PackedProof::from(proof);
+        let proof_unpacked = Proof::from(proof_packed);
+        assert_eq!(proof, proof_unpacked);
     }
 }

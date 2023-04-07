@@ -33,7 +33,7 @@ required-features = ["bench", "proptest"]
 
 [dependencies]
 ark-bn254 = { version = "0.3.0" }
-ark-circom = { git = "https://github.com/gakonst/ark-circom", rev = "a93c8b0", features = ["circom-2"] }
+ark-circom = { git = "https://github.com/worldcoin/ark-circom", rev = "8471bf9", features = ["circom-2"] }
 ark-ec = { version = "0.3.0", default-features = false, features = ["parallel"] }
 ark-ff = { version = "0.3.0", default-features = false, features = ["parallel", "asm"] }
 ark-groth16 = { git = "https://github.com/arkworks-rs/groth16", rev = "765817f", features = ["parallel"] }
@@ -41,6 +41,7 @@ ark-relations = { version = "0.3.0", default-features = false }
 ark-std = { version = "0.3.0", default-features = false, features = ["parallel"] }
 color-eyre = "0.6"
 criterion = { version = "0.3", optional = true, features = ["async_tokio"] }
+ethabi = "17.0.0"
 hex = "0.4.0"
 hex-literal = "0.3"
 num-bigint = { version = "0.4", default-features = false, features = ["rand"] }
