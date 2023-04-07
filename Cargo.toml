@@ -41,7 +41,7 @@ ark-relations = { version = "0.3.0", default-features = false }
 ark-std = { version = "0.3.0", default-features = false, features = ["parallel"] }
 color-eyre = "0.6"
 criterion = { version = "0.3", optional = true, features = ["async_tokio"] }
-ethabi = "17.0.0"
+ethabi = "18.0.0"
 hex = "0.4.0"
 hex-literal = "0.3"
 num-bigint = { version = "0.4", default-features = false, features = ["rand"] }
