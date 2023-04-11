@@ -87,52 +87,53 @@ fn build_circuit(depth: usize) -> Result<()> {
     Ok(())
 }
 
-#[cfg(feature = "dylib")]
-fn build_dylib(depth: usize) -> Result<()> {
-    use color_eyre::eyre::eyre;
-    use enumset::enum_set;
-    use std::{env, str::FromStr};
-    use wasmer::{Module, Store, Target, Triple};
-    use wasmer_compiler_cranelift::Cranelift;
-    use wasmer_engine_dylib::Dylib;
+// #[cfg(feature = "dylib")]
+// fn build_dylib(depth: usize) -> Result<()> {
+//     use color_eyre::eyre::eyre;
+//     use enumset::enum_set;
+//     use std::{env, str::FromStr};
+//     use wasmer::{Module, Store, Target, Triple};
+//     use wasmer_compiler_cranelift::Cranelift;
+//     use wasmer_engine_dylib::Dylib;
 
-    let wasm_file = absolute(semaphore_file_path("semaphore.wasm", depth))?;
-    assert!(wasm_file.exists());
+//     let wasm_file = absolute(semaphore_file_path("semaphore.wasm", depth))?;
 
-    let out_dir = env::var("OUT_DIR")?;
-    let out_dir = Path::new(&out_dir).to_path_buf();
-    let dylib_file = out_dir.join(format!("semaphore_{depth}.dylib"));
-    println!(
-        "cargo:rustc-env=CIRCUIT_WASM_DYLIB_{}={}",
-        depth,
-        dylib_file.display()
-    );
+//     println!("cargo:warning=Cxxx {:?}", wasm_file);
 
-    if dylib_file.exists() {
-        return Ok(());
-    }
+//     assert!(wasm_file.exists());
 
-    // Create a WASM engine for the target that can compile
-    let triple = Triple::from_str(&env::var("TARGET")?).map_err(|e| eyre!(e))?;
-    let cpu_features = enum_set!();
-    let target = Target::new(triple, cpu_features);
-    let engine = Dylib::new(Cranelift::default()).target(target).engine();
+//     let out_dir = env::var("OUT_DIR")?;
+//     let out_dir = Path::new(&out_dir).to_path_buf();
+//     let dylib_file = out_dir.join(format!("semaphore_{depth}.dylib"));
+//     println!(
+//         "cargo:rustc-env=CIRCUIT_WASM_DYLIB_{}={}",
+//         depth,
+//         dylib_file.display()
+//     );
 
-    // Compile the WASM module
-    let store = Store::new(&engine);
-    let module = Module::from_file(&store, &wasm_file)?;
-    module.serialize_to_file(&dylib_file)?;
-    assert!(dylib_file.exists());
-    println!("cargo:warning=Circuit dylib is in {}", dylib_file.display());
+//     // if dylib_file.exists() {s
 
-    Ok(())
-}
+//     // Create a WASM engine for the target that can compile
+//     let triple = Triple::from_str(&env::var("TARGET")?).map_err(|e| eyre!(e))?;
+//     let cpu_features = enum_set!();
+//     let target = Target::new(triple, cpu_features);
+//     let engine = Dylib::new(Cranelift::default()).target(target).engine();
+
+//     // Compile the WASM module
+//     let store = Store::new(&engine);
+//     let module = Module::from_file(&store, &wasm_file)?;
+//     module.serialize_to_file(&dylib_file)?;
+//     assert!(dylib_file.exists());
+//     println!("cargo:warning=Circuit dylib is in {}", dylib_file.display());
+
+//     Ok(())
+// }
 
 fn main() -> Result<()> {
     for depth in semaphore_depth_config::get_supported_depths() {
         build_circuit(*depth)?;
-        #[cfg(feature = "dylib")]
-        build_dylib(*depth)?;
+        // #[cfg(feature = "dylib")]
+        // build_dylib(*depth)?;
     }
     Ok(())
 }
