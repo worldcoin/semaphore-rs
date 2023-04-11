@@ -231,8 +231,6 @@ fn generate_proof_rs(
     let now = Instant::now();
 
     let full_assignment = witness_calculator(depth)
-        .lock()
-        .expect("witness_calculator mutex should not get poisoned")
         .calculate_witness_element::<Bn254, _>(inputs, false)
         .map_err(ProofError::WitnessError)?;
 
@@ -411,7 +409,7 @@ mod test {
 
     #[test]
     fn test_proof_pack_unpack() {
-        let proof = arb_proof(456, 20);
+        let proof = arb_proof(456, 30);
         let proof_packed = PackedProof::from(proof);
         let proof_unpacked = Proof::from(proof_packed);
         assert_eq!(proof, proof_unpacked);

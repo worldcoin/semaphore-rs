@@ -27,9 +27,6 @@ pub use crate::field::{hash_to_field, Field};
 
 pub use semaphore_depth_config::get_supported_depths;
 
-#[cfg(feature = "dylib")]
-pub use circuit::initialize;
-
 pub type Groth16Proof = ark_groth16::Proof<Bn<Parameters>>;
 pub type EthereumGroth16Proof = ark_circom::ethereum::Proof;
 
