@@ -33,7 +33,7 @@ required-features = ["bench", "proptest"]
 
 [dependencies]
 ark-bn254 = { version = "0.3.0" }
-ark-circom = { git = "https://github.com/worldcoin/ark-circom", rev = "8471bf9", features = ["circom-2"] }
+ark-circom = { git = "https://github.com/worldcoin/ark-circom", rev = "96b2e59", features = ["circom-2"] }
 ark-ec = { version = "0.3.0", default-features = false, features = ["parallel"] }
 ark-ff = { version = "0.3.0", default-features = false, features = ["parallel", "asm"] }
 ark-groth16 = { git = "https://github.com/arkworks-rs/groth16", rev = "765817f", features = ["parallel"] }
@@ -55,7 +55,7 @@ serde = "1.0"
 sha2 = "0.10.1"
 thiserror = "1.0.0"
 tiny-keccak = { version = "2.0.2" }
-wasmer = { version = "2.0" }
+wasmer = { version = "2.3" }
 semaphore-depth-macros = { path = "crates/semaphore-depth-macros" }
 
 # Use the same `ethers-core` version as ark-circom
