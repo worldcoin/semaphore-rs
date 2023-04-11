@@ -55,15 +55,12 @@ serde = "1.0"
 sha2 = "0.10.1"
 thiserror = "1.0.0"
 tiny-keccak = { version = "2.0.2" }
-wasmer = { version = "2.3" }
+wasmer = { git = "https://github.com/worldcoin/wasmer.git", rev = "48bd67ab0f" }
 semaphore-depth-macros = { path = "crates/semaphore-depth-macros" }
 
 # Use the same `ethers-core` version as ark-circom
 # TODO: Remove
 ethers-core = { git = "https://github.com/gakonst/ethers-rs", default-features = false }
-
-[patch.crates-io]
-wasmer = { git = "https://github.com/worldcoin/wasmer.git", rev = "48bd67ab0f" }
 
 [dev-dependencies]
 bincode = "1.3.3"
@@ -78,7 +75,7 @@ tracing-test = "0.2"
 color-eyre = "0.6"
 enumset = "1.0.8"
 reqwest = { version = "0.11", features = ["blocking"] }
-wasmer = { version = "2.0" }
+wasmer = { git = "https://github.com/worldcoin/wasmer.git", rev = "48bd67ab0f" }
 wasmer-engine-dylib = { version = "2.2.1", optional = true }
 wasmer-compiler-cranelift = { version = "2.2.1", optional = true }
 semaphore-depth-config = { path = "crates/semaphore-depth-config" }
