@@ -917,7 +917,7 @@ mod tests {
         for (ix, hash) in &updates {
             from_empty = from_empty.update(*ix, hash);
         }
-        let mut from_initial_vals =
+        let from_initial_vals =
             LazyMerkleTree::<Keccak256>::new_with_dense_prefix_with_initial_values(63, 10, &h0, &[
                 h1, h2, h3, h4,
             ])
