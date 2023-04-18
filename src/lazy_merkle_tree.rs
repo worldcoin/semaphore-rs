@@ -52,6 +52,26 @@ impl<H: Hasher, Version: VersionMarker> LazyMerkleTree<H, Version> {
         }
     }
 
+    /// Creates a new tree with a dense prefix of the given depth, and with
+    /// initial leaves populated from the given slice.
+    #[must_use]
+    pub fn new_with_dense_prefix_with_initial_values(
+        depth: usize,
+        prefix_depth: usize,
+        empty_value: &H::Hash,
+        initial_values: &[H::Hash],
+    ) -> LazyMerkleTree<H, Canonical> {
+        LazyMerkleTree {
+            tree:     AnyTree::new_with_dense_prefix_with_initial_values(
+                depth,
+                prefix_depth,
+                empty_value,
+                initial_values,
+            ),
+            _version: Canonical,
+        }
+    }
+
     /// Returns the depth of the tree.
     #[must_use]
     pub const fn depth(&self) -> usize {
@@ -155,6 +175,27 @@ enum AnyTree<H: Hasher> {
 impl<H: Hasher> AnyTree<H> {
     fn new(depth: usize, empty_value: H::Hash) -> Self {
         Self::Empty(EmptyTree::new(depth, empty_value))
+    }
+
+    fn new_with_dense_prefix_with_initial_values(
+        depth: usize,
+        prefix_depth: usize,
+        empty_value: &H::Hash,
+        initial_values: &[H::Hash],
+    ) -> Self {
+        assert!(depth >= prefix_depth);
+        let dense = DenseTree::new_with_values(initial_values, empty_value, prefix_depth);
+        let mut result: Self = dense.into();
+        let mut current_depth = prefix_depth;
+        while current_depth < depth {
+            result = SparseTree::new(
+                result,
+                EmptyTree::new(current_depth, empty_value.clone()).into(),
+            )
+            .into();
+            current_depth += 1;
+        }
+        result
     }
 
     fn new_with_dense_prefix(depth: usize, prefix_depth: usize, empty_value: &H::Hash) -> Self {
@@ -528,6 +569,25 @@ impl<H: Hasher> Clone for DenseTree<H> {
 }
 
 impl<H: Hasher> DenseTree<H> {
+    fn new_with_values(values: &[H::Hash], empty_leaf: &H::Hash, depth: usize) -> Self {
+        let leaf_count = 1 << depth;
+        let first_leaf_index = 1 << depth;
+        let storage_size = 1 << (depth + 1);
+        assert!(values.len() <= leaf_count);
+        let mut storage = vec![empty_leaf.clone(); storage_size];
+        storage[first_leaf_index..(first_leaf_index + values.len())].clone_from_slice(values);
+        for i in (1..first_leaf_index).rev() {
+            let left = &storage[2 * i];
+            let right = &storage[2 * i + 1];
+            storage[i] = H::hash_node(left, right);
+        }
+        Self {
+            depth,
+            root_index: 1,
+            storage: Arc::new(Mutex::new(storage)),
+        }
+    }
+
     fn with_ref<F, R>(&self, fun: F) -> R
     where
         F: FnOnce(DenseTreeRef<H>) -> R,
@@ -842,6 +902,27 @@ mod tests {
             hex!("0000000000000000000000000000000000000000000000000000000000000001"),
             &proof
         ));
+    }
+
+    #[test]
+    fn test_giant_tree_with_initial_vals() {
+        let h0 = [0; 32];
+        let h1 = hex!("0000000000000000000000000000000000000000000000000000000000000001");
+        let h2 = hex!("0000000000000000000000000000000000000000000000000000000000000002");
+        let h3 = hex!("0000000000000000000000000000000000000000000000000000000000000003");
+        let h4 = hex!("0000000000000000000000000000000000000000000000000000000000000004");
+        let updates: Vec<(usize, _)> = vec![(0, h1), (1, h2), (2, h3), (3, h4)];
+        let mut from_empty =
+            LazyMerkleTree::<Keccak256>::new_with_dense_prefix(63, 10, &h0).derived();
+        for (ix, hash) in &updates {
+            from_empty = from_empty.update(*ix, hash);
+        }
+        let mut from_initial_vals =
+            LazyMerkleTree::<Keccak256>::new_with_dense_prefix_with_initial_values(63, 10, &h0, &[
+                h1, h2, h3, h4,
+            ])
+            .derived();
+        assert_eq!(from_empty.root(), from_initial_vals.root());
     }
 
     #[test]
