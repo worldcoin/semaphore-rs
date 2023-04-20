@@ -24,6 +24,7 @@ dylib = ["wasmer/dylib", "wasmer-engine-dylib", "wasmer-compiler-cranelift"]
 depth_16 = ["semaphore-depth-config/depth_16", "semaphore-depth-macros/depth_16"]
 depth_20 = ["semaphore-depth-config/depth_20", "semaphore-depth-macros/depth_20"]
 depth_30 = ["semaphore-depth-config/depth_30", "semaphore-depth-macros/depth_30"]
+private_fetch = ["blyss-rs", "tokio"]
 
 [[bench]]
 name = "criterion"
@@ -56,6 +57,8 @@ thiserror = "1.0.0"
 tiny-keccak = { version = "2.0.2" }
 wasmer = { version = "2.0" }
 semaphore-depth-macros = { path = "crates/semaphore-depth-macros" }
+blyss-rs = { optional = true, version = "0.2.0" }
+tokio = { optional = true, version = "1", features = ["macros"] }
 
 # Use the same `ethers-core` version as ark-circom
 # TODO: Remove

@@ -133,6 +133,43 @@ pub fn generate_proof_rng(
     )
 }
 
+/// Fetches a Merkle proof privately using FHE
+///
+/// Uses the given lookup configuration URL to privately fetch
+/// the Merkle proof privately from a Blyss bucket.
+///
+/// # Errors
+///
+/// Returns a [`ProofError`] if the fetch fails.
+#[cfg(feature = "private_fetch")]
+pub async fn private_fetch_merkle_proof(
+    identity_commitment: &Field,
+    cfg_url: &str,
+) -> Result<merkle_tree::Proof<PoseidonHash>, ProofError> {
+    let identity_commitment_str = format!(
+        "0x{}",
+        hex::encode(&identity_commitment.to_be_bytes::<32>())
+    );
+    let raw_merkle_proof =
+        blyss_rs::proof::private_fetch_merkle_proof(&identity_commitment_str, &cfg_url).await;
+    let raw_proof_steps = raw_merkle_proof.map_err(|err| ProofError::WitnessError(err.into()))?;
+
+    let mut merkle_proof = Vec::new();
+    for step in raw_proof_steps {
+        let value = (&step.value)
+            .parse()
+            .map_err(|_| ProofError::WitnessError(blyss_rs::error::Error::Unknown.into()))?;
+        let branch = if step.pos == 0 {
+            Branch::Right(value)
+        } else {
+            Branch::Left(value)
+        };
+        merkle_proof.push(branch);
+    }
+
+    Ok(merkle_tree::Proof(merkle_proof))
+}
+
 fn generate_proof_rs(
     identity: &Identity,
     merkle_proof: &merkle_tree::Proof<PoseidonHash>,
@@ -327,5 +364,25 @@ mod test {
             _ => panic!("unexpected depth: {}", depth),
         };
         assert_eq!(json, valid_values);
+    }
+
+    #[cfg(feature = "private_fetch")]
+    #[tokio::test]
+    pub async fn test_private_fetch() {
+        let root = "0x205aff5d8fc468b111f6fba374f5ba3bdaf02b37a741fd675fac334350f19880"
+            .parse()
+            .unwrap();
+        let identity_commitment =
+            "0x06eaa1912c3c31b6c2063e397faaba5ad43052812d5051c9b731c5618fe02c6d"
+                .parse()
+                .unwrap();
+        let proof = private_fetch_merkle_proof(
+            &identity_commitment,
+            "https://blyss-hints.s3.us-east-2.amazonaws.com/lookup-cfg.json",
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(proof.root(identity_commitment), root);
     }
 }
