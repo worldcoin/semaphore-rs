@@ -20,5 +20,7 @@ jobs:
       run: cargo install --root ${{ runner.tool_cache }}/cargo-vet --version ${{ env.CARGO_VET_VERSION }} cargo-vet
     - name: Build the crate to get the lock file
       run: cargo build
+    - name: Prune (If some import got updated)
+      run: cargo vet prune
     - name: Invoke cargo-vet
       run: cargo vet

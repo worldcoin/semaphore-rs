@@ -32,11 +32,7 @@ audit-as-crates-io = false
 version = "2.0.6"
 criteria = "safe-to-deploy"
 
-[[exemptions.openssl]]
-version = "0.10.53"
-criteria = "safe-to-deploy"
-
-[[openssl-sys]]
+[[exemptions.openssl-sys]]
 version = "0.9.88"
 criteria = "safe-to-deploy"
 
