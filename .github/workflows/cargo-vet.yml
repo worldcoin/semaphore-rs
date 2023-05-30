@@ -21,4 +21,4 @@ jobs:
     - name: Build the crate to get the lock file
       run: cargo build
     - name: Invoke cargo-vet
-      run: cargo vet --locked
+      run: cargo vet
