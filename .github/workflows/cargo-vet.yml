@@ -12,6 +12,8 @@ jobs:
       run: rustup update stable && rustup default stable
     - name: Ensure that the tool cache is populated with the cargo-vet binary
       run: cargo install cargo-vet --version ${{ env.CARGO_VET_VERSION }}
+    - name: Build the crate to get the lock file
+      run: cargo build
     - name: Prune (If some import got updated)
       run: cargo vet prune
     - name: Invoke cargo-vet
