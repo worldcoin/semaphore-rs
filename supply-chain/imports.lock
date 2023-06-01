@@ -129,6 +129,12 @@ the environment's terminal information when asked. Does its stated purpose and
 no more.
 """
 
+[[audits.bytecodealliance.audits.base64]]
+who = "Pat Hickey <phickey@fastly.com>"
+criteria = "safe-to-deploy"
+version = "0.21.0"
+notes = "This crate has no dependencies, no build.rs, and contains no unsafe code."
+
 [[audits.bytecodealliance.audits.cfg-if]]
 who = "Alex Crichton <alex@alexcrichton.com>"
 criteria = "safe-to-deploy"
@@ -370,6 +376,12 @@ criteria = "safe-to-deploy"
 version = "0.4.0"
 notes = "No unsafe usage or ambient capabilities"
 
+[[audits.embark.audits.derive_more]]
+who = "Johan Andersson <opensource@embark-studios.com>"
+criteria = "safe-to-deploy"
+version = "0.99.17"
+notes = "No unsafe usage or ambient capabilities"
+
 [[audits.embark.audits.epaint]]
 who = "Johan Andersson <opensource@embark-studios.com>"
 criteria = "safe-to-deploy"
@@ -381,6 +393,30 @@ who = "Johan Andersson <opensource@embark-studios.com>"
 criteria = "safe-to-deploy"
 version = "1.0.1"
 notes = "No unsafe usage or ambient capabilities"
+
+[[audits.embark.audits.num_enum]]
+who = "Johan Andersson <opensource@embark-studios.com>"
+criteria = "safe-to-deploy"
+version = "0.5.11"
+notes = "No unsafe usage or ambient capabilities"
+
+[[audits.embark.audits.num_enum]]
+who = "Johan Andersson <opensource@embark-studios.com>"
+criteria = "safe-to-deploy"
+delta = "0.5.11 -> 0.6.1"
+notes = "Minor changes"
+
+[[audits.embark.audits.num_enum_derive]]
+who = "Johan Andersson <opensource@embark-studios.com>"
+criteria = "safe-to-deploy"
+version = "0.5.11"
+notes = "Proc macro that generates some unsafe code for conversion but looks sound, no ambient capabilities"
+
+[[audits.embark.audits.num_enum_derive]]
+who = "Johan Andersson <opensource@embark-studios.com>"
+criteria = "safe-to-deploy"
+delta = "0.5.11 -> 0.6.1"
+notes = "Minor changes"
 
 [[audits.embark.audits.strum]]
 who = "Johan Andersson <opensource@embark-studios.com>"
@@ -406,6 +442,12 @@ criteria = "safe-to-deploy"
 version = "1.0.40"
 notes = "Found no unsafe or ambient capabilities used"
 
+[[audits.embark.audits.valuable]]
+who = "Johan Andersson <opensource@embark-studios.com>"
+criteria = "safe-to-deploy"
+version = "0.1.0"
+notes = "No unsafe usage or ambient capabilities, sane build script"
+
 [[audits.google.audits.fastrand]]
 who = "George Burgess IV <gbiv@google.com>"
 criteria = "safe-to-deploy"
@@ -427,6 +469,16 @@ who = "George Burgess IV <gbiv@google.com>"
 criteria = "safe-to-deploy"
 version = "0.9.4"
 aggregated-from = "https://chromium.googlesource.com/chromiumos/third_party/rust_crates/+/refs/heads/main/cargo-vet/audits.toml?format=TEXT"
+
+[[audits.isrg.audits.base64]]
+who = "Tim Geoghegan <timg@letsencrypt.org>"
+criteria = "safe-to-deploy"
+delta = "0.21.0 -> 0.21.1"
+
+[[audits.isrg.audits.base64]]
+who = "Brandon Pitman <bran@bran.land>"
+criteria = "safe-to-deploy"
+delta = "0.21.1 -> 0.21.2"
 
 [[audits.isrg.audits.crunchy]]
 who = "David Cook <dcook@divviup.org>"
