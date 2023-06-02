@@ -1020,7 +1020,7 @@ dependencies = [
 [[package]]
 name = "ethers-core"
 version = "2.0.6"
-source = "git+https://github.com/gakonst/ethers-rs#8a74677a00e877d8be1628e9295f6b08c94aaf86"
+source = "git+https://github.com/gakonst/ethers-rs#4d742dac0e620107b3bbe4adfb56149bf6fc317b"
 dependencies = [
  "arrayvec",
  "bytes",
@@ -1901,9 +1901,9 @@ dependencies = [
 
 [[package]]
 name = "openssl"
-version = "0.10.53"
+version = "0.10.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12df40a956736488b7b44fe79fe12d4f245bb5b3f5a1f6095e499760015be392"
+checksum = "69b3f656a17a6cbc115b5c7a40c616947d213ba182135b014d6051b73ab6f019"
 dependencies = [
  "bitflags",
  "cfg-if",

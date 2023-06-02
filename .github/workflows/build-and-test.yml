@@ -4,7 +4,7 @@ on: push
 env:
   RUST_VERSION: 1.65
   NIGHTLY_VERSION: nightly-2022-11-04
-  CARGO_VET_VERSION: 0.7
+  CARGO_VET_VERSION: 0.7.0
 
 jobs:
   lint:

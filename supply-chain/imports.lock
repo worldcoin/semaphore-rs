@@ -67,14 +67,14 @@ user-name = "Alex Crichton"
 [[audits.bytecodealliance.wildcard-audits.bumpalo]]
 who = "Nick Fitzgerald <fitzgen@gmail.com>"
 criteria = "safe-to-deploy"
-user-id = 696
+user-id = 696 # Nick Fitzgerald (fitzgen)
 start = "2019-03-16"
 end = "2024-03-10"
 
 [[audits.bytecodealliance.wildcard-audits.wasm-encoder]]
 who = "Alex Crichton <alex@alexcrichton.com>"
 criteria = "safe-to-deploy"
-user-id = 1
+user-id = 1 # Alex Crichton (alexcrichton)
 start = "2020-12-11"
 end = "2024-04-14"
 notes = """
@@ -87,7 +87,7 @@ so and will actively maintain this crate over time.
 [[audits.bytecodealliance.wildcard-audits.wast]]
 who = "Alex Crichton <alex@alexcrichton.com>"
 criteria = "safe-to-deploy"
-user-id = 1
+user-id = 1 # Alex Crichton (alexcrichton)
 start = "2019-10-16"
 end = "2024-04-14"
 notes = """
@@ -100,7 +100,7 @@ so and will actively maintain this crate over time.
 [[audits.bytecodealliance.wildcard-audits.wat]]
 who = "Alex Crichton <alex@alexcrichton.com>"
 criteria = "safe-to-deploy"
-user-id = 1
+user-id = 1 # Alex Crichton (alexcrichton)
 start = "2019-10-18"
 end = "2024-04-14"
 notes = """
@@ -538,7 +538,7 @@ delta = "0.10.7 -> 0.10.8"
 [[audits.mozilla.wildcard-audits.core-foundation]]
 who = "Bobby Holley <bobbyholley@gmail.com>"
 criteria = "safe-to-deploy"
-user-id = 5946
+user-id = 5946 # Jeff Muizelaar (jrmuizel)
 start = "2019-03-29"
 end = "2023-05-04"
 notes = "I've reviewed every source contribution that was neither authored nor reviewed by Mozilla."
@@ -547,7 +547,7 @@ aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-ch
 [[audits.mozilla.wildcard-audits.core-foundation-sys]]
 who = "Bobby Holley <bobbyholley@gmail.com>"
 criteria = "safe-to-deploy"
-user-id = 5946
+user-id = 5946 # Jeff Muizelaar (jrmuizel)
 start = "2020-10-14"
 end = "2023-05-04"
 notes = "I've reviewed every source contribution that was neither authored nor reviewed by Mozilla."
@@ -556,7 +556,7 @@ aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-ch
 [[audits.mozilla.wildcard-audits.unicode-normalization]]
 who = "Manish Goregaokar <manishsmail@gmail.com>"
 criteria = "safe-to-deploy"
-user-id = 1139
+user-id = 1139 # Manish Goregaokar (Manishearth)
 start = "2019-11-06"
 end = "2024-05-03"
 notes = "All code written or reviewed by Manish"
@@ -565,7 +565,7 @@ aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-ch
 [[audits.mozilla.wildcard-audits.unicode-width]]
 who = "Manish Goregaokar <manishsmail@gmail.com>"
 criteria = "safe-to-deploy"
-user-id = 1139
+user-id = 1139 # Manish Goregaokar (Manishearth)
 start = "2019-12-05"
 end = "2024-05-03"
 notes = "All code written or reviewed by Manish"
@@ -574,7 +574,7 @@ aggregated-from = "https://hg.mozilla.org/mozilla-central/raw-file/tip/supply-ch
 [[audits.mozilla.wildcard-audits.unicode-xid]]
 who = "Manish Goregaokar <manishsmail@gmail.com>"
 criteria = "safe-to-deploy"
-user-id = 1139
+user-id = 1139 # Manish Goregaokar (Manishearth)
 start = "2019-07-25"
 end = "2024-05-03"
 notes = "All code written or reviewed by Manish"
