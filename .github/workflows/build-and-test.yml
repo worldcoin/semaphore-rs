@@ -68,6 +68,9 @@ jobs:
           ~/.cargo/git/db/
           target/
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
     - name: Install cargo-vet
       run: cargo install cargo-vet --version ${{ env.CARGO_VET_VERSION }} --git ${{ env.CARGO_VET_REPO }}
     - name: Prune (If some import got updated)
