@@ -15,7 +15,14 @@ jobs:
         profile: minimal
         toolchain: ${{ env.RUST_VERSION }}
         override: true
-        components: rustfmt, clippy
+    - uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     - name: Install cargo-vet
       run: cargo install cargo-vet --version ${{ env.CARGO_VET_VERSION }}
     - name: Prune (If some import got updated)
