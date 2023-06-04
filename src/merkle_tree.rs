@@ -5,7 +5,7 @@
 //! * Disk based storage backend (using mmaped files should be easy)
 
 use crate::Field;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     fmt::Debug,
     iter::{once, repeat, successors},
@@ -14,7 +14,7 @@ use std::{
 /// Hash types, values and algorithms for a Merkle tree
 pub trait Hasher {
     /// Type of the leaf and node hashes
-    type Hash: Clone + Eq + Serialize + Debug;
+    type Hash: Clone + Eq + Serialize + DeserializeOwned + Debug;
 
     /// Compute the hash of an intermediate node
     fn hash_node(left: &Self::Hash, right: &Self::Hash) -> Self::Hash;
