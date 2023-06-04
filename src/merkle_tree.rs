@@ -5,7 +5,7 @@
 //! * Disk based storage backend (using mmaped files should be easy)
 
 use crate::Field;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     fmt::Debug,
     iter::{once, repeat, successors},

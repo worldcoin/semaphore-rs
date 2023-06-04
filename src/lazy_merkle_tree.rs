@@ -2,15 +2,11 @@ use crate::merkle_tree::{Branch, Hasher, Proof};
 use std::{
     iter::{once, repeat, successors},
     sync::{Arc, Mutex},
-};          
-
-use mmap_rs::{MmapMut, MmapOptions};
-use std::{
-    fs::OpenOptions,
-    path::PathBuf,
-    str::FromStr,
 };
-use bincode::{serialize, deserialize};
+
+use bincode::{deserialize, serialize};
+use mmap_rs::{MmapMut, MmapOptions};
+use std::{fs::OpenOptions, path::PathBuf, str::FromStr};
 
 pub trait VersionMarker {}
 #[derive(Debug)]
@@ -79,7 +75,7 @@ impl<H: Hasher, Version: VersionMarker> LazyMerkleTree<H, Version> {
             _version: Canonical,
         }
     }
-    
+
     #[must_use]
     pub fn new_mmapped_with_dense_prefix_with_init_values(
         depth: usize,
@@ -89,12 +85,12 @@ impl<H: Hasher, Version: VersionMarker> LazyMerkleTree<H, Version> {
         file_path: &str,
     ) -> LazyMerkleTree<H, Canonical> {
         LazyMerkleTree {
-            tree: AnyTree::new_mmapped_with_dense_prefix_with_init_values(
+            tree:     AnyTree::new_mmapped_with_dense_prefix_with_init_values(
                 depth,
                 prefix_depth,
                 empty_value,
                 initial_values,
-                file_path
+                file_path,
             ),
             _version: Canonical,
         }
@@ -226,7 +222,7 @@ impl<H: Hasher> AnyTree<H> {
         }
         result
     }
-    
+
     fn new_mmapped_with_dense_prefix_with_init_values(
         depth: usize,
         prefix_depth: usize,
@@ -235,7 +231,8 @@ impl<H: Hasher> AnyTree<H> {
         file_path: &str,
     ) -> Self {
         assert!(depth >= prefix_depth);
-        let dense = DenseTreeMMap::new_with_values(initial_values, empty_value, prefix_depth,file_path).unwrap();
+        let dense =
+            DenseTreeMMap::new_with_values(initial_values, empty_value, prefix_depth, file_path).expect("cannot create file backed dense tree");
         let mut result: Self = dense.into();
         let mut current_depth = prefix_depth;
         while current_depth < depth {
@@ -807,70 +804,98 @@ impl<'a, H: Hasher> DenseTreeRef<'a, H> {
 }
 
 struct DenseTreeMMap<H: Hasher> {
-    depth:      usize,
-    root_index: usize,
-    storage:    Arc<Mutex<MmapMut>>,
+    depth:         usize,
+    root_index:    usize,
+    storage:       Arc<Mutex<MmapMut>>,
+    size_of_val:   usize,
     _phantom_data: std::marker::PhantomData<H>,
 }
 
 impl<H: Hasher> Clone for DenseTreeMMap<H> {
     fn clone(&self) -> Self {
         Self {
-            depth:      self.depth,
-            root_index: self.root_index,
-            storage:    self.storage.clone(),
+            depth:         self.depth,
+            root_index:    self.root_index,
+            storage:       self.storage.clone(),
+            size_of_val:   self.size_of_val,
             _phantom_data: Default::default(),
         }
     }
 }
 
 impl<H: Hasher> DenseTreeMMap<H> {
-    fn new_with_values(values: &[H::Hash], empty_leaf: &H::Hash, depth: usize, mmap_file_path: &str) -> Result<Self, &'static str> {
-        
+    fn new_with_values(
+        values: &[H::Hash],
+        empty_leaf: &H::Hash,
+        depth: usize,
+        mmap_file_path: &str,
+    ) -> Result<Self, &'static str> {
         let path_buf = match PathBuf::from_str(mmap_file_path) {
             Ok(pb) => pb,
-            Err(_e) => return Err("failed to create path buf")
+            Err(_e) => return Err("failed to create path buf"),
         };
-        
-        let file  = match OpenOptions::new()
+
+        let file = match OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
-            .open(path_buf) {
-                Ok(file) => file,
-                Err(_e) => return Err("failed to create a file")
-            };
+            .open(path_buf)
+        {
+            Ok(file) => file,
+            Err(_e) => return Err("failed to create a file"),
+        };
 
-        let size_of_hasher = std::mem::size_of::<H::Hash>();
-        
+        let size_of_hasher = std::mem::size_of_val(&values[0]);
+
         let leaf_count = 1 << depth;
         let first_leaf_index = 1 << depth;
         let file_size = (1 << (depth + 1)) * size_of_hasher as u64;
         assert!(values.len() <= leaf_count);
-        
+
         file.set_len(file_size).expect("cannot set file size");
-        
-        let mut mmap = unsafe { MmapOptions::new(file_size as usize).expect("cannot create memory map").with_file(file, 0).map_mut().expect("cannot build memory map") };
-        
+
+        let mut mmap = unsafe {
+            MmapOptions::new(file_size as usize)
+                .expect("cannot create memory map")
+                .with_file(file, 0)
+                .map_mut()
+                .expect("cannot build memory map")
+        };
+
         let empty_bytes = serialize(empty_leaf).expect("cannot serialize empty value");
         // populate mmap with empty leafs
         for i in 0..(1 << (depth + 1)) {
-            mmap[i * size_of_hasher..i * size_of_hasher + size_of_hasher].copy_from_slice(&empty_bytes);
+            mmap[i * size_of_hasher..i * size_of_hasher + size_of_hasher]
+                .copy_from_slice(&empty_bytes);
         }
 
-        mmap[first_leaf_index * size_of_hasher..(first_leaf_index * size_of_hasher + values.len() * size_of_hasher)].clone_from_slice(&serialize(values).expect("cannot serialize hashes"));
-        for i in (1..first_leaf_index).rev() {
-            let left: <H as Hasher>::Hash = deserialize(&mmap[2 * (i * size_of_hasher)..2 * (i * size_of_hasher) + size_of_hasher]).expect("deserialize into hash");
-            let right: <H as Hasher>::Hash  = deserialize(&mmap[2 * (i * size_of_hasher) + size_of_hasher..2 * (i * size_of_hasher) + 2 * size_of_hasher]).expect("deserialize into hash");
+        mmap[first_leaf_index * size_of_hasher
+            ..(first_leaf_index * size_of_hasher + values.len() * size_of_hasher)]
+            .clone_from_slice(&serialize(values).expect("cannot serialize hashes"));
 
-            mmap[i * size_of_hasher..i *  (2 * size_of_hasher)].copy_from_slice(&serialize(&H::hash_node(&left, &right)).expect("cannot serialize Hash"));
+        for i in (1..first_leaf_index).rev() {
+
+            let left: <H as Hasher>::Hash = deserialize(
+                &mmap[2 * (i * size_of_hasher)..2 * (i * size_of_hasher) + size_of_hasher],
+            )
+            .expect("deserialize into hash");
+
+            let right: <H as Hasher>::Hash = deserialize(
+                &mmap[2 * (i * size_of_hasher) + size_of_hasher
+                    ..2 * (i * size_of_hasher) + 2 * size_of_hasher],
+            )
+            .expect("deserialize into hash");
+
+            mmap[i * size_of_hasher..i * (2 * size_of_hasher)].copy_from_slice(
+                &serialize(&H::hash_node(&left, &right)).expect("cannot serialize Hash"),
+            );
         }
         Ok(Self {
             depth,
             root_index: 1,
             storage: Arc::new(Mutex::new(mmap)),
+            size_of_val: size_of_hasher,
             _phantom_data: std::marker::PhantomData,
-            
         })
     }
 
@@ -884,7 +909,8 @@ impl<H: Hasher> DenseTreeMMap<H> {
             root_index:     self.root_index,
             storage:        &guard,
             locked_storage: &self.storage,
-            _phantom_data: std::marker::PhantomData,
+            size_of_value:  self.size_of_val,
+            _phantom_data:  std::marker::PhantomData,
         };
         fun(r)
     }
@@ -895,9 +921,8 @@ impl<H: Hasher> DenseTreeMMap<H> {
 
     fn get_leaf(&self, index: usize) -> H::Hash {
         self.with_ref(|r| {
-            let leaf_index_in_dense_tree = index + (self.root_index << self.depth);
-            r.storage[leaf_index_in_dense_tree].clone();
-            unimplemented!()
+            let leaf_index_in_dense_tree = (index + (self.root_index << self.depth)) * self.size_of_val;
+            deserialize(&r.storage[leaf_index_in_dense_tree..leaf_index_in_dense_tree+self.size_of_val]).expect("cannot deserialize values to hash")
         })
     }
 
@@ -916,21 +941,32 @@ impl<H: Hasher> DenseTreeMMap<H> {
     }
 
     fn update_with_mutation(&self, index: usize, value: &H::Hash) {
-        // let mut storage = self.storage.lock().expect("lock poisoned, terminating");
-        // let leaf_index_in_dense_tree = index + (self.root_index << self.depth);
-        // storage[leaf_index_in_dense_tree] = value.clone();
-        // let mut current = leaf_index_in_dense_tree / 2;
-        // while current > 0 {
-        //     let left = &storage[2 * current];
-        //     let right = &storage[2 * current + 1];
-        //     storage[current] = H::hash_node(left, right);
-        //     current /= 2;
-        // }
+        let size_of_hash = std::mem::size_of_val(value);
+
+        let mut storage = self.storage.lock().expect("lock poisoned, terminating");
+        let leaf_index_in_dense_tree = (index + (self.root_index << self.depth)) * size_of_hash;
+        storage[leaf_index_in_dense_tree..leaf_index_in_dense_tree + size_of_hash]
+            .copy_from_slice(&serialize(&value.clone()).expect("failed to serialize value")[..]);
+        let mut current = (leaf_index_in_dense_tree / size_of_hash) / 2;
+        while current > 0 {
+            let left: <H as Hasher>::Hash = deserialize(
+                &storage[2 * (current * size_of_hash)..2 * (current * size_of_hash) + size_of_hash],
+            )
+            .expect("deserialize into hash");
+            let right: <H as Hasher>::Hash = deserialize(
+                &storage[2 * (current * size_of_hash) + size_of_hash
+                    ..2 * (current * size_of_hash) + 2 * size_of_hash],
+            )
+            .expect("deserialize into hash");
+            storage[current * size_of_hash..current * (2 * size_of_hash)].copy_from_slice(
+                &serialize(&H::hash_node(&left, &right)).expect("cannot serialize Hash"),
+            );
+            current /= 2;
+        }
     }
 
     fn root(&self) -> H::Hash {
-        self.storage.lock().unwrap()[self.root_index].clone();
-        unimplemented!()
+        deserialize(&self.storage.lock().unwrap()[self.root_index * self.size_of_val..(self.root_index*self.size_of_val) + self.size_of_val]).expect("cannot deserialize to hash")
     }
 }
 
@@ -939,15 +975,17 @@ struct DenseTreeMMapRef<'a, H: Hasher> {
     root_index:     usize,
     storage:        &'a MmapMut,
     locked_storage: &'a Arc<Mutex<MmapMut>>,
-    _phantom_data: std::marker::PhantomData<H>,
+    size_of_value:  usize,
+    _phantom_data:  std::marker::PhantomData<H>,
 }
 
 impl<'a, H: Hasher> From<DenseTreeMMapRef<'a, H>> for DenseTreeMMap<H> {
     fn from(value: DenseTreeMMapRef<H>) -> Self {
         Self {
-            depth:      value.depth,
-            root_index: value.root_index,
-            storage:    value.locked_storage.clone(),
+            depth:         value.depth,
+            root_index:    value.root_index,
+            storage:       value.locked_storage.clone(),
+            size_of_val:   value.size_of_value,
             _phantom_data: std::marker::PhantomData,
         }
     }
@@ -961,8 +999,7 @@ impl<'a, H: Hasher> From<DenseTreeMMapRef<'a, H>> for AnyTree<H> {
 
 impl<'a, H: Hasher> DenseTreeMMapRef<'a, H> {
     fn root(&self) -> H::Hash {
-        //self.storage[self.root_index].clone()
-        unimplemented!()
+        deserialize(&self.storage[self.root_index*self.size_of_value..(self.root_index * self.size_of_value) + self.size_of_value]).expect("cannot deserialize to hash")
     }
 
     const fn left(&self) -> DenseTreeMMapRef<H> {
@@ -971,7 +1008,8 @@ impl<'a, H: Hasher> DenseTreeMMapRef<'a, H> {
             root_index:     2 * self.root_index,
             storage:        self.storage,
             locked_storage: self.locked_storage,
-            _phantom_data: std::marker::PhantomData,
+            size_of_value:  self.size_of_value,
+            _phantom_data:  std::marker::PhantomData,
         }
     }
 
@@ -981,7 +1019,8 @@ impl<'a, H: Hasher> DenseTreeMMapRef<'a, H> {
             root_index:     2 * self.root_index + 1,
             storage:        self.storage,
             locked_storage: self.locked_storage,
-            _phantom_data: std::marker::PhantomData,
+            size_of_value:  self.size_of_value,
+            _phantom_data:  std::marker::PhantomData,
         }
     }
 
