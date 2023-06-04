@@ -841,7 +841,7 @@ impl<H: Hasher> DenseTreeMMap<H> {
                 Err(_e) => return Err("failed to create a file")
             };
 
-        let size_of_hasher = std::mem::size_of::<H>();
+        let size_of_hasher = std::mem::size_of::<H::Hash>();
         
         let leaf_count = 1 << depth;
         let first_leaf_index = 1 << depth;
