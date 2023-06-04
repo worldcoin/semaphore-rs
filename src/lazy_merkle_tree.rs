@@ -2,7 +2,15 @@ use crate::merkle_tree::{Branch, Hasher, Proof};
 use std::{
     iter::{once, repeat, successors},
     sync::{Arc, Mutex},
+};          
+
+use mmap_rs::{MmapMut, MmapOptions};
+use std::{
+    fs::OpenOptions,
+    path::PathBuf,
+    str::FromStr,
 };
+use bincode::{serialize, deserialize};
 
 pub trait VersionMarker {}
 #[derive(Debug)]
@@ -67,6 +75,26 @@ impl<H: Hasher, Version: VersionMarker> LazyMerkleTree<H, Version> {
                 prefix_depth,
                 empty_value,
                 initial_values,
+            ),
+            _version: Canonical,
+        }
+    }
+    
+    #[must_use]
+    pub fn new_mmapped_with_dense_prefix_with_init_values(
+        depth: usize,
+        prefix_depth: usize,
+        empty_value: &H::Hash,
+        initial_values: &[H::Hash],
+        file_path: &str,
+    ) -> LazyMerkleTree<H, Canonical> {
+        LazyMerkleTree {
+            tree: AnyTree::new_mmapped_with_dense_prefix_with_init_values(
+                depth,
+                prefix_depth,
+                empty_value,
+                initial_values,
+                file_path
             ),
             _version: Canonical,
         }
@@ -170,6 +198,7 @@ enum AnyTree<H: Hasher> {
     Empty(EmptyTree<H>),
     Sparse(SparseTree<H>),
     Dense(DenseTree<H>),
+    DenseMMap(DenseTreeMMap<H>),
 }
 
 impl<H: Hasher> AnyTree<H> {
@@ -185,6 +214,28 @@ impl<H: Hasher> AnyTree<H> {
     ) -> Self {
         assert!(depth >= prefix_depth);
         let dense = DenseTree::new_with_values(initial_values, empty_value, prefix_depth);
+        let mut result: Self = dense.into();
+        let mut current_depth = prefix_depth;
+        while current_depth < depth {
+            result = SparseTree::new(
+                result,
+                EmptyTree::new(current_depth, empty_value.clone()).into(),
+            )
+            .into();
+            current_depth += 1;
+        }
+        result
+    }
+    
+    fn new_mmapped_with_dense_prefix_with_init_values(
+        depth: usize,
+        prefix_depth: usize,
+        empty_value: &H::Hash,
+        initial_values: &[H::Hash],
+        file_path: &str,
+    ) -> Self {
+        assert!(depth >= prefix_depth);
+        let dense = DenseTreeMMap::new_with_values(initial_values, empty_value, prefix_depth,file_path).unwrap();
         let mut result: Self = dense.into();
         let mut current_depth = prefix_depth;
         while current_depth < depth {
@@ -220,6 +271,7 @@ impl<H: Hasher> AnyTree<H> {
             Self::Empty(tree) => tree.depth,
             Self::Sparse(tree) => tree.depth,
             Self::Dense(tree) => tree.depth,
+            Self::DenseMMap(tree) => tree.depth,
         }
     }
 
@@ -228,6 +280,7 @@ impl<H: Hasher> AnyTree<H> {
             Self::Empty(tree) => tree.root(),
             Self::Sparse(tree) => tree.root(),
             Self::Dense(tree) => tree.root(),
+            Self::DenseMMap(tree) => tree.root(),
         }
     }
 
@@ -238,6 +291,7 @@ impl<H: Hasher> AnyTree<H> {
             Self::Empty(tree) => tree.write_proof(index, &mut path),
             Self::Sparse(tree) => tree.write_proof(index, &mut path),
             Self::Dense(tree) => tree.write_proof(index, &mut path),
+            Self::DenseMMap(tree) => tree.write_proof(index, &mut path),
         }
         path.reverse();
         Proof(path)
@@ -248,6 +302,7 @@ impl<H: Hasher> AnyTree<H> {
             Self::Empty(tree) => tree.write_proof(index, path),
             Self::Sparse(tree) => tree.write_proof(index, path),
             Self::Dense(tree) => tree.write_proof(index, path),
+            Self::DenseMMap(tree) => tree.write_proof(index, path),
         }
     }
 
@@ -267,6 +322,9 @@ impl<H: Hasher> AnyTree<H> {
             Self::Dense(tree) => {
                 tree.update_with_mutation_condition(index, value, is_mutation_allowed)
             }
+            Self::DenseMMap(tree) => {
+                tree.update_with_mutation_condition(index, value, is_mutation_allowed)
+            }
         }
     }
 
@@ -275,6 +333,7 @@ impl<H: Hasher> AnyTree<H> {
             Self::Empty(tree) => tree.get_leaf(),
             Self::Sparse(tree) => tree.get_leaf(index),
             Self::Dense(tree) => tree.get_leaf(index),
+            Self::DenseMMap(tree) => tree.get_leaf(index),
         }
     }
 }
@@ -285,6 +344,7 @@ impl<H: Hasher> Clone for AnyTree<H> {
             Self::Empty(t) => t.clone().into(),
             Self::Sparse(t) => t.clone().into(),
             Self::Dense(t) => t.clone().into(),
+            Self::DenseMMap(t) => t.clone().into(),
         }
     }
 }
@@ -304,6 +364,12 @@ impl<H: Hasher> From<SparseTree<H>> for AnyTree<H> {
 impl<H: Hasher> From<DenseTree<H>> for AnyTree<H> {
     fn from(tree: DenseTree<H>) -> Self {
         Self::Dense(tree)
+    }
+}
+
+impl<H: Hasher> From<DenseTreeMMap<H>> for AnyTree<H> {
+    fn from(tree: DenseTreeMMap<H>) -> Self {
+        Self::DenseMMap(tree)
     }
 }
 
@@ -673,7 +739,7 @@ impl<'a, H: Hasher> DenseTreeRef<'a, H> {
         self.storage[self.root_index].clone()
     }
 
-    const fn left(&self) -> DenseTreeRef<'a, H> {
+    const fn left(&self) -> DenseTreeRef<H> {
         Self {
             depth:          self.depth - 1,
             root_index:     2 * self.root_index,
@@ -682,12 +748,239 @@ impl<'a, H: Hasher> DenseTreeRef<'a, H> {
         }
     }
 
-    const fn right(&self) -> DenseTreeRef<'a, H> {
+    const fn right(&self) -> DenseTreeRef<H> {
         Self {
             depth:          self.depth - 1,
             root_index:     2 * self.root_index + 1,
             storage:        self.storage,
             locked_storage: self.locked_storage,
+        }
+    }
+
+    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H>>) {
+        if self.depth == 0 {
+            return;
+        }
+        let next_index = clear_turn_at_depth(index, self.depth);
+        if get_turn_at_depth(index, self.depth) == Turn::Left {
+            path.push(Branch::Left(self.right().root()));
+            self.left().write_proof(next_index, path);
+        } else {
+            path.push(Branch::Right(self.left().root()));
+            self.right().write_proof(next_index, path);
+        }
+    }
+
+    fn update(&self, index: usize, hash: &H::Hash) -> SparseTree<H> {
+        if self.depth == 0 {
+            return SparseTree::new_leaf(hash.clone());
+        }
+        let next_index = clear_turn_at_depth(index, self.depth);
+        if get_turn_at_depth(index, self.depth) == Turn::Left {
+            let left = self.left();
+            let new_left = left.update(next_index, hash);
+            let right = self.right();
+            let new_root = H::hash_node(&new_left.root(), &right.root());
+            SparseTree {
+                children: Some(Children {
+                    left:  Arc::new(new_left.into()),
+                    right: Arc::new(self.right().into()),
+                }),
+                root:     new_root,
+                depth:    self.depth,
+            }
+        } else {
+            let right = self.right();
+            let new_right = right.update(next_index, hash);
+            let left = self.left();
+            let new_root = H::hash_node(&left.root(), &new_right.root());
+            SparseTree {
+                children: Some(Children {
+                    left:  Arc::new(self.left().into()),
+                    right: Arc::new(new_right.into()),
+                }),
+                root:     new_root,
+                depth:    self.depth,
+            }
+        }
+    }
+}
+
+struct DenseTreeMMap<H: Hasher> {
+    depth:      usize,
+    root_index: usize,
+    storage:    Arc<Mutex<MmapMut>>,
+    _phantom_data: std::marker::PhantomData<H>,
+}
+
+impl<H: Hasher> Clone for DenseTreeMMap<H> {
+    fn clone(&self) -> Self {
+        Self {
+            depth:      self.depth,
+            root_index: self.root_index,
+            storage:    self.storage.clone(),
+            _phantom_data: Default::default(),
+        }
+    }
+}
+
+impl<H: Hasher> DenseTreeMMap<H> {
+    fn new_with_values(values: &[H::Hash], empty_leaf: &H::Hash, depth: usize, mmap_file_path: &str) -> Result<Self, &'static str> {
+        
+        let path_buf = match PathBuf::from_str(mmap_file_path) {
+            Ok(pb) => pb,
+            Err(e) => return Err("failed to create path buf")
+        };
+        
+        let mut file  = match OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(path_buf) {
+                Ok(file) => file,
+                Err(e) => return Err("failed to create a file")
+            };
+
+        let size_of_hasher = std::mem::size_of::<H>();
+        
+        let leaf_count = 1 << depth;
+        let first_leaf_index = 1 << depth;
+        let file_size = (1 << (depth + 1)) * size_of_hasher as u64;
+        assert!(values.len() <= leaf_count);
+        
+        file.set_len(file_size).expect("cannot set file size");
+        
+        let mut mmap = unsafe { MmapOptions::new(file_size as usize).expect("cannot create memory map").with_file(file, 0).map_mut().expect("cannot build memory map") };
+        
+        // populate mmap with empty leafs
+        for (i, value) in values.iter().enumerate() {
+            mmap[i * size_of_hasher..i * size_of_hasher + size_of_hasher].copy_from_slice(&serialize(value).expect("cannot serialize hashes"));
+        }
+
+        mmap[first_leaf_index * size_of_hasher..(first_leaf_index * size_of_hasher + values.len() * size_of_hasher)].clone_from_slice(&serialize(values).expect("cannot serialize hashes"));
+        for i in (1..first_leaf_index).rev() {
+            let left: & <H as Hasher>::Hash = deserialize(&mmap[2 * (i * size_of_hasher)..2 * (i * size_of_hasher) + size_of_hasher]).expect("deserialize into hash");
+            let right: & <H as Hasher>::Hash  = deserialize(&mmap[2 * (i * size_of_hasher) + size_of_hasher..2 * (i * size_of_hasher) + 2 * size_of_hasher]).expect("deserialize into hash");
+
+            mmap[i * size_of_hasher..i *  (2 * size_of_hasher)].copy_from_slice(H::hash_node(left, right));
+        }
+        Ok(Self {
+            depth,
+            root_index: 1,
+            storage: Arc::new(Mutex::new(mmap)),
+            _phantom_data: std::marker::PhantomData,
+            
+        })
+    }
+
+    fn with_ref<F, R>(&self, fun: F) -> R
+    where
+        F: FnOnce(DenseTreeMMapRef<H>) -> R,
+    {
+        let guard = self.storage.lock().expect("lock poisoned, terminating");
+        let r = DenseTreeMMapRef {
+            depth:          self.depth,
+            root_index:     self.root_index,
+            storage:        &guard,
+            locked_storage: self.storage,
+            _phantom_data: std::marker::PhantomData,
+        };
+        fun(r)
+    }
+
+    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H>>) {
+        self.with_ref(|r| r.write_proof(index, path));
+    }
+
+    fn get_leaf(&self, index: usize) -> H::Hash {
+        self.with_ref(|r| {
+            let leaf_index_in_dense_tree = index + (self.root_index << self.depth);
+            r.storage[leaf_index_in_dense_tree].clone();
+            unimplemented!()
+        })
+    }
+
+    fn update_with_mutation_condition(
+        &self,
+        index: usize,
+        value: &H::Hash,
+        is_mutation_allowed: bool,
+    ) -> AnyTree<H> {
+        if is_mutation_allowed {
+            self.update_with_mutation(index, value);
+            self.clone().into()
+        } else {
+            self.with_ref(|r| r.update(index, value)).into()
+        }
+    }
+
+    fn update_with_mutation(&self, index: usize, value: &H::Hash) {
+        // let mut storage = self.storage.lock().expect("lock poisoned, terminating");
+        // let leaf_index_in_dense_tree = index + (self.root_index << self.depth);
+        // storage[leaf_index_in_dense_tree] = value.clone();
+        // let mut current = leaf_index_in_dense_tree / 2;
+        // while current > 0 {
+        //     let left = &storage[2 * current];
+        //     let right = &storage[2 * current + 1];
+        //     storage[current] = H::hash_node(left, right);
+        //     current /= 2;
+        // }
+    }
+
+    fn root(&self) -> H::Hash {
+        self.storage.lock().unwrap()[self.root_index].clone();
+        unimplemented!()
+    }
+}
+
+struct DenseTreeMMapRef<'a, H: Hasher> {
+    depth:          usize,
+    root_index:     usize,
+    storage:        &'a MmapMut,
+    locked_storage: &'a Arc<Mutex<MmapMut>>,
+    _phantom_data: std::marker::PhantomData<H>,
+}
+
+impl<'a, H: Hasher> From<DenseTreeMMapRef<'a, H>> for DenseTreeMMap<H> {
+    fn from(value: DenseTreeMMapRef<H>) -> Self {
+        Self {
+            depth:      value.depth,
+            root_index: value.root_index,
+            storage:    value.locked_storage.clone(),
+            _phantom_data: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<'a, H: Hasher> From<DenseTreeMMapRef<'a, H>> for AnyTree<H> {
+    fn from(value: DenseTreeMMapRef<H>) -> Self {
+        Self::DenseMMap(value.into())
+    }
+}
+
+impl<'a, H: Hasher> DenseTreeMMapRef<'a, H> {
+    fn root(&self) -> H::Hash {
+        //self.storage[self.root_index].clone()
+        unimplemented!()
+    }
+
+    const fn left(&self) -> DenseTreeMMapRef<H> {
+        Self {
+            depth:          self.depth - 1,
+            root_index:     2 * self.root_index,
+            storage:        self.storage,
+            locked_storage: self.locked_storage,
+            _phantom_data: std::marker::PhantomData,
+        }
+    }
+
+    const fn right(&self) -> DenseTreeMMapRef<H> {
+        Self {
+            depth:          self.depth - 1,
+            root_index:     2 * self.root_index + 1,
+            storage:        self.storage,
+            locked_storage: self.locked_storage,
+            _phantom_data: std::marker::PhantomData,
         }
     }
 
