@@ -7,7 +7,6 @@ use std::{fs::OpenOptions, path::PathBuf, str::FromStr};
 
 use bincode::{deserialize, serialize};
 use mmap_rs::{MmapMut, MmapOptions};
-use hex_literal::hex;
 
 pub trait VersionMarker {}
 #[derive(Debug)]
@@ -99,19 +98,21 @@ impl<H: Hasher, Version: VersionMarker> LazyMerkleTree<H, Version> {
         }
     }
 
+    // TODO: Return some proper errors
+    /// Attempts to restore previous tree state from memory mapped file
     #[must_use]
     pub fn attempt_dense_mmap_restore(
         empty_leaf: &H::Hash,
         depth: usize,
         file_path: &str,
-    ) -> LazyMerkleTree<H, Canonical> {
-        LazyMerkleTree { 
+    ) -> Result<LazyMerkleTree<H, Canonical>, &'static str> {
+        Ok(LazyMerkleTree { 
             tree: match AnyTree::try_restore_dense_mmap_tree_state(empty_leaf, depth, file_path) {
                 Ok(tree) => tree,
-                Err(_e) => EmptyTree::new(0, empty_leaf.clone()).into()
+                Err(e) => return Err(e)
             },
             _version: Canonical 
-        }
+        })
     }
 
     /// Returns the depth of the tree.
