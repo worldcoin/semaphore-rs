@@ -876,7 +876,7 @@ impl<H: Hasher> DenseMMapTree<H> {
         let leaf_count = 1 << depth;
         let first_leaf_index = 1 << depth;
         let storage_size = 1 << (depth + 1);
-        let file_size = (1 << (depth + 1)) * std::mem::size_of_val(empty_leaf) as u64;
+
         assert!(values.len() <= leaf_count);
 
         let mut mmap = MmapMutWrapper::new_with_initial_values(path_buf, empty_leaf, storage_size)
@@ -1130,9 +1130,9 @@ impl<H: Hasher> MmapMutWrapper<H> {
             Err(_e) => return Err("file doesn't exist"),
         };
 
-        let size_of_val = std::mem::size_of_val(empty_leaf);
+        let size_of_empty_leaf = std::mem::size_of_val(empty_leaf);
 
-        let expected_file_size = (1 << depth) * size_of_val as u64;
+        let expected_file_size = (1 << depth) * size_of_empty_leaf as u64;
 
         if expected_file_size != file.metadata().expect("cannot get file metadata").len() {
             return Err("file size should match expected tree size");
