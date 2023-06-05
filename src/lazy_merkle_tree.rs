@@ -102,7 +102,10 @@ impl<H: Hasher, Version: VersionMarker> LazyMerkleTree<H, Version> {
 
     // TODO: Return some proper errors
     /// Attempts to restore previous tree state from memory mapped file
-    #[must_use]
+    /// # Errors
+    /// - file creation
+    /// - mmap creation
+    /// - non matching file size and tree size
     pub fn attempt_dense_mmap_restore(
         empty_leaf: &H::Hash,
         depth: usize,
@@ -892,7 +895,7 @@ impl<H: Hasher> DenseTreeMMap<H> {
         file.set_len(file_size).expect("cannot set file size");
 
         let mut mmap = unsafe {
-            MmapOptions::new(file_size as usize)
+            MmapOptions::new(usize::try_from(file_size).expect("file size truncated"))
                 .expect("cannot create memory map")
                 .with_file(file, 0)
                 .map_mut()
@@ -947,7 +950,7 @@ impl<H: Hasher> DenseTreeMMap<H> {
             Err(_e) => return Err("file doesn't exist"),
         };
 
-        let size_of_val = std::mem::size_of_val(&empty_leaf);
+        let size_of_val = std::mem::size_of_val(empty_leaf);
 
         let expected_file_size = (1 << depth) * size_of_val as u64;
 
@@ -956,7 +959,7 @@ impl<H: Hasher> DenseTreeMMap<H> {
         }
 
         let mmap = unsafe {
-            MmapOptions::new(expected_file_size as usize)
+            MmapOptions::new(usize::try_from(expected_file_size).expect("expected file size truncated"))
                 .expect("cannot create memory map")
                 .with_file(file, 0)
                 .map_mut()
