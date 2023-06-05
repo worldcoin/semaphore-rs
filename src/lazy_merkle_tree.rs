@@ -219,7 +219,7 @@ enum AnyTree<H: Hasher> {
     Empty(EmptyTree<H>),
     Sparse(SparseTree<H>),
     Dense(DenseTree<H>),
-    DenseMMap(DenseTreeMMap<H>),
+    DenseMMap(DenseMMapTree<H>),
 }
 
 impl<H: Hasher> AnyTree<H> {
@@ -274,7 +274,7 @@ impl<H: Hasher> AnyTree<H> {
     ) -> Self {
         assert!(depth >= prefix_depth);
         let dense =
-            DenseTreeMMap::new_with_values(initial_values, empty_value, prefix_depth, file_path)
+            DenseMMapTree::new_with_values(initial_values, empty_value, prefix_depth, file_path)
                 .expect("cannot create file backed dense tree");
         let mut result: Self = dense.into();
         let mut current_depth = prefix_depth;
@@ -295,7 +295,7 @@ impl<H: Hasher> AnyTree<H> {
         file_path: &str,
     ) -> Result<Self, &'static str> {
         //
-        let dense = match DenseTreeMMap::attempt_restore(empty_leaf, depth, file_path) {
+        let dense = match DenseMMapTree::attempt_restore(empty_leaf, depth, file_path) {
             Ok(tree) => tree,
             Err(message) => return Err(message),
         };
@@ -404,8 +404,8 @@ impl<H: Hasher> From<DenseTree<H>> for AnyTree<H> {
     }
 }
 
-impl<H: Hasher> From<DenseTreeMMap<H>> for AnyTree<H> {
-    fn from(tree: DenseTreeMMap<H>) -> Self {
+impl<H: Hasher> From<DenseMMapTree<H>> for AnyTree<H> {
+    fn from(tree: DenseMMapTree<H>) -> Self {
         Self::DenseMMap(tree)
     }
 }
@@ -843,7 +843,7 @@ impl<'a, H: Hasher> DenseTreeRef<'a, H> {
     }
 }
 
-struct DenseTreeMMap<H: Hasher> {
+struct DenseMMapTree<H: Hasher> {
     depth:         usize,
     root_index:    usize,
     storage:       Arc<Mutex<MmapMut>>,
@@ -851,7 +851,7 @@ struct DenseTreeMMap<H: Hasher> {
     _phantom_data: std::marker::PhantomData<H>,
 }
 
-impl<H: Hasher> Clone for DenseTreeMMap<H> {
+impl<H: Hasher> Clone for DenseMMapTree<H> {
     fn clone(&self) -> Self {
         Self {
             depth:         self.depth,
@@ -863,7 +863,7 @@ impl<H: Hasher> Clone for DenseTreeMMap<H> {
     }
 }
 
-impl<H: Hasher> DenseTreeMMap<H> {
+impl<H: Hasher> DenseMMapTree<H> {
     fn new_with_values(
         values: &[H::Hash],
         empty_leaf: &H::Hash,
@@ -1067,7 +1067,7 @@ struct DenseTreeMMapRef<'a, H: Hasher> {
     _phantom_data:  std::marker::PhantomData<H>,
 }
 
-impl<'a, H: Hasher> From<DenseTreeMMapRef<'a, H>> for DenseTreeMMap<H> {
+impl<'a, H: Hasher> From<DenseTreeMMapRef<'a, H>> for DenseMMapTree<H> {
     fn from(value: DenseTreeMMapRef<H>) -> Self {
         Self {
             depth:         value.depth,
