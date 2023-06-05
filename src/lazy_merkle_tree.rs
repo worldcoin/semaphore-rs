@@ -1,9 +1,11 @@
 use crate::merkle_tree::{Branch, Hasher, Proof};
 use std::{
+    fs::OpenOptions,
     iter::{once, repeat, successors},
+    path::PathBuf,
+    str::FromStr,
     sync::{Arc, Mutex},
 };
-use std::{fs::OpenOptions, path::PathBuf, str::FromStr};
 
 use bincode::{deserialize, serialize};
 use mmap_rs::{MmapMut, MmapOptions};
@@ -76,8 +78,8 @@ impl<H: Hasher, Version: VersionMarker> LazyMerkleTree<H, Version> {
         }
     }
 
-    /// Creates a new memory mapped file specified by path and creates a tree with dense prefix 
-    /// of the given depth with initial values
+    /// Creates a new memory mapped file specified by path and creates a tree
+    /// with dense prefix of the given depth with initial values
     #[must_use]
     pub fn new_mmapped_with_dense_prefix_with_init_values(
         depth: usize,
@@ -106,12 +108,13 @@ impl<H: Hasher, Version: VersionMarker> LazyMerkleTree<H, Version> {
         depth: usize,
         file_path: &str,
     ) -> Result<LazyMerkleTree<H, Canonical>, &'static str> {
-        Ok(LazyMerkleTree { 
-            tree: match AnyTree::try_restore_dense_mmap_tree_state(empty_leaf, depth, file_path) {
+        Ok(LazyMerkleTree {
+            tree:     match AnyTree::try_restore_dense_mmap_tree_state(empty_leaf, depth, file_path)
+            {
                 Ok(tree) => tree,
-                Err(e) => return Err(e)
+                Err(e) => return Err(e),
             },
-            _version: Canonical 
+            _version: Canonical,
         })
     }
 
@@ -259,7 +262,6 @@ impl<H: Hasher> AnyTree<H> {
         result
     }
 
-
     fn new_mmapped_with_dense_prefix_with_init_values(
         depth: usize,
         prefix_depth: usize,
@@ -292,7 +294,7 @@ impl<H: Hasher> AnyTree<H> {
         //
         let dense = match DenseTreeMMap::attempt_restore(empty_leaf, depth, file_path) {
             Ok(tree) => tree,
-                Err(message) => return Err(message),
+            Err(message) => return Err(message),
         };
         let result: Self = dense.into();
         Ok(result)
@@ -912,7 +914,8 @@ impl<H: Hasher> DenseTreeMMap<H> {
                     .expect("deserialize into hash");
 
             let right: <H as Hasher>::Hash = deserialize(
-                &mmap[2 * (i * size_of_val) + size_of_val..2 * (i * size_of_val) + (2 * size_of_val)],
+                &mmap[2 * (i * size_of_val) + size_of_val
+                    ..2 * (i * size_of_val) + (2 * size_of_val)],
             )
             .expect("deserialize into hash");
 
@@ -964,7 +967,7 @@ impl<H: Hasher> DenseTreeMMap<H> {
 
         Ok(Self {
             depth,
-            root_index:    1,
+            root_index: 1,
             storage,
             size_of_val,
             _phantom_data: std::marker::PhantomData,
