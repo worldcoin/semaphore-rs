@@ -1120,7 +1120,7 @@ impl<H: Hasher> MmapMutWrapper<H> {
         };
 
         file.set_len(file_size).expect("cannot set file size");
-        if let Err(e) = file.write_all(&bytes) {
+        if let Err(_) = file.write_all(&bytes) {
             return Err(DenseMMapError::FileCannotWriteBytes);
         }
 
@@ -1439,5 +1439,93 @@ mod tests {
         assert_eq!(first_three_leaves, vec![h0, h1, h2]);
         let first_three_leaves = tree.leaves().take(3).collect::<Vec<_>>();
         assert_eq!(first_three_leaves, vec![h0, h1, h2]);
+    }
+}
+
+#[cfg(feature = "bench")]
+pub mod bench {
+    #![allow(unused)]
+    use crate::poseidon_tree::PoseidonHash;
+
+    #[allow(clippy::wildcard_imports)]
+    use super::*;
+    use criterion::{black_box, Criterion, BenchmarkId};
+    use hex_literal::hex;
+
+    struct TreeValues<H: Hasher> {
+        depth: usize,
+        prefix_depth: usize,
+        empty_value: H::Hash,
+        initial_values: Vec<H::Hash>,
+    }
+
+    pub fn group(criterion: &mut Criterion) {
+        bench_create_dense_tree(criterion);
+        bench_create_dense_mmap_tree(criterion);
+        bench_restore_dense_mmap_tree(criterion);
+    }
+
+    fn bench_create_dense_tree(criterion: &mut Criterion) {
+        let tree_values = vec![create_values_for_tree(4), create_values_for_tree(10), create_values_for_tree(14)];
+
+        let mut group = criterion.benchmark_group("bench_create_dense_tree_100_1000_10000");
+
+        for value in tree_values.iter() {
+            group.bench_with_input(BenchmarkId::from_parameter("create_dense_tree"), value, |bencher: &mut criterion::Bencher, value| {
+                bencher.iter(|| {
+                    let _tree = LazyMerkleTree::<PoseidonHash, Canonical>::new_with_dense_prefix_with_initial_values(value.depth, value.prefix_depth, &value.empty_value, &value.initial_values);
+                    _tree.root();
+                });
+            });
+        }
+        group.finish();
+    }
+
+    fn bench_create_dense_mmap_tree(criterion: &mut Criterion) {
+        let tree_values = vec![create_values_for_tree(4), create_values_for_tree(10), create_values_for_tree(14)];
+
+        let mut group = criterion.benchmark_group("bench_create_dense_mmap_tree_100_1000_10000");
+
+        for value in tree_values.iter() {
+            group.bench_with_input(BenchmarkId::from_parameter("create_dense_mmap_tree"), value, |bencher: &mut criterion::Bencher, value| {
+                bencher.iter(|| {
+                    let _tree = LazyMerkleTree::<PoseidonHash, Canonical>::new_mmapped_with_dense_prefix_with_init_values(value.depth, value.prefix_depth, &value.empty_value, &value.initial_values, "./testfile").unwrap();
+                    _tree.root();
+                });
+            });
+        }
+        group.finish();
+        // remove created mmap file
+        std::fs::remove_file("./testfile").unwrap();
+    }
+
+    fn bench_restore_dense_mmap_tree(criterion: &mut Criterion) {
+        let tree_values = vec![create_values_for_tree(4), create_values_for_tree(10), create_values_for_tree(14)];
+
+        // create 3 trees with different sizes, that are immediately dropped, but mmap file should be saved
+        (0..3).zip(&tree_values).for_each(|(id, value)| {
+            let _tree = LazyMerkleTree::<PoseidonHash, Canonical>::new_mmapped_with_dense_prefix_with_init_values(value.depth, value.prefix_depth, &value.empty_value, &value.initial_values, &format!("./testfile{}", id)).unwrap();
+            _tree.root();
+        });
+
+        let mut group = criterion.benchmark_group("bench_restore_dense_mmap_tree_100_1000_10000");
+
+        (0..3).zip(tree_values).for_each(|(id, value)| {
+            group.bench_with_input(BenchmarkId::from_parameter("restore_dense_mmap_tree"), &(id, value), |bencher: &mut criterion::Bencher, (id, value)| {
+                bencher.iter(|| {
+                    let _tree = LazyMerkleTree::<PoseidonHash, Canonical>::attempt_dense_mmap_restore( &value.empty_value, value.depth, &format!("./testfile{}", id)).unwrap();
+                    _tree.root();
+                });
+            });
+        });
+        group.finish();
+        // remove created mmap files
+        std::fs::remove_file("./testfile0").unwrap();
+        std::fs::remove_file("./testfile1").unwrap();
+        std::fs::remove_file("./testfile2").unwrap();
+    }
+
+    fn create_values_for_tree(tree_depth: usize) -> TreeValues<PoseidonHash> {
+        unimplemented!()
     }
 }
