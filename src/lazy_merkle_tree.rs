@@ -11,6 +11,7 @@ use std::{
 
 use bincode::serialize;
 use mmap_rs::{MmapMut, MmapOptions};
+use thiserror::Error;
 
 pub trait VersionMarker {}
 #[derive(Debug)]
@@ -89,30 +90,28 @@ impl<H: Hasher, Version: VersionMarker> LazyMerkleTree<H, Version> {
         empty_value: &H::Hash,
         initial_values: &[H::Hash],
         file_path: &str,
-    ) -> LazyMerkleTree<H, Canonical> {
-        LazyMerkleTree {
+    ) -> Result<LazyMerkleTree<H, Canonical>, DenseMMapError> {
+        Ok(LazyMerkleTree {
             tree:     AnyTree::new_mmapped_with_dense_prefix_with_init_values(
                 depth,
                 prefix_depth,
                 empty_value,
                 initial_values,
                 file_path,
-            ),
+            )?,
             _version: Canonical,
-        }
+        })
     }
 
-    // TODO: Return some proper errors
     /// Attempts to restore previous tree state from memory mapped file
+    /// 
     /// # Errors
-    /// - file creation
-    /// - mmap creation
-    /// - non matching file size and tree size
+    /// - dense mmap tree restore failed
     pub fn attempt_dense_mmap_restore(
         empty_leaf: &H::Hash,
         depth: usize,
         file_path: &str,
-    ) -> Result<LazyMerkleTree<H, Canonical>, &'static str> {
+    ) -> Result<LazyMerkleTree<H, Canonical>, DenseMMapError> {
         Ok(LazyMerkleTree {
             tree:     match AnyTree::try_restore_dense_mmap_tree_state(empty_leaf, depth, file_path)
             {
@@ -273,11 +272,10 @@ impl<H: Hasher> AnyTree<H> {
         empty_value: &H::Hash,
         initial_values: &[H::Hash],
         file_path: &str,
-    ) -> Self {
+    ) -> Result<Self, DenseMMapError> {
         assert!(depth >= prefix_depth);
         let dense =
-            DenseMMapTree::new_with_values(initial_values, empty_value, prefix_depth, file_path)
-                .expect("cannot create file backed dense tree");
+            DenseMMapTree::new_with_values(initial_values, empty_value, prefix_depth, file_path)?;
         let mut result: Self = dense.into();
         let mut current_depth = prefix_depth;
         while current_depth < depth {
@@ -288,20 +286,17 @@ impl<H: Hasher> AnyTree<H> {
             .into();
             current_depth += 1;
         }
-        result
+        Ok(result)
     }
 
     fn try_restore_dense_mmap_tree_state(
         empty_leaf: &H::Hash,
         depth: usize,
         file_path: &str,
-    ) -> Result<Self, &'static str> {
-        //
-        let dense = match DenseMMapTree::attempt_restore(empty_leaf, depth, file_path) {
-            Ok(tree) => tree,
-            Err(message) => return Err(message),
-        };
-        let result: Self = dense.into();
+    ) -> Result<Self, DenseMMapError> {
+        let dense_mmap = DenseMMapTree::attempt_restore(empty_leaf, depth, file_path)?;
+
+        let result: Self = dense_mmap.into();
         Ok(result)
     }
 
@@ -862,15 +857,21 @@ impl<H: Hasher> Clone for DenseMMapTree<H> {
 }
 
 impl<H: Hasher> DenseMMapTree<H> {
+    /// Creates a new DenseMMapTree with initial values and depth
+    /// 
+    /// # Errors
+    /// 
+    /// - returns Err if path buf failed to be created with provided string
+    /// - returns Err if mmap creation fails
     fn new_with_values(
         values: &[H::Hash],
         empty_leaf: &H::Hash,
         depth: usize,
         mmap_file_path: &str,
-    ) -> Result<Self, &'static str> {
+    ) -> Result<Self, DenseMMapError> {
         let path_buf = match PathBuf::from_str(mmap_file_path) {
             Ok(pb) => pb,
-            Err(_e) => return Err("failed to create path buf"),
+            Err(_e) => return Err(DenseMMapError::FailedToCreatePathBuf),
         };
 
         let leaf_count = 1 << depth;
@@ -879,9 +880,7 @@ impl<H: Hasher> DenseMMapTree<H> {
 
         assert!(values.len() <= leaf_count);
 
-        let mut mmap = MmapMutWrapper::new_with_initial_values(path_buf, empty_leaf, storage_size)
-            .expect("cannot create mmap wrapper");
-
+        let mut mmap = MmapMutWrapper::new_with_initial_values(path_buf, empty_leaf, storage_size)?;
         mmap[first_leaf_index..(first_leaf_index + values.len())].clone_from_slice(values);
         for i in (1..first_leaf_index).rev() {
             let left = &mmap[2 * i];
@@ -896,20 +895,28 @@ impl<H: Hasher> DenseMMapTree<H> {
         })
     }
 
+    /// Given the file path and tree depth,
+    /// it attempts to restore the memory map
+    /// 
+    /// # Errors
+    /// 
+    /// - returns Err if path buf creation fails
+    /// - Derives errors from MmapMutWrapper
+    /// 
+    /// # Panics
+    /// 
+    /// - mutex lock is poisoned
     fn attempt_restore(
         empty_leaf: &H::Hash,
         depth: usize,
         mmap_file_path: &str,
-    ) -> Result<Self, &'static str> {
+    ) -> Result<Self, DenseMMapError> {
         let path_buf = match PathBuf::from_str(mmap_file_path) {
             Ok(pb) => pb,
-            Err(_e) => return Err("failed to create path buf"),
+            Err(_e) => return Err(DenseMMapError::FailedToCreatePathBuf),
         };
 
-        let mmap = match MmapMutWrapper::attempt_restore(empty_leaf, depth, path_buf) {
-            Ok(m) => m,
-            Err(e) => return Err(e),
-        };
+        let mmap = MmapMutWrapper::attempt_restore(empty_leaf, depth, path_buf)?;
 
         Ok(Self {
             depth,
@@ -1076,13 +1083,25 @@ pub struct MmapMutWrapper<H: Hasher> {
 }
 
 impl<H: Hasher> MmapMutWrapper<H> {
+    /// Creates a new memory map backed with file with provided size
+    /// and fills the entire map with initial value
+    /// 
     /// # Errors
-    /// - TODO:
+    /// 
+    /// - returns Err if file creation has failed
+    /// - returns Err if bytes couldn't be written to file
+    /// 
+    /// # Panics
+    /// 
+    /// - empty hash value serialization failed
+    /// - file size cannot be set
+    /// - file is too large, possible truncation can occur
+    /// - cannot build memory map
     pub fn new_with_initial_values(
         file_path: PathBuf,
         initial_value: &H::Hash,
         storage_size: usize,
-    ) -> Result<Self, &'static str> {
+    ) -> Result<Self, DenseMMapError> {
         let empty_hash_bytes = serialize(initial_value).expect("cannot serialize initial value");
         let initial_value_size = std::mem::size_of_val(initial_value);
 
@@ -1097,12 +1116,13 @@ impl<H: Hasher> MmapMutWrapper<H> {
             .open(file_path)
         {
             Ok(file) => file,
-            Err(_e) => return Err("failed to create a file"),
+            Err(_e) => return Err(DenseMMapError::FileCreationFailed),
         };
 
         file.set_len(file_size).expect("cannot set file size");
-        file.write_all(&bytes)
-            .expect("cannot write bytes to mmap file");
+        if let Err(e) = file.write_all(&bytes) {
+            return Err(DenseMMapError::FileCannotWriteBytes);
+        }
 
         let mmap = unsafe {
             MmapOptions::new(usize::try_from(file_size).expect("file size truncated"))
@@ -1118,24 +1138,34 @@ impl<H: Hasher> MmapMutWrapper<H> {
         })
     }
 
+    /// Given the file path and tree depth,
+    /// it attempts to restore the memory map
+    /// 
     /// # Errors
-    /// - TODO:
+    /// 
+    /// - returns Err if file doesn't exist
+    /// - returns Err if file size doesn't match the expected tree size
+    /// 
+    /// # Panics
+    /// 
+    /// - cannot get file metadata to check for file length
+    /// - truncated file size when attempting to build memory map
+    /// - cannot build memory map
     pub fn attempt_restore(
         empty_leaf: &H::Hash,
         depth: usize,
         file_path: PathBuf,
-    ) -> Result<Self, &'static str> {
+    ) -> Result<Self, DenseMMapError> {
         let file = match OpenOptions::new().read(true).write(true).open(file_path) {
             Ok(file) => file,
-            Err(_e) => return Err("file doesn't exist"),
+            Err(_e) => return Err(DenseMMapError::FileDoesntExist),
         };
 
         let size_of_empty_leaf = std::mem::size_of_val(empty_leaf);
-
         let expected_file_size = (1 << depth) * size_of_empty_leaf as u64;
 
         if expected_file_size != file.metadata().expect("cannot get file metadata").len() {
-            return Err("file size should match expected tree size");
+            return Err(DenseMMapError::FileSizeShouldMatchTree);
         }
 
         let mmap = unsafe {
@@ -1171,6 +1201,20 @@ impl<H: Hasher> DerefMut for MmapMutWrapper<H> {
         let ptr = bytes.as_mut_ptr().cast::<H::Hash>();
         unsafe { std::slice::from_raw_parts_mut(ptr, bytes.len() / std::mem::size_of::<H::Hash>()) }
     }
+}
+
+#[derive(Error, Debug)]
+pub enum DenseMMapError {
+    #[error("file size should match expected tree size")]
+    FileSizeShouldMatchTree,
+    #[error("file doesn't exist")]
+    FileDoesntExist,
+    #[error("failed to create a file")]
+    FileCreationFailed,
+    #[error("cannot write bytes to file")]
+    FileCannotWriteBytes,
+    #[error("failed to create pathbuf")]
+    FailedToCreatePathBuf,
 }
 
 #[cfg(test)]
