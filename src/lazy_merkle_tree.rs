@@ -1112,6 +1112,7 @@ impl<H: Hasher> MmapMutWrapper<H> {
         let mut file = match OpenOptions::new()
             .read(true)
             .write(true)
+            .create(true)
             .truncate(true)
             .open(file_path)
         {
@@ -1165,6 +1166,13 @@ impl<H: Hasher> MmapMutWrapper<H> {
         let expected_file_size = (1 << depth) * size_of_empty_leaf as u64;
 
         if expected_file_size != file.metadata().expect("cannot get file metadata").len() {
+            println!(
+                "expected file size [{}], got [{}]\n depth: {}, size_of_empty: {}",
+                expected_file_size,
+                file.metadata().expect("cannot get file metadata").len(),
+                depth,
+                size_of_empty_leaf
+            );
             return Err(DenseMMapError::FileSizeShouldMatchTree);
         }
 
@@ -1470,10 +1478,10 @@ pub mod bench {
             create_values_for_tree(14),
         ];
 
-        let mut group = criterion.benchmark_group("bench_create_dense_tree_100_1000_10000");
+        let mut group = criterion.benchmark_group("bench_create_dense_tree_16_1024_16384");
 
         for value in tree_values.iter() {
-            group.bench_with_input(BenchmarkId::from_parameter("create_dense_tree"), value, |bencher: &mut criterion::Bencher, value| {
+            group.bench_with_input(BenchmarkId::from_parameter(format!("create_dense_tree{}", value.depth)), value, |bencher: &mut criterion::Bencher, value| {
                 bencher.iter(|| {
                     let _tree = LazyMerkleTree::<PoseidonHash, Canonical>::new_with_dense_prefix_with_initial_values(value.depth, value.prefix_depth, &value.empty_value, &value.initial_values);
                     let _root = _tree.root();
@@ -1490,10 +1498,10 @@ pub mod bench {
             create_values_for_tree(14),
         ];
 
-        let mut group = criterion.benchmark_group("bench_create_dense_mmap_tree_100_1000_10000");
+        let mut group = criterion.benchmark_group("bench_create_dense_mmap_tree_16_1024_16384");
 
         for value in tree_values.iter() {
-            group.bench_with_input(BenchmarkId::from_parameter("create_dense_mmap_tree"), value, |bencher: &mut criterion::Bencher, value| {
+            group.bench_with_input(BenchmarkId::from_parameter(format!("create_dense_mmap_tree{}", value.depth)), value, |bencher: &mut criterion::Bencher, value| {
                 bencher.iter(|| {
                     let _tree = LazyMerkleTree::<PoseidonHash, Canonical>::new_mmapped_with_dense_prefix_with_init_values(value.depth, value.prefix_depth, &value.empty_value, &value.initial_values, "./testfile").unwrap();
                     let _root = _tree.root();
@@ -1519,18 +1527,18 @@ pub mod bench {
             let _root = _tree.root();
         });
 
-        let mut group = criterion.benchmark_group("bench_restore_dense_mmap_tree_100_1000_10000");
+        let mut group = criterion.benchmark_group("bench_restore_dense_mmap_tree_16_1024_16384");
 
         (0..3).zip(tree_values).for_each(|(id, value)| {
             group.bench_with_input(
-                BenchmarkId::from_parameter("restore_dense_mmap_tree"),
+                BenchmarkId::from_parameter(format!("restore_dense_mmap_tree{}", value.depth)),
                 &(id, value),
                 |bencher: &mut criterion::Bencher, (id, value)| {
                     bencher.iter(|| {
                         let _tree =
                             LazyMerkleTree::<PoseidonHash, Canonical>::attempt_dense_mmap_restore(
                                 &value.empty_value,
-                                value.depth,
+                                value.depth + 1,
                                 &format!("./testfile{}", id),
                             )
                             .unwrap();
