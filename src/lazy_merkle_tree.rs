@@ -857,7 +857,7 @@ impl<H: Hasher> Clone for DenseMMapTree<H> {
 }
 
 impl<H: Hasher> DenseMMapTree<H> {
-    /// Creates a new DenseMMapTree with initial values and depth
+    /// Creates a new `DenseMMapTree` with initial values and depth
     ///
     /// # Errors
     ///
@@ -901,7 +901,7 @@ impl<H: Hasher> DenseMMapTree<H> {
     /// # Errors
     ///
     /// - returns Err if path buf creation fails
-    /// - Derives errors from MmapMutWrapper
+    /// - Derives errors from `MmapMutWrapper`
     ///
     /// # Panics
     ///
@@ -1121,7 +1121,7 @@ impl<H: Hasher> MmapMutWrapper<H> {
         };
 
         file.set_len(file_size).expect("cannot set file size");
-        if let Err(_) = file.write_all(&bytes) {
+        if file.write_all(&bytes).is_err() {
             return Err(DenseMMapError::FileCannotWriteBytes);
         }
 
