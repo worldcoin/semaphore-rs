@@ -1163,16 +1163,9 @@ impl<H: Hasher> MmapMutWrapper<H> {
         };
 
         let size_of_empty_leaf = std::mem::size_of_val(empty_leaf);
-        let expected_file_size = (1 << depth) * size_of_empty_leaf as u64;
+        let expected_file_size = (1 << (depth + 1)) * size_of_empty_leaf as u64;
 
         if expected_file_size != file.metadata().expect("cannot get file metadata").len() {
-            println!(
-                "expected file size [{}], got [{}]\n depth: {}, size_of_empty: {}",
-                expected_file_size,
-                file.metadata().expect("cannot get file metadata").len(),
-                depth,
-                size_of_empty_leaf
-            );
             return Err(DenseMMapError::FileSizeShouldMatchTree);
         }
 
@@ -1447,6 +1440,51 @@ mod tests {
         assert_eq!(first_three_leaves, vec![h0, h1, h2]);
         let first_three_leaves = tree.leaves().take(3).collect::<Vec<_>>();
         assert_eq!(first_three_leaves, vec![h0, h1, h2]);
+    }
+
+    #[test]
+    fn test_dense_mmap_tree() {
+        let h0 = [0; 32];
+        let h1 = hex!("0000000000000000000000000000000000000000000000000000000000000001");
+        let h2 = hex!("0000000000000000000000000000000000000000000000000000000000000002");
+        let h3 = hex!("0000000000000000000000000000000000000000000000000000000000000003");
+        let h4 = hex!("0000000000000000000000000000000000000000000000000000000000000004");
+        let h5 = hex!("0000000000000000000000000000000000000000000000000000000000000005");
+        let h6 = hex!("0000000000000000000000000000000000000000000000000000000000000006");
+        let h7 = hex!("0000000000000000000000000000000000000000000000000000000000000007");
+        let h8 = hex!("0000000000000000000000000000000000000000000000000000000000000008");
+
+        let initial_values = vec![h1, h2, h3, h4, h5, h6, h7, h8];
+
+        let tree: LazyMerkleTree<Keccak256, Canonical> = LazyMerkleTree::<Keccak256>::new_mmapped_with_dense_prefix_with_init_values(3, 3, &h0, &initial_values,"./testfile").unwrap();
+        let tree_leaves = tree.leaves().collect::<Vec<_>>();
+        
+        assert_eq!(tree_leaves, initial_values);
+
+        let proof_h1 = tree.proof(0);
+        assert!(tree.verify(h1, &proof_h1));
+
+        let proof_h2 = tree.proof(1);
+        assert!(tree.verify(h2, &proof_h2));
+
+        // drop a tree, the mmap file should still be there
+        drop(tree);
+
+        let tree: LazyMerkleTree<Keccak256, Canonical> = LazyMerkleTree::<Keccak256>::attempt_dense_mmap_restore(&h0, 3,"./testfile").unwrap();
+
+        // repeat asserts again
+        let tree_leaves = tree.leaves().collect::<Vec<_>>();
+        
+        assert_eq!(tree_leaves, initial_values);
+
+        let proof_h1 = tree.proof(0);
+        assert!(tree.verify(h1, &proof_h1));
+
+        let proof_h2 = tree.proof(1);
+        assert!(tree.verify(h2, &proof_h2));
+
+        // remove mmap file at the end
+        std::fs::remove_file("./testfile").unwrap();
     }
 }
 
