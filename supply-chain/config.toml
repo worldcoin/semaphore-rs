@@ -41,7 +41,7 @@ version = "0.7.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.aho-corasick]]
-version = "1.0.1"
+version = "1.0.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.android-tzdata]]
@@ -292,10 +292,6 @@ criteria = "safe-to-deploy"
 version = "0.9.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.digest]]
-version = "0.10.7"
-criteria = "safe-to-deploy"
-
 [[exemptions.ecdsa]]
 version = "0.16.7"
 criteria = "safe-to-deploy"
@@ -337,7 +333,7 @@ version = "0.14.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.ethers-core]]
-version = "2.0.6@git:4d742dac0e620107b3bbe4adfb56149bf6fc317b"
+version = "2.0.7@git:e93738db3c351b74dbf9994a8d1b991a8d111483"
 criteria = "safe-to-deploy"
 
 [[exemptions.eyre]]
@@ -356,27 +352,15 @@ criteria = "safe-to-deploy"
 version = "0.8.0"
 criteria = "safe-to-deploy"
 
+[[exemptions.form_urlencoded]]
+version = "1.2.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.funty]]
 version = "2.0.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.futures]]
-version = "0.3.28"
-criteria = "safe-to-deploy"
-
-[[exemptions.futures-channel]]
-version = "0.3.28"
-criteria = "safe-to-deploy"
-
-[[exemptions.futures-core]]
-version = "0.3.28"
-criteria = "safe-to-deploy"
-
-[[exemptions.futures-io]]
-version = "0.3.28"
-criteria = "safe-to-deploy"
-
-[[exemptions.futures-sink]]
 version = "0.3.28"
 criteria = "safe-to-deploy"
 
@@ -393,7 +377,7 @@ version = "0.14.7"
 criteria = "safe-to-deploy"
 
 [[exemptions.getrandom]]
-version = "0.2.9"
+version = "0.2.10"
 criteria = "safe-to-deploy"
 
 [[exemptions.gimli]]
@@ -452,6 +436,10 @@ criteria = "safe-to-deploy"
 version = "0.5.0"
 criteria = "safe-to-deploy"
 
+[[exemptions.idna]]
+version = "0.4.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.impl-codec]]
 version = "0.6.0"
 criteria = "safe-to-deploy"
@@ -505,7 +493,7 @@ version = "0.13.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.libc]]
-version = "0.2.144"
+version = "0.2.146"
 criteria = "safe-to-deploy"
 
 [[exemptions.libloading]]
@@ -580,6 +568,10 @@ criteria = "safe-to-deploy"
 version = "0.28.4"
 criteria = "safe-to-deploy"
 
+[[exemptions.object]]
+version = "0.30.4"
+criteria = "safe-to-deploy"
+
 [[exemptions.once_cell]]
 version = "1.17.2"
 criteria = "safe-to-deploy"
@@ -630,6 +622,10 @@ criteria = "safe-to-deploy"
 
 [[exemptions.paste]]
 version = "1.0.12"
+criteria = "safe-to-deploy"
+
+[[exemptions.percent-encoding]]
+version = "2.3.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.pest]]
@@ -729,7 +725,7 @@ version = "0.0.34"
 criteria = "safe-to-deploy"
 
 [[exemptions.regex]]
-version = "1.8.3"
+version = "1.8.4"
 criteria = "safe-to-deploy"
 
 [[exemptions.regex-automata]]
@@ -937,7 +933,7 @@ version = "0.12.7"
 criteria = "safe-to-deploy"
 
 [[exemptions.tempfile]]
-version = "3.5.0"
+version = "3.6.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.textwrap]]
@@ -1042,6 +1038,10 @@ criteria = "safe-to-deploy"
 
 [[exemptions.unicode-ident]]
 version = "1.0.9"
+criteria = "safe-to-deploy"
+
+[[exemptions.url]]
+version = "2.4.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.uuid]]
@@ -1162,10 +1162,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.windows-sys]]
 version = "0.33.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows-targets]]
-version = "0.42.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.windows_aarch64_gnullvm]]
