@@ -1456,9 +1456,17 @@ mod tests {
 
         let initial_values = vec![h1, h2, h3, h4, h5, h6, h7, h8];
 
-        let tree: LazyMerkleTree<Keccak256, Canonical> = LazyMerkleTree::<Keccak256>::new_mmapped_with_dense_prefix_with_init_values(3, 3, &h0, &initial_values,"./testfile").unwrap();
+        let tree: LazyMerkleTree<Keccak256, Canonical> =
+            LazyMerkleTree::<Keccak256>::new_mmapped_with_dense_prefix_with_init_values(
+                3,
+                3,
+                &h0,
+                &initial_values,
+                "./testfile",
+            )
+            .unwrap();
         let tree_leaves = tree.leaves().collect::<Vec<_>>();
-        
+
         assert_eq!(tree_leaves, initial_values);
 
         let proof_h1 = tree.proof(0);
@@ -1470,11 +1478,12 @@ mod tests {
         // drop a tree, the mmap file should still be there
         drop(tree);
 
-        let tree: LazyMerkleTree<Keccak256, Canonical> = LazyMerkleTree::<Keccak256>::attempt_dense_mmap_restore(&h0, 3,"./testfile").unwrap();
+        let tree: LazyMerkleTree<Keccak256, Canonical> =
+            LazyMerkleTree::<Keccak256>::attempt_dense_mmap_restore(&h0, 3, "./testfile").unwrap();
 
         // repeat asserts again
         let tree_leaves = tree.leaves().collect::<Vec<_>>();
-        
+
         assert_eq!(tree_leaves, initial_values);
 
         let proof_h1 = tree.proof(0);
