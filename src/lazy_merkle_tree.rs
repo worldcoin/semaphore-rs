@@ -108,12 +108,13 @@ impl<H: Hasher, Version: VersionMarker> LazyMerkleTree<H, Version> {
     /// # Errors
     /// - dense mmap tree restore failed
     pub fn attempt_dense_mmap_restore(
-        empty_leaf: &H::Hash,
         depth: usize,
+        prefix_depth: usize,
+        empty_leaf: &H::Hash,
         file_path: &str,
     ) -> Result<LazyMerkleTree<H, Canonical>, DenseMMapError> {
         Ok(LazyMerkleTree {
-            tree:     match AnyTree::try_restore_dense_mmap_tree_state(empty_leaf, depth, file_path)
+            tree:     match AnyTree::try_restore_dense_mmap_tree_state(depth, prefix_depth, empty_leaf, file_path)
             {
                 Ok(tree) => tree,
                 Err(e) => return Err(e),
@@ -290,13 +291,25 @@ impl<H: Hasher> AnyTree<H> {
     }
 
     fn try_restore_dense_mmap_tree_state(
-        empty_leaf: &H::Hash,
         depth: usize,
+        prefix_depth: usize,
+        empty_leaf: &H::Hash,
         file_path: &str,
     ) -> Result<Self, DenseMMapError> {
-        let dense_mmap = DenseMMapTree::attempt_restore(empty_leaf, depth, file_path)?;
+        let dense_mmap = DenseMMapTree::attempt_restore(empty_leaf, prefix_depth, file_path)?;
 
-        let result: Self = dense_mmap.into();
+        let mut result: Self = dense_mmap.into();
+
+        let mut current_depth = prefix_depth;
+        while current_depth < depth {
+            result = SparseTree::new(
+                result,
+                EmptyTree::new(current_depth, empty_leaf.clone()).into(),
+            )
+            .into();
+            current_depth += 1;
+        }
+
         Ok(result)
     }
 
@@ -1479,7 +1492,7 @@ mod tests {
         drop(tree);
 
         let tree: LazyMerkleTree<Keccak256, Canonical> =
-            LazyMerkleTree::<Keccak256>::attempt_dense_mmap_restore(&h0, 3, "./testfile").unwrap();
+            LazyMerkleTree::<Keccak256>::attempt_dense_mmap_restore(3, 3, &h0, "./testfile").unwrap();
 
         // repeat asserts again
         let tree_leaves = tree.leaves().collect::<Vec<_>>();
@@ -1552,7 +1565,7 @@ pub mod bench {
         let mut group = criterion.benchmark_group("bench_create_dense_mmap_tree");
 
         for value in tree_values.iter() {
-            group.bench_with_input(BenchmarkId::from_parameter(format!("create_dense_mmap_tree_depth{}", value.depth)), value, |bencher: &mut criterion::Bencher, value| {
+            group.bench_with_input(BenchmarkId::from_parameter(format!("create_dense_mmap_tree_depth_{}", value.depth)), value, |bencher: &mut criterion::Bencher, value| {
                 bencher.iter(|| {
                     let _tree = LazyMerkleTree::<PoseidonHash, Canonical>::new_mmapped_with_dense_prefix_with_init_values(value.depth, value.prefix_depth, &value.empty_value, &value.initial_values, "./testfile").unwrap();
                     let _root = _tree.root();
@@ -1591,8 +1604,9 @@ pub mod bench {
                     bencher.iter(|| {
                         let _tree =
                             LazyMerkleTree::<PoseidonHash, Canonical>::attempt_dense_mmap_restore(
+                                value.depth,
+                                value.depth,
                                 &value.empty_value,
-                                value.depth + 1,
                                 &format!("./testfile{}", id),
                             )
                             .unwrap();
