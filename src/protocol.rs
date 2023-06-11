@@ -225,8 +225,8 @@ mod test {
         let mut rng = ChaChaRng::seed_from_u64(seed);
 
         // generate identity
-        let seed: [u8; 16] = rng.gen();
-        let id = Identity::from_secret(&seed, None);
+        let mut seed: [u8; 16] = rng.gen();
+        let id = Identity::from_secret(seed.as_mut(), None);
 
         // generate merkle tree
         let leaf = Field::from(0);
