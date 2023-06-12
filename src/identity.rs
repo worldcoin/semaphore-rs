@@ -40,12 +40,15 @@ impl Identity {
 
     #[must_use]
     pub fn from_secret(secret: &mut [u8], trapdoor_seed: Option<&[u8]>) -> Self {
-        let secret_hex = seed_hex(secret);
+        let mut secret_hex = seed_hex(secret);
         secret.zeroize();
-        Self {
+
+        let identity = Self {
             trapdoor:  derive_field(&secret_hex, trapdoor_seed.unwrap_or(b"identity_trapdoor")),
             nullifier: derive_field(&secret_hex, b"identity_nullifier"),
-        }
+        };
+        secret_hex.zeroize();
+        identity
     }
 
     #[must_use]

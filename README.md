@@ -27,7 +27,8 @@ use semaphore::{get_supported_depths, hash_to_field, Field, identity::Identity,
 use num_bigint::BigInt;
 
 // generate identity
-let id = Identity::from_secret(b"secret", None);
+let mut secret = *b"secret";
+let id = Identity::from_secret(&mut secret, None);
 
 // Get the first available tree depth. This is controlled by the crate features.
 let depth = get_supported_depths()[0];
