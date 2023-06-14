@@ -30,7 +30,7 @@ jobs:
         uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --features mimc,depth_16,depth_20,depth_30
+          args: --features depth_16,depth_20,depth_30
   test:
     name: Test
     runs-on: ubuntu-latest
@@ -48,7 +48,7 @@ jobs:
         with:
           command: test
           # TODO: also test with `dylib` when we get a better runner
-          args: --features mimc,depth_16,depth_20,depth_30
+          args: --features depth_16,depth_20,depth_30
   vet:
     name: Vet Dependencies
     runs-on: ubuntu-latest
