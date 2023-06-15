@@ -341,7 +341,7 @@ version = "0.14.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.ethers-core]]
-version = "2.0.6@git:79c195370c908ae6f22228cb76ed673fd1c4dda1"
+version = "2.0.7@git:79c195370c908ae6f22228cb76ed673fd1c4dda1"
 criteria = "safe-to-deploy"
 
 [[exemptions.eyre]]
@@ -525,7 +525,7 @@ version = "0.5.10"
 criteria = "safe-to-deploy"
 
 [[exemptions.memoffset]]
-version = "0.9.0"
+version = "0.6.5"
 criteria = "safe-to-deploy"
 
 [[exemptions.mime]]
@@ -557,7 +557,7 @@ version = "1.15.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.object]]
-version = "0.30.4"
+version = "0.28.4"
 criteria = "safe-to-deploy"
 
 [[exemptions.once_cell]]
@@ -1005,7 +1005,7 @@ version = "0.2.87"
 criteria = "safe-to-deploy"
 
 [[exemptions.wasm-bindgen-futures]]
-version = "0.4.36"
+version = "0.4.37"
 criteria = "safe-to-deploy"
 
 [[exemptions.wasm-bindgen-macro]]
