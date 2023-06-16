@@ -333,7 +333,7 @@ version = "0.14.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.ethers-core]]
-version = "2.0.7@git:0d107688689ec860c391c65ff426ed8157225092"
+version = "2.0.7@git:79c195370c908ae6f22228cb76ed673fd1c4dda1"
 criteria = "safe-to-deploy"
 
 [[exemptions.eyre]]
@@ -385,7 +385,7 @@ version = "0.26.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.gimli]]
-version = "0.27.2"
+version = "0.27.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.group]]
@@ -1032,6 +1032,10 @@ criteria = "safe-to-deploy"
 version = "2.3.3"
 criteria = "safe-to-deploy"
 
+[[exemptions.want]]
+version = "0.3.1"
+criteria = "safe-to-deploy"
+
 [[exemptions.wasi]]
 version = "0.11.0+wasi-snapshot-preview1"
 criteria = "safe-to-deploy"
@@ -1189,7 +1193,7 @@ version = "0.42.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.winnow]]
-version = "0.4.6"
+version = "0.4.7"
 criteria = "safe-to-deploy"
 
 [[exemptions.winreg]]
