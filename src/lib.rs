@@ -116,6 +116,7 @@ pub mod bench {
         for depth in get_supported_depths() {
             bench_proof(criterion, *depth);
         }
+        crate::lazy_merkle_tree::bench::group(criterion);
     }
 
     fn bench_proof(criterion: &mut Criterion, depth: usize) {
