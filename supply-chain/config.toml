@@ -28,6 +28,138 @@ audit-as-crates-io = true
 [policy.semaphore]
 audit-as-crates-io = false
 
+[[exemptions.arrayvec]]
+version = "0.7.4"
+criteria = "safe-to-deploy"
+
+[[exemptions.bincode]]
+version = "1.3.3"
+criteria = "safe-to-deploy"
+
+[[exemptions.combine]]
+version = "4.6.6"
+criteria = "safe-to-deploy"
+
+[[exemptions.cpufeatures]]
+version = "0.2.8"
+criteria = "safe-to-deploy"
+
+[[exemptions.enum-as-inner]]
+version = "0.5.1"
+criteria = "safe-to-deploy"
+
+[[exemptions.ethers-core]]
+version = "2.0.7@git:df165b84229cdc1c65e8522e0c1aeead3746d9a8"
+criteria = "safe-to-deploy"
+
+[[exemptions.mmap-rs]]
+version = "0.5.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.nix]]
+version = "0.26.2"
+criteria = "safe-to-deploy"
+
+[[exemptions.parity-scale-codec]]
+version = "3.6.1"
+criteria = "safe-to-deploy"
+
+[[exemptions.parity-scale-codec-derive]]
+version = "3.6.1"
+criteria = "safe-to-deploy"
+
+[[exemptions.pest]]
+version = "2.6.1"
+criteria = "safe-to-deploy"
+
+[[exemptions.plotters]]
+version = "0.3.5"
+criteria = "safe-to-deploy"
+
+[[exemptions.plotters-backend]]
+version = "0.3.5"
+criteria = "safe-to-deploy"
+
+[[exemptions.plotters-svg]]
+version = "0.3.5"
+criteria = "safe-to-deploy"
+
+[[exemptions.serde_json]]
+version = "1.0.97"
+criteria = "safe-to-deploy"
+
+[[exemptions.sha2]]
+version = "0.10.7"
+criteria = "safe-to-deploy"
+
+[[exemptions.strum]]
+version = "0.25.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.strum_macros]]
+version = "0.25.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.sysctl]]
+version = "0.5.4"
+criteria = "safe-to-deploy"
+
+[[exemptions.tracing-attributes]]
+version = "0.1.25"
+criteria = "safe-to-deploy"
+
+[[exemptions.widestring]]
+version = "1.0.2"
+criteria = "safe-to-deploy"
+
+[[exemptions.windows]]
+version = "0.44.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.windows-sys]]
+version = "0.42.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.windows-sys]]
+version = "0.48.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.windows-targets]]
+version = "0.42.2"
+criteria = "safe-to-deploy"
+
+[[exemptions.windows-targets]]
+version = "0.48.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.windows_aarch64_gnullvm]]
+version = "0.48.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.windows_aarch64_msvc]]
+version = "0.48.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.windows_i686_gnu]]
+version = "0.48.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.windows_i686_msvc]]
+version = "0.48.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.windows_x86_64_gnu]]
+version = "0.48.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.windows_x86_64_gnullvm]]
+version = "0.48.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.windows_x86_64_msvc]]
+version = "0.48.0"
+criteria = "safe-to-deploy"
+
 [[exemptions.addr2line]]
 version = "0.19.0"
 criteria = "safe-to-deploy"
