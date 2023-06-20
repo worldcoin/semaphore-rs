@@ -46,4 +46,4 @@ jobs:
         with:
           command: test
           # TODO: also test with `dylib` when we get a better runner
-          args: --features mimc,depth_16,depth_20,depth_30
+          args: --verbose --features mimc,depth_16,depth_20,depth_30
