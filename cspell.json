@@ -11,8 +11,6 @@
         "hasher",
         "keccak",
         "merkle",
-        "mimc",
-        "mimcsponge",
         "mmaped",
         "modpow",
         "mulmod",
