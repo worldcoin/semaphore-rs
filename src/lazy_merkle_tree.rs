@@ -114,8 +114,12 @@ impl<H: Hasher, Version: VersionMarker> LazyMerkleTree<H, Version> {
         file_path: &str,
     ) -> Result<LazyMerkleTree<H, Canonical>, DenseMMapError> {
         Ok(LazyMerkleTree {
-            tree:     match AnyTree::try_restore_dense_mmap_tree_state(depth, prefix_depth, empty_leaf, file_path)
-            {
+            tree:     match AnyTree::try_restore_dense_mmap_tree_state(
+                depth,
+                prefix_depth,
+                empty_leaf,
+                file_path,
+            ) {
                 Ok(tree) => tree,
                 Err(e) => return Err(e),
             },
@@ -1492,7 +1496,8 @@ mod tests {
         drop(tree);
 
         let tree: LazyMerkleTree<Keccak256, Canonical> =
-            LazyMerkleTree::<Keccak256>::attempt_dense_mmap_restore(3, 3, &h0, "./testfile").unwrap();
+            LazyMerkleTree::<Keccak256>::attempt_dense_mmap_restore(3, 3, &h0, "./testfile")
+                .unwrap();
 
         // repeat asserts again
         let tree_leaves = tree.leaves().collect::<Vec<_>>();
