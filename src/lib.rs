@@ -14,10 +14,6 @@ pub mod protocol;
 pub mod util;
 
 pub mod lazy_merkle_tree;
-#[cfg(feature = "mimc")]
-pub mod mimc_hash;
-#[cfg(feature = "mimc")]
-pub mod mimc_tree;
 
 use ark_bn254::Parameters;
 use ark_ec::bn::Bn;
@@ -117,10 +113,6 @@ pub mod bench {
     use semaphore_depth_config::get_supported_depths;
 
     pub fn group(criterion: &mut Criterion) {
-        #[cfg(feature = "mimc")]
-        crate::mimc_hash::bench::group(criterion);
-        #[cfg(feature = "mimc")]
-        crate::mimc_tree::bench::group(criterion);
         for depth in get_supported_depths() {
             bench_proof(criterion, *depth);
         }
