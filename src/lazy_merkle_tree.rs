@@ -1,8 +1,17 @@
 use crate::merkle_tree::{Branch, Hasher, Proof};
 use std::{
+    fs::OpenOptions,
+    io::Write,
     iter::{once, repeat, successors},
+    ops::{Deref, DerefMut},
+    path::PathBuf,
+    str::FromStr,
     sync::{Arc, Mutex},
 };
+
+use bincode::serialize;
+use mmap_rs::{MmapMut, MmapOptions};
+use thiserror::Error;
 
 pub trait VersionMarker {}
 #[derive(Debug)]
@@ -70,6 +79,52 @@ impl<H: Hasher, Version: VersionMarker> LazyMerkleTree<H, Version> {
             ),
             _version: Canonical,
         }
+    }
+
+    /// Creates a new memory mapped file specified by path and creates a tree
+    /// with dense prefix of the given depth with initial values
+    #[must_use]
+    pub fn new_mmapped_with_dense_prefix_with_init_values(
+        depth: usize,
+        prefix_depth: usize,
+        empty_value: &H::Hash,
+        initial_values: &[H::Hash],
+        file_path: &str,
+    ) -> Result<LazyMerkleTree<H, Canonical>, DenseMMapError> {
+        Ok(LazyMerkleTree {
+            tree:     AnyTree::new_mmapped_with_dense_prefix_with_init_values(
+                depth,
+                prefix_depth,
+                empty_value,
+                initial_values,
+                file_path,
+            )?,
+            _version: Canonical,
+        })
+    }
+
+    /// Attempts to restore previous tree state from memory mapped file
+    ///
+    /// # Errors
+    /// - dense mmap tree restore failed
+    pub fn attempt_dense_mmap_restore(
+        depth: usize,
+        prefix_depth: usize,
+        empty_leaf: &H::Hash,
+        file_path: &str,
+    ) -> Result<LazyMerkleTree<H, Canonical>, DenseMMapError> {
+        Ok(LazyMerkleTree {
+            tree:     match AnyTree::try_restore_dense_mmap_tree_state(
+                depth,
+                prefix_depth,
+                empty_leaf,
+                file_path,
+            ) {
+                Ok(tree) => tree,
+                Err(e) => return Err(e),
+            },
+            _version: Canonical,
+        })
     }
 
     /// Returns the depth of the tree.
@@ -170,6 +225,7 @@ enum AnyTree<H: Hasher> {
     Empty(EmptyTree<H>),
     Sparse(SparseTree<H>),
     Dense(DenseTree<H>),
+    DenseMMap(DenseMMapTree<H>),
 }
 
 impl<H: Hasher> AnyTree<H> {
@@ -215,11 +271,58 @@ impl<H: Hasher> AnyTree<H> {
         result
     }
 
+    fn new_mmapped_with_dense_prefix_with_init_values(
+        depth: usize,
+        prefix_depth: usize,
+        empty_value: &H::Hash,
+        initial_values: &[H::Hash],
+        file_path: &str,
+    ) -> Result<Self, DenseMMapError> {
+        assert!(depth >= prefix_depth);
+        let dense =
+            DenseMMapTree::new_with_values(initial_values, empty_value, prefix_depth, file_path)?;
+        let mut result: Self = dense.into();
+        let mut current_depth = prefix_depth;
+        while current_depth < depth {
+            result = SparseTree::new(
+                result,
+                EmptyTree::new(current_depth, empty_value.clone()).into(),
+            )
+            .into();
+            current_depth += 1;
+        }
+        Ok(result)
+    }
+
+    fn try_restore_dense_mmap_tree_state(
+        depth: usize,
+        prefix_depth: usize,
+        empty_leaf: &H::Hash,
+        file_path: &str,
+    ) -> Result<Self, DenseMMapError> {
+        let dense_mmap = DenseMMapTree::attempt_restore(empty_leaf, prefix_depth, file_path)?;
+
+        let mut result: Self = dense_mmap.into();
+
+        let mut current_depth = prefix_depth;
+        while current_depth < depth {
+            result = SparseTree::new(
+                result,
+                EmptyTree::new(current_depth, empty_leaf.clone()).into(),
+            )
+            .into();
+            current_depth += 1;
+        }
+
+        Ok(result)
+    }
+
     const fn depth(&self) -> usize {
         match self {
             Self::Empty(tree) => tree.depth,
             Self::Sparse(tree) => tree.depth,
             Self::Dense(tree) => tree.depth,
+            Self::DenseMMap(tree) => tree.depth,
         }
     }
 
@@ -228,6 +331,7 @@ impl<H: Hasher> AnyTree<H> {
             Self::Empty(tree) => tree.root(),
             Self::Sparse(tree) => tree.root(),
             Self::Dense(tree) => tree.root(),
+            Self::DenseMMap(tree) => tree.root(),
         }
     }
 
@@ -238,6 +342,7 @@ impl<H: Hasher> AnyTree<H> {
             Self::Empty(tree) => tree.write_proof(index, &mut path),
             Self::Sparse(tree) => tree.write_proof(index, &mut path),
             Self::Dense(tree) => tree.write_proof(index, &mut path),
+            Self::DenseMMap(tree) => tree.write_proof(index, &mut path),
         }
         path.reverse();
         Proof(path)
@@ -248,6 +353,7 @@ impl<H: Hasher> AnyTree<H> {
             Self::Empty(tree) => tree.write_proof(index, path),
             Self::Sparse(tree) => tree.write_proof(index, path),
             Self::Dense(tree) => tree.write_proof(index, path),
+            Self::DenseMMap(tree) => tree.write_proof(index, path),
         }
     }
 
@@ -267,6 +373,9 @@ impl<H: Hasher> AnyTree<H> {
             Self::Dense(tree) => {
                 tree.update_with_mutation_condition(index, value, is_mutation_allowed)
             }
+            Self::DenseMMap(tree) => {
+                tree.update_with_mutation_condition(index, value, is_mutation_allowed)
+            }
         }
     }
 
@@ -275,6 +384,7 @@ impl<H: Hasher> AnyTree<H> {
             Self::Empty(tree) => tree.get_leaf(),
             Self::Sparse(tree) => tree.get_leaf(index),
             Self::Dense(tree) => tree.get_leaf(index),
+            Self::DenseMMap(tree) => tree.get_leaf(index),
         }
     }
 }
@@ -285,6 +395,7 @@ impl<H: Hasher> Clone for AnyTree<H> {
             Self::Empty(t) => t.clone().into(),
             Self::Sparse(t) => t.clone().into(),
             Self::Dense(t) => t.clone().into(),
+            Self::DenseMMap(t) => t.clone().into(),
         }
     }
 }
@@ -304,6 +415,12 @@ impl<H: Hasher> From<SparseTree<H>> for AnyTree<H> {
 impl<H: Hasher> From<DenseTree<H>> for AnyTree<H> {
     fn from(tree: DenseTree<H>) -> Self {
         Self::Dense(tree)
+    }
+}
+
+impl<H: Hasher> From<DenseMMapTree<H>> for AnyTree<H> {
+    fn from(tree: DenseMMapTree<H>) -> Self {
+        Self::DenseMMap(tree)
     }
 }
 
@@ -673,7 +790,7 @@ impl<'a, H: Hasher> DenseTreeRef<'a, H> {
         self.storage[self.root_index].clone()
     }
 
-    const fn left(&self) -> DenseTreeRef<'a, H> {
+    const fn left(&self) -> DenseTreeRef<H> {
         Self {
             depth:          self.depth - 1,
             root_index:     2 * self.root_index,
@@ -682,7 +799,7 @@ impl<'a, H: Hasher> DenseTreeRef<'a, H> {
         }
     }
 
-    const fn right(&self) -> DenseTreeRef<'a, H> {
+    const fn right(&self) -> DenseTreeRef<H> {
         Self {
             depth:          self.depth - 1,
             root_index:     2 * self.root_index + 1,
@@ -738,6 +855,384 @@ impl<'a, H: Hasher> DenseTreeRef<'a, H> {
             }
         }
     }
+}
+
+struct DenseMMapTree<H: Hasher> {
+    depth:      usize,
+    root_index: usize,
+    storage:    Arc<Mutex<MmapMutWrapper<H>>>,
+}
+
+impl<H: Hasher> Clone for DenseMMapTree<H> {
+    fn clone(&self) -> Self {
+        Self {
+            depth:      self.depth,
+            root_index: self.root_index,
+            storage:    self.storage.clone(),
+        }
+    }
+}
+
+impl<H: Hasher> DenseMMapTree<H> {
+    /// Creates a new `DenseMMapTree` with initial values and depth
+    ///
+    /// # Errors
+    ///
+    /// - returns Err if path buf failed to be created with provided string
+    /// - returns Err if mmap creation fails
+    fn new_with_values(
+        values: &[H::Hash],
+        empty_leaf: &H::Hash,
+        depth: usize,
+        mmap_file_path: &str,
+    ) -> Result<Self, DenseMMapError> {
+        let path_buf = match PathBuf::from_str(mmap_file_path) {
+            Ok(pb) => pb,
+            Err(_e) => return Err(DenseMMapError::FailedToCreatePathBuf),
+        };
+
+        let leaf_count = 1 << depth;
+        let first_leaf_index = 1 << depth;
+        let storage_size = 1 << (depth + 1);
+
+        assert!(values.len() <= leaf_count);
+
+        let mut mmap = MmapMutWrapper::new_with_initial_values(path_buf, empty_leaf, storage_size)?;
+        mmap[first_leaf_index..(first_leaf_index + values.len())].clone_from_slice(values);
+        for i in (1..first_leaf_index).rev() {
+            let left = &mmap[2 * i];
+            let right = &mmap[2 * i + 1];
+            mmap[i] = H::hash_node(left, right);
+        }
+
+        Ok(Self {
+            depth,
+            root_index: 1,
+            storage: Arc::new(Mutex::new(mmap)),
+        })
+    }
+
+    /// Given the file path and tree depth,
+    /// it attempts to restore the memory map
+    ///
+    /// # Errors
+    ///
+    /// - returns Err if path buf creation fails
+    /// - Derives errors from `MmapMutWrapper`
+    ///
+    /// # Panics
+    ///
+    /// - mutex lock is poisoned
+    fn attempt_restore(
+        empty_leaf: &H::Hash,
+        depth: usize,
+        mmap_file_path: &str,
+    ) -> Result<Self, DenseMMapError> {
+        let path_buf = match PathBuf::from_str(mmap_file_path) {
+            Ok(pb) => pb,
+            Err(_e) => return Err(DenseMMapError::FailedToCreatePathBuf),
+        };
+
+        let mmap = MmapMutWrapper::attempt_restore(empty_leaf, depth, path_buf)?;
+
+        Ok(Self {
+            depth,
+            root_index: 1,
+            storage: Arc::new(Mutex::new(mmap)),
+        })
+    }
+
+    fn with_ref<F, R>(&self, fun: F) -> R
+    where
+        F: FnOnce(DenseTreeMMapRef<H>) -> R,
+    {
+        let guard = self.storage.lock().expect("lock poisoned, terminating");
+        let r = DenseTreeMMapRef {
+            depth:          self.depth,
+            root_index:     self.root_index,
+            storage:        &guard,
+            locked_storage: &self.storage,
+        };
+        fun(r)
+    }
+
+    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H>>) {
+        self.with_ref(|r| r.write_proof(index, path));
+    }
+
+    fn get_leaf(&self, index: usize) -> H::Hash {
+        self.with_ref(|r| {
+            let leaf_index_in_dense_tree = index + (self.root_index << self.depth);
+            r.storage[leaf_index_in_dense_tree].clone()
+        })
+    }
+
+    fn update_with_mutation_condition(
+        &self,
+        index: usize,
+        value: &H::Hash,
+        is_mutation_allowed: bool,
+    ) -> AnyTree<H> {
+        if is_mutation_allowed {
+            self.update_with_mutation(index, value);
+            self.clone().into()
+        } else {
+            self.with_ref(|r| r.update(index, value)).into()
+        }
+    }
+
+    fn update_with_mutation(&self, index: usize, value: &H::Hash) {
+        let mut storage = self.storage.lock().expect("lock poisoned, terminating");
+        let leaf_index_in_dense_tree = index + (self.root_index << self.depth);
+        storage[leaf_index_in_dense_tree] = value.clone();
+        let mut current = leaf_index_in_dense_tree / 2;
+        while current > 0 {
+            let left = &storage[2 * current];
+            let right = &storage[2 * current + 1];
+            storage[current] = H::hash_node(left, right);
+            current /= 2;
+        }
+    }
+
+    fn root(&self) -> H::Hash {
+        self.storage.lock().expect("lock poisoned")[self.root_index].clone()
+    }
+}
+
+struct DenseTreeMMapRef<'a, H: Hasher> {
+    depth:          usize,
+    root_index:     usize,
+    storage:        &'a MmapMutWrapper<H>,
+    locked_storage: &'a Arc<Mutex<MmapMutWrapper<H>>>,
+}
+
+impl<'a, H: Hasher> From<DenseTreeMMapRef<'a, H>> for DenseMMapTree<H> {
+    fn from(value: DenseTreeMMapRef<H>) -> Self {
+        Self {
+            depth:      value.depth,
+            root_index: value.root_index,
+            storage:    value.locked_storage.clone(),
+        }
+    }
+}
+
+impl<'a, H: Hasher> From<DenseTreeMMapRef<'a, H>> for AnyTree<H> {
+    fn from(value: DenseTreeMMapRef<H>) -> Self {
+        Self::DenseMMap(value.into())
+    }
+}
+
+impl<'a, H: Hasher> DenseTreeMMapRef<'a, H> {
+    fn root(&self) -> H::Hash {
+        self.storage[self.root_index].clone()
+    }
+
+    const fn left(&self) -> DenseTreeMMapRef<H> {
+        Self {
+            depth:          self.depth - 1,
+            root_index:     2 * self.root_index,
+            storage:        self.storage,
+            locked_storage: self.locked_storage,
+        }
+    }
+
+    const fn right(&self) -> DenseTreeMMapRef<H> {
+        Self {
+            depth:          self.depth - 1,
+            root_index:     2 * self.root_index + 1,
+            storage:        self.storage,
+            locked_storage: self.locked_storage,
+        }
+    }
+
+    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H>>) {
+        if self.depth == 0 {
+            return;
+        }
+        let next_index = clear_turn_at_depth(index, self.depth);
+        if get_turn_at_depth(index, self.depth) == Turn::Left {
+            path.push(Branch::Left(self.right().root()));
+            self.left().write_proof(next_index, path);
+        } else {
+            path.push(Branch::Right(self.left().root()));
+            self.right().write_proof(next_index, path);
+        }
+    }
+
+    fn update(&self, index: usize, hash: &H::Hash) -> SparseTree<H> {
+        if self.depth == 0 {
+            return SparseTree::new_leaf(hash.clone());
+        }
+        let next_index = clear_turn_at_depth(index, self.depth);
+        if get_turn_at_depth(index, self.depth) == Turn::Left {
+            let left = self.left();
+            let new_left = left.update(next_index, hash);
+            let right = self.right();
+            let new_root = H::hash_node(&new_left.root(), &right.root());
+            SparseTree {
+                children: Some(Children {
+                    left:  Arc::new(new_left.into()),
+                    right: Arc::new(self.right().into()),
+                }),
+                root:     new_root,
+                depth:    self.depth,
+            }
+        } else {
+            let right = self.right();
+            let new_right = right.update(next_index, hash);
+            let left = self.left();
+            let new_root = H::hash_node(&left.root(), &new_right.root());
+            SparseTree {
+                children: Some(Children {
+                    left:  Arc::new(self.left().into()),
+                    right: Arc::new(new_right.into()),
+                }),
+                root:     new_root,
+                depth:    self.depth,
+            }
+        }
+    }
+}
+
+pub struct MmapMutWrapper<H: Hasher> {
+    mmap:    MmapMut,
+    phantom: std::marker::PhantomData<H>,
+}
+
+impl<H: Hasher> MmapMutWrapper<H> {
+    /// Creates a new memory map backed with file with provided size
+    /// and fills the entire map with initial value
+    ///
+    /// # Errors
+    ///
+    /// - returns Err if file creation has failed
+    /// - returns Err if bytes couldn't be written to file
+    ///
+    /// # Panics
+    ///
+    /// - empty hash value serialization failed
+    /// - file size cannot be set
+    /// - file is too large, possible truncation can occur
+    /// - cannot build memory map
+    pub fn new_with_initial_values(
+        file_path: PathBuf,
+        initial_value: &H::Hash,
+        storage_size: usize,
+    ) -> Result<Self, DenseMMapError> {
+        let empty_hash_bytes = serialize(initial_value).expect("cannot serialize initial value");
+        let initial_value_size = std::mem::size_of_val(initial_value);
+
+        let bytes: Vec<u8> =
+            empty_hash_bytes.repeat(storage_size * initial_value_size / empty_hash_bytes.len());
+        let file_size: u64 = storage_size as u64 * initial_value_size as u64;
+
+        let mut file = match OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(file_path)
+        {
+            Ok(file) => file,
+            Err(_e) => return Err(DenseMMapError::FileCreationFailed),
+        };
+
+        file.set_len(file_size).expect("cannot set file size");
+        if file.write_all(&bytes).is_err() {
+            return Err(DenseMMapError::FileCannotWriteBytes);
+        }
+
+        let mmap = unsafe {
+            MmapOptions::new(usize::try_from(file_size).expect("file size truncated"))
+                .expect("cannot create memory map")
+                .with_file(file, 0)
+                .map_mut()
+                .expect("cannot build memory map")
+        };
+
+        Ok(Self {
+            mmap,
+            phantom: std::marker::PhantomData,
+        })
+    }
+
+    /// Given the file path and tree depth,
+    /// it attempts to restore the memory map
+    ///
+    /// # Errors
+    ///
+    /// - returns Err if file doesn't exist
+    /// - returns Err if file size doesn't match the expected tree size
+    ///
+    /// # Panics
+    ///
+    /// - cannot get file metadata to check for file length
+    /// - truncated file size when attempting to build memory map
+    /// - cannot build memory map
+    pub fn attempt_restore(
+        empty_leaf: &H::Hash,
+        depth: usize,
+        file_path: PathBuf,
+    ) -> Result<Self, DenseMMapError> {
+        let file = match OpenOptions::new().read(true).write(true).open(file_path) {
+            Ok(file) => file,
+            Err(_e) => return Err(DenseMMapError::FileDoesntExist),
+        };
+
+        let size_of_empty_leaf = std::mem::size_of_val(empty_leaf);
+        let expected_file_size = (1 << (depth + 1)) * size_of_empty_leaf as u64;
+
+        if expected_file_size != file.metadata().expect("cannot get file metadata").len() {
+            return Err(DenseMMapError::FileSizeShouldMatchTree);
+        }
+
+        let mmap = unsafe {
+            MmapOptions::new(
+                usize::try_from(expected_file_size).expect("expected file size truncated"),
+            )
+            .expect("cannot create memory map")
+            .with_file(file, 0)
+            .map_mut()
+            .expect("cannot build memory map")
+        };
+
+        Ok(Self {
+            mmap,
+            phantom: std::marker::PhantomData,
+        })
+    }
+}
+
+impl<H: Hasher> Deref for MmapMutWrapper<H> {
+    type Target = [H::Hash];
+
+    fn deref(&self) -> &Self::Target {
+        let bytes: &[u8] = &self.mmap;
+        let ptr = bytes.as_ptr().cast::<H::Hash>();
+        unsafe { std::slice::from_raw_parts(ptr, bytes.len() / std::mem::size_of::<H::Hash>()) }
+    }
+}
+
+impl<H: Hasher> DerefMut for MmapMutWrapper<H> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        let bytes: &mut [u8] = self.mmap.as_mut_slice();
+        let ptr = bytes.as_mut_ptr().cast::<H::Hash>();
+        unsafe { std::slice::from_raw_parts_mut(ptr, bytes.len() / std::mem::size_of::<H::Hash>()) }
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum DenseMMapError {
+    #[error("file size should match expected tree size")]
+    FileSizeShouldMatchTree,
+    #[error("file doesn't exist")]
+    FileDoesntExist,
+    #[error("failed to create a file")]
+    FileCreationFailed,
+    #[error("cannot write bytes to file")]
+    FileCannotWriteBytes,
+    #[error("failed to create pathbuf")]
+    FailedToCreatePathBuf,
 }
 
 #[cfg(test)]
@@ -962,5 +1457,281 @@ mod tests {
         assert_eq!(first_three_leaves, vec![h0, h1, h2]);
         let first_three_leaves = tree.leaves().take(3).collect::<Vec<_>>();
         assert_eq!(first_three_leaves, vec![h0, h1, h2]);
+    }
+
+    #[test]
+    fn test_dense_mmap_tree() {
+        let h0 = [0; 32];
+        let h1 = hex!("0000000000000000000000000000000000000000000000000000000000000001");
+        let h2 = hex!("0000000000000000000000000000000000000000000000000000000000000002");
+        let h3 = hex!("0000000000000000000000000000000000000000000000000000000000000003");
+        let h4 = hex!("0000000000000000000000000000000000000000000000000000000000000004");
+        let h5 = hex!("0000000000000000000000000000000000000000000000000000000000000005");
+        let h6 = hex!("0000000000000000000000000000000000000000000000000000000000000006");
+        let h7 = hex!("0000000000000000000000000000000000000000000000000000000000000007");
+        let h8 = hex!("0000000000000000000000000000000000000000000000000000000000000008");
+
+        let initial_values = vec![h1, h2, h3, h4, h5, h6, h7, h8];
+
+        let tree: LazyMerkleTree<Keccak256, Canonical> =
+            LazyMerkleTree::<Keccak256>::new_mmapped_with_dense_prefix_with_init_values(
+                3,
+                3,
+                &h0,
+                &initial_values,
+                "./testfile",
+            )
+            .unwrap();
+        let tree_leaves = tree.leaves().collect::<Vec<_>>();
+
+        assert_eq!(tree_leaves, initial_values);
+
+        let proof_h1 = tree.proof(0);
+        assert!(tree.verify(h1, &proof_h1));
+
+        let proof_h2 = tree.proof(1);
+        assert!(tree.verify(h2, &proof_h2));
+
+        // drop a tree, the mmap file should still be there
+        drop(tree);
+
+        let tree: LazyMerkleTree<Keccak256, Canonical> =
+            LazyMerkleTree::<Keccak256>::attempt_dense_mmap_restore(3, 3, &h0, "./testfile")
+                .unwrap();
+
+        // repeat asserts again
+        let tree_leaves = tree.leaves().collect::<Vec<_>>();
+
+        assert_eq!(tree_leaves, initial_values);
+
+        let proof_h1 = tree.proof(0);
+        assert!(tree.verify(h1, &proof_h1));
+
+        let proof_h2 = tree.proof(1);
+        assert!(tree.verify(h2, &proof_h2));
+
+        // remove mmap file at the end
+        std::fs::remove_file("./testfile").unwrap();
+    }
+}
+
+#[cfg(feature = "bench")]
+pub mod bench {
+    use crate::{poseidon_tree::PoseidonHash, Field};
+
+    #[allow(clippy::wildcard_imports)]
+    use super::*;
+    use criterion::{BenchmarkId, Criterion};
+
+    struct TreeValues<H: Hasher> {
+        depth:          usize,
+        prefix_depth:   usize,
+        empty_value:    H::Hash,
+        initial_values: Vec<H::Hash>,
+    }
+
+    pub fn group(criterion: &mut Criterion) {
+        bench_create_dense_tree(criterion);
+        bench_create_dense_mmap_tree(criterion);
+        bench_restore_dense_mmap_tree(criterion);
+        bench_dense_tree_reads(criterion);
+        bench_dense_mmap_tree_reads(criterion);
+        bench_dense_tree_writes(criterion);
+        bench_dense_mmap_tree_writes(criterion);
+    }
+
+    fn bench_create_dense_tree(criterion: &mut Criterion) {
+        let tree_values = vec![
+            create_values_for_tree(4),
+            create_values_for_tree(10),
+            create_values_for_tree(14),
+        ];
+
+        let mut group = criterion.benchmark_group("bench_create_dense_tree");
+
+        for value in tree_values.iter() {
+            group.bench_with_input(BenchmarkId::from_parameter(format!("create_dense_tree_depth_{}", value.depth)), value, |bencher: &mut criterion::Bencher, value| {
+                bencher.iter(|| {
+                    let _tree = LazyMerkleTree::<PoseidonHash, Canonical>::new_with_dense_prefix_with_initial_values(value.depth, value.prefix_depth, &value.empty_value, &value.initial_values);
+                    let _root = _tree.root();
+                });
+            });
+        }
+        group.finish();
+    }
+
+    fn bench_create_dense_mmap_tree(criterion: &mut Criterion) {
+        let tree_values = vec![
+            create_values_for_tree(4),
+            create_values_for_tree(10),
+            create_values_for_tree(14),
+        ];
+
+        let mut group = criterion.benchmark_group("bench_create_dense_mmap_tree");
+
+        for value in tree_values.iter() {
+            group.bench_with_input(BenchmarkId::from_parameter(format!("create_dense_mmap_tree_depth_{}", value.depth)), value, |bencher: &mut criterion::Bencher, value| {
+                bencher.iter(|| {
+                    let _tree = LazyMerkleTree::<PoseidonHash, Canonical>::new_mmapped_with_dense_prefix_with_init_values(value.depth, value.prefix_depth, &value.empty_value, &value.initial_values, "./testfile").unwrap();
+                    let _root = _tree.root();
+                });
+            });
+        }
+        group.finish();
+        // remove created mmap file
+        std::fs::remove_file("./testfile").unwrap();
+    }
+
+    fn bench_restore_dense_mmap_tree(criterion: &mut Criterion) {
+        let tree_values = vec![
+            create_values_for_tree(4),
+            create_values_for_tree(10),
+            create_values_for_tree(14),
+        ];
+
+        // create 3 trees with different sizes, that are immediately dropped, but mmap
+        // file should be saved
+        (0..3).zip(&tree_values).for_each(|(id, value)| {
+            let _tree = LazyMerkleTree::<PoseidonHash, Canonical>::new_mmapped_with_dense_prefix_with_init_values(value.depth, value.prefix_depth, &value.empty_value, &value.initial_values, &format!("./testfile{}", id)).unwrap();
+            let _root = _tree.root();
+        });
+
+        let mut group = criterion.benchmark_group("bench_restore_dense_mmap_tree");
+
+        (0..3).zip(tree_values).for_each(|(id, value)| {
+            group.bench_with_input(
+                BenchmarkId::from_parameter(format!(
+                    "restore_dense_mmap_tree_depth_{}",
+                    value.depth
+                )),
+                &(id, value),
+                |bencher: &mut criterion::Bencher, (id, value)| {
+                    bencher.iter(|| {
+                        let _tree =
+                            LazyMerkleTree::<PoseidonHash, Canonical>::attempt_dense_mmap_restore(
+                                value.depth,
+                                value.depth,
+                                &value.empty_value,
+                                &format!("./testfile{}", id),
+                            )
+                            .unwrap();
+                        let _root = _tree.root();
+                    });
+                },
+            );
+        });
+        group.finish();
+        // remove created mmap files
+        std::fs::remove_file("./testfile0").unwrap();
+        std::fs::remove_file("./testfile1").unwrap();
+        std::fs::remove_file("./testfile2").unwrap();
+    }
+
+    #[allow(unused)]
+    fn bench_dense_tree_reads(criterion: &mut Criterion) {
+        let tree_value = create_values_for_tree(14);
+
+        let tree = LazyMerkleTree::<PoseidonHash>::new_with_dense_prefix_with_initial_values(
+            tree_value.depth,
+            tree_value.prefix_depth,
+            &tree_value.empty_value,
+            &tree_value.initial_values,
+        );
+
+        criterion.bench_function("dense tree reads", |b| {
+            b.iter(|| {
+                // read all leaves, and compare to ones in tree value
+                ((1 << (tree_value.depth - 1))..(1 << tree_value.depth)).for_each(|index| {
+                    let _proof = tree.proof(index);
+                })
+            })
+        });
+    }
+
+    #[allow(unused)]
+    fn bench_dense_mmap_tree_reads(criterion: &mut Criterion) {
+        let tree_value = create_values_for_tree(14);
+
+        let tree = LazyMerkleTree::<PoseidonHash>::new_mmapped_with_dense_prefix_with_init_values(
+            tree_value.depth,
+            tree_value.prefix_depth,
+            &tree_value.empty_value,
+            &tree_value.initial_values,
+            "./testfile",
+        )
+        .unwrap();
+
+        criterion.bench_function("dense mmap tree reads", |b| {
+            b.iter(|| {
+                // read all leaves, and compare to ones in tree value
+                ((1 << (tree.depth() - 1))..(1 << tree.depth())).for_each(|index| {
+                    let _proof = tree.proof(index);
+                })
+            })
+        });
+        // remove mmap file
+        std::fs::remove_file("./testfile");
+    }
+
+    #[allow(unused)]
+    fn bench_dense_tree_writes(criterion: &mut Criterion) {
+        let tree_value = create_values_for_tree(14);
+
+        let mut tree = LazyMerkleTree::<PoseidonHash>::new_with_dense_prefix_with_initial_values(
+            tree_value.depth,
+            tree_value.prefix_depth,
+            &tree_value.empty_value,
+            &tree_value.initial_values,
+        );
+
+        let value = Field::from(123_456);
+
+        criterion.bench_function("dense tree writes", |b| {
+            let tree = tree.tree.clone();
+            b.iter(|| {
+                let _new_tree = tree.update_with_mutation_condition(9000, &value, true);
+            });
+        });
+    }
+
+    #[allow(unused)]
+    fn bench_dense_mmap_tree_writes(criterion: &mut Criterion) {
+        let tree_value = create_values_for_tree(14);
+
+        let mut tree =
+            LazyMerkleTree::<PoseidonHash>::new_mmapped_with_dense_prefix_with_init_values(
+                tree_value.depth,
+                tree_value.prefix_depth,
+                &tree_value.empty_value,
+                &tree_value.initial_values,
+                "./testfile",
+            )
+            .unwrap();
+
+        let value = Field::from(123_456);
+
+        criterion.bench_function("dense mmap tree writes", |b| {
+            let tree = tree.tree.clone();
+            b.iter(|| {
+                let _new_tree = tree.update_with_mutation_condition(9000, &value, true);
+            });
+        });
+        // remove mmap file
+        std::fs::remove_file("./testfile");
+    }
+
+    fn create_values_for_tree(depth: usize) -> TreeValues<PoseidonHash> {
+        let prefix_depth = depth;
+        let empty_value = Field::from(0);
+
+        let initial_values: Vec<ruint::Uint<256, 4>> =
+            (0..(1 << depth)).map(|value| Field::from(value)).collect();
+
+        TreeValues {
+            depth,
+            prefix_depth,
+            empty_value,
+            initial_values,
+        }
     }
 }
