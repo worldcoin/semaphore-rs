@@ -47,7 +47,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --features mimc,depth_16,depth_20,depth_30
+          args: --features depth_16,depth_20,depth_30
   # vet:
   #   name: Vet Dependencies
   #   runs-on: ubuntu-latest
