@@ -1,5 +1,6 @@
 use crate::{field::MODULUS, poseidon, Field};
 use sha2::{Digest, Sha256};
+use zeroize::Zeroize;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Identity {
@@ -38,12 +39,16 @@ impl Identity {
     }
 
     #[must_use]
-    pub fn from_secret(secret: &[u8], trapdoor_seed: Option<&[u8]>) -> Self {
-        let secret_hex = seed_hex(secret);
-        Self {
+    pub fn from_secret(secret: &mut [u8], trapdoor_seed: Option<&[u8]>) -> Self {
+        let mut secret_hex = seed_hex(secret);
+        secret.zeroize();
+
+        let identity = Self {
             trapdoor:  derive_field(&secret_hex, trapdoor_seed.unwrap_or(b"identity_trapdoor")),
             nullifier: derive_field(&secret_hex, b"identity_nullifier"),
-        }
+        };
+        secret_hex.zeroize();
+        identity
     }
 
     #[must_use]

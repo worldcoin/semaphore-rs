@@ -49,7 +49,12 @@ mod test {
         assert_eq!(value, deserialized);
     }
 
-    fn test_end_to_end(identity: &[u8], external_nullifier: &[u8], signal: &[u8], depth: usize) {
+    fn test_end_to_end(
+        identity: &mut [u8],
+        external_nullifier: &[u8],
+        signal: &[u8],
+        depth: usize,
+    ) {
         // const LEAF: Hash = Hash::from_bytes_be(hex!(
         //     "0000000000000000000000000000000000000000000000000000000000000000"
         // ));
@@ -88,7 +93,8 @@ mod test {
     #[test_all_depths]
     fn test_single(depth: usize) {
         // Note that rust will still run tests in parallel
-        test_end_to_end(b"hello", b"appId", b"xxx", depth);
+        let mut hello = *b"hello";
+        test_end_to_end(&mut hello, b"appId", b"xxx", depth);
     }
 
     #[test_all_depths]
@@ -96,8 +102,10 @@ mod test {
         // Note that this does not guarantee a concurrency issue will be detected.
         // For that we need much more sophisticated static analysis tooling like
         // loom. See <https://github.com/tokio-rs/loom>
-        let a = spawn(move || test_end_to_end(b"hello", b"appId", b"xxx", depth));
-        let b = spawn(move || test_end_to_end(b"secret", b"test", b"signal", depth));
+        let mut a_id = *b"hello";
+        let mut b_id = *b"secret";
+        let a = spawn(move || test_end_to_end(&mut a_id, b"appId", b"xxx", depth));
+        let b = spawn(move || test_end_to_end(&mut b_id, b"test", b"signal", depth));
         a.join().unwrap();
         b.join().unwrap();
     }
@@ -123,7 +131,8 @@ pub mod bench {
         let leaf = Field::from(0);
 
         // Create tree
-        let id = Identity::from_secret(b"hello", None);
+        let mut hello = *b"hello";
+        let id = Identity::from_secret(&mut hello, None);
         let mut tree = LazyPoseidonTree::new(depth, leaf).derived();
         tree = tree.update(0, &id.commitment());
         let merkle_proof = tree.proof(0);

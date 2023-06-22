@@ -29,6 +29,30 @@ audit-as-crates-io = true
 audit-as-crates-io = false
 
 [[exemptions.arrayvec]]
+version = "0.7.3"
+criteria = "safe-to-deploy"
+
+[[exemptions.form_urlencoded]]
+version = "1.2.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.log]]
+version = "0.4.19"
+criteria = "safe-to-deploy"
+
+[[exemptions.percent-encoding]]
+version = "2.3.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.proc-macro2]]
+version = "1.0.60"
+criteria = "safe-to-deploy"
+
+[[exemptions.url]]
+version = "2.4.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.want]]
 version = "0.7.4"
 criteria = "safe-to-deploy"
 
@@ -172,10 +196,6 @@ criteria = "safe-to-deploy"
 version = "0.7.6"
 criteria = "safe-to-deploy"
 
-[[exemptions.aho-corasick]]
-version = "1.0.2"
-criteria = "safe-to-deploy"
-
 [[exemptions.android-tzdata]]
 version = "0.1.1"
 criteria = "safe-to-deploy"
@@ -282,10 +302,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.bytecheck_derive]]
 version = "0.6.11"
-criteria = "safe-to-deploy"
-
-[[exemptions.byteorder]]
-version = "1.4.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.bytes]]
@@ -396,14 +412,6 @@ criteria = "safe-to-deploy"
 version = "0.8.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.csv]]
-version = "1.2.2"
-criteria = "safe-to-deploy"
-
-[[exemptions.csv-core]]
-version = "0.1.10"
-criteria = "safe-to-deploy"
-
 [[exemptions.darling]]
 version = "0.20.1"
 criteria = "safe-to-deploy"
@@ -484,10 +492,6 @@ criteria = "safe-to-deploy"
 version = "0.8.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.form_urlencoded]]
-version = "1.2.0"
-criteria = "safe-to-deploy"
-
 [[exemptions.funty]]
 version = "2.0.0"
 criteria = "safe-to-deploy"
@@ -509,7 +513,7 @@ version = "0.14.7"
 criteria = "safe-to-deploy"
 
 [[exemptions.getrandom]]
-version = "0.2.10"
+version = "0.2.9"
 criteria = "safe-to-deploy"
 
 [[exemptions.gimli]]
@@ -652,10 +656,6 @@ criteria = "safe-to-deploy"
 version = "0.3.2"
 criteria = "safe-to-deploy"
 
-[[exemptions.memchr]]
-version = "2.5.0"
-criteria = "safe-to-deploy"
-
 [[exemptions.memmap2]]
 version = "0.5.10"
 criteria = "safe-to-deploy"
@@ -698,10 +698,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.object]]
 version = "0.28.4"
-criteria = "safe-to-deploy"
-
-[[exemptions.object]]
-version = "0.30.4"
 criteria = "safe-to-deploy"
 
 [[exemptions.once_cell]]
@@ -754,10 +750,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.paste]]
 version = "1.0.12"
-criteria = "safe-to-deploy"
-
-[[exemptions.percent-encoding]]
-version = "2.3.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.pest]]
@@ -848,22 +840,6 @@ criteria = "safe-to-deploy"
 version = "0.0.34"
 criteria = "safe-to-deploy"
 
-[[exemptions.regex]]
-version = "1.8.4"
-criteria = "safe-to-deploy"
-
-[[exemptions.regex-automata]]
-version = "0.1.10"
-criteria = "safe-to-deploy"
-
-[[exemptions.regex-syntax]]
-version = "0.6.29"
-criteria = "safe-to-deploy"
-
-[[exemptions.regex-syntax]]
-version = "0.7.2"
-criteria = "safe-to-deploy"
-
 [[exemptions.region]]
 version = "3.0.0"
 criteria = "safe-to-deploy"
@@ -936,10 +912,6 @@ criteria = "safe-to-deploy"
 version = "1.0.13"
 criteria = "safe-to-deploy"
 
-[[exemptions.same-file]]
-version = "1.0.6"
-criteria = "safe-to-deploy"
-
 [[exemptions.scale-info]]
 version = "2.7.0"
 criteria = "safe-to-deploy"
@@ -980,8 +952,16 @@ criteria = "safe-to-deploy"
 version = "0.10.2"
 criteria = "safe-to-deploy"
 
+[[exemptions.serde]]
+version = "1.0.164"
+criteria = "safe-to-deploy"
+
 [[exemptions.serde_bytes]]
 version = "0.11.9"
+criteria = "safe-to-deploy"
+
+[[exemptions.serde_derive]]
+version = "1.0.164"
 criteria = "safe-to-deploy"
 
 [[exemptions.serde_json]]
@@ -1132,10 +1112,6 @@ criteria = "safe-to-run"
 version = "1.16.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.ucd-trie]]
-version = "0.1.5"
-criteria = "safe-to-deploy"
-
 [[exemptions.uint]]
 version = "0.9.5"
 criteria = "safe-to-deploy"
@@ -1264,16 +1240,16 @@ criteria = "safe-to-deploy"
 version = "0.4.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.winapi-util]]
-version = "0.1.5"
-criteria = "safe-to-deploy"
-
 [[exemptions.winapi-x86_64-pc-windows-gnu]]
 version = "0.4.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.windows-sys]]
 version = "0.33.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.windows-targets]]
+version = "0.42.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.windows_aarch64_gnullvm]]
