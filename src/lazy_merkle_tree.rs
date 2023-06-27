@@ -9,7 +9,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use bincode::serialize;
+use bincode::{serialize, Options};
 use mmap_rs::{MmapMut, MmapOptions};
 use thiserror::Error;
 
@@ -1119,12 +1119,18 @@ impl<H: Hasher> MmapMutWrapper<H> {
         initial_value: &H::Hash,
         storage_size: usize,
     ) -> Result<Self, DenseMMapError> {
-        let empty_hash_bytes = serialize(initial_value).expect("cannot serialize initial value");
-        let initial_value_size = std::mem::size_of_val(initial_value);
+
+        let bincode_opts = bincode::DefaultOptions::new()
+            .with_fixint_encoding()
+            .reject_trailing_bytes()
+            .with_little_endian()
+            .with_no_limit();
+
+        let empty_hash_bytes = bincode_opts.serialize(initial_value).expect("cannot serialize initial value");
 
         let bytes: Vec<u8> =
-            empty_hash_bytes.repeat(storage_size * initial_value_size / empty_hash_bytes.len());
-        let file_size: u64 = storage_size as u64 * initial_value_size as u64;
+            empty_hash_bytes.repeat(storage_size);
+        let file_size: u64 = storage_size as u64 * empty_hash_bytes.len() as u64;
 
         let mut file = match OpenOptions::new()
             .read(true)
