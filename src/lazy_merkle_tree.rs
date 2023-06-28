@@ -9,7 +9,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use bincode::{serialize, Options};
+use bincode::Options;
 use mmap_rs::{MmapMut, MmapOptions};
 use thiserror::Error;
 
@@ -1144,7 +1144,7 @@ impl<H: Hasher> MmapMutWrapper<H> {
         };
 
         file.set_len(file_size).expect("cannot set file size");
-        if file.write_all(&bytes).is_err() {
+        if file.write(&bytes).is_err() {
             return Err(DenseMMapError::FileCannotWriteBytes);
         }
 
