@@ -9,7 +9,6 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use bincode::serialize;
 use mmap_rs::{MmapMut, MmapOptions};
 use thiserror::Error;
 
@@ -1119,12 +1118,24 @@ impl<H: Hasher> MmapMutWrapper<H> {
         initial_value: &H::Hash,
         storage_size: usize,
     ) -> Result<Self, DenseMMapError> {
-        let empty_hash_bytes = serialize(initial_value).expect("cannot serialize initial value");
-        let initial_value_size = std::mem::size_of_val(initial_value);
+        let size_of_val = std::mem::size_of_val(initial_value);
+        let initial_vals: Vec<H::Hash> = vec![initial_value.clone(); storage_size];
 
-        let bytes: Vec<u8> =
-            empty_hash_bytes.repeat(storage_size * initial_value_size / empty_hash_bytes.len());
-        let file_size: u64 = storage_size as u64 * initial_value_size as u64;
+        // cast Hash pointer to u8 pointer
+        let ptr = initial_vals.as_ptr().cast::<u8>();
+
+        let size_of_buffer: usize = storage_size * size_of_val;
+
+        let buf: &[u8] = unsafe {
+            // moving pointer by u8 for storage_size * size of hash would get us the full
+            // buffer
+            std::slice::from_raw_parts(ptr, size_of_buffer)
+        };
+
+        // assure that buffer is correct length
+        assert_eq!(buf.len(), size_of_buffer);
+
+        let file_size: u64 = storage_size as u64 * size_of_val as u64;
 
         let mut file = match OpenOptions::new()
             .read(true)
@@ -1138,7 +1149,7 @@ impl<H: Hasher> MmapMutWrapper<H> {
         };
 
         file.set_len(file_size).expect("cannot set file size");
-        if file.write_all(&bytes).is_err() {
+        if file.write_all(&buf).is_err() {
             return Err(DenseMMapError::FileCannotWriteBytes);
         }
 
