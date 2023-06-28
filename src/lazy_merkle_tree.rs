@@ -1118,7 +1118,6 @@ impl<H: Hasher> MmapMutWrapper<H> {
         initial_value: &H::Hash,
         storage_size: usize,
     ) -> Result<Self, DenseMMapError> {
-
         let size_of_val = std::mem::size_of_val(initial_value);
         let initial_vals: Vec<H::Hash> = vec![initial_value.clone(); storage_size];
 
@@ -1128,7 +1127,8 @@ impl<H: Hasher> MmapMutWrapper<H> {
         let size_of_buffer: usize = storage_size * size_of_val;
 
         let buf: &[u8] = unsafe {
-            // moving pointer by u8 for storage_size * size of hash would get us the full buffer
+            // moving pointer by u8 for storage_size * size of hash would get us the full
+            // buffer
             std::slice::from_raw_parts(ptr, size_of_buffer)
         };
 
