@@ -5,6 +5,7 @@
 //! * Disk based storage backend (using mmaped files should be easy)
 
 use crate::Field;
+use bytemuck::Pod;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::Debug,
@@ -14,7 +15,7 @@ use std::{
 /// Hash types, values and algorithms for a Merkle tree
 pub trait Hasher {
     /// Type of the leaf and node hashes
-    type Hash: Clone + Eq + Serialize + Debug;
+    type Hash: Clone + Eq + Serialize + Debug + Pod;
 
     /// Compute the hash of an intermediate node
     fn hash_node(left: &Self::Hash, right: &Self::Hash) -> Self::Hash;
