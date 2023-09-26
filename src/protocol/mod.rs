@@ -21,6 +21,8 @@ use serde::{Deserialize, Serialize};
 use std::time::Instant;
 use thiserror::Error;
 
+pub mod authentication;
+
 // Matches the private G1Tup type in ark-circom.
 pub type G1 = (U256, U256);
 
