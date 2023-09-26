@@ -116,7 +116,8 @@ mod test {
             signal_hash,
             external_nullifier_hash,
             &proof,
-        ).unwrap();
+        )
+        .unwrap();
         assert!(success);
     }
 

@@ -45,8 +45,8 @@ impl From<Proof> for ArkProof<Bn<Parameters>> {
     fn from(proof: Proof) -> Self {
         let eth_proof = ark_circom::ethereum::Proof {
             a: ark_circom::ethereum::G1 {
-                x: proof.0.0,
-                y: proof.0.1,
+                x: proof.0 .0,
+                y: proof.0 .1,
             },
             #[rustfmt::skip] // Rustfmt inserts some confusing spaces
             b: ark_circom::ethereum::G2 {
@@ -55,8 +55,8 @@ impl From<Proof> for ArkProof<Bn<Parameters>> {
                 y: [proof.1.1[1], proof.1.1[0]],
             },
             c: ark_circom::ethereum::G1 {
-                x: proof.2.0,
-                y: proof.2.1,
+                x: proof.2 .0,
+                y: proof.2 .1,
             },
         };
         eth_proof.into()
@@ -250,7 +250,7 @@ mod test {
             signal_hash,
             &mut rng,
         )
-            .unwrap()
+        .unwrap()
     }
 
     #[test_all_depths]

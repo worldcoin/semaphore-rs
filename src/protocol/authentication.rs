@@ -1,7 +1,9 @@
-use crate::identity::Identity;
-use crate::poseidon_tree::LazyPoseidonTree;
-use crate::protocol::{Proof, ProofError};
-use crate::Field;
+use crate::{
+    identity::Identity,
+    poseidon_tree::LazyPoseidonTree,
+    protocol::{Proof, ProofError},
+    Field,
+};
 
 pub fn generate_proof(
     depth: usize,
