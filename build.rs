@@ -90,8 +90,7 @@ fn build_circuit(depth: usize) -> Result<()> {
 #[cfg(feature = "dylib")]
 fn build_dylib(depth: usize) -> Result<()> {
     use color_eyre::eyre::eyre;
-    use enumset::enum_set;
-    use enumset::EnumSet;
+    use enumset::{enum_set, EnumSet};
     use std::{env, str::FromStr};
     use wasmer::{Module, Store, Target, Triple};
     use wasmer_compiler_cranelift::Cranelift;
