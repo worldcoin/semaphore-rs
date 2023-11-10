@@ -30,28 +30,29 @@ fn build_circuit(depth: usize) -> Result<()> {
         create_dir_all(&base_path)?;
     }
 
-    let depth_str = depth.to_string();
+    let depth_str = &depth.to_string();
+    let extensions = ["zkey"];
 
     let depth_subfolder = base_path.join(&depth_str);
     if !Path::new(&depth_subfolder).exists() {
         create_dir(&depth_subfolder)?;
     }
 
-    let depth_subfolder = depth_subfolder.display();
-    download_and_store_binary(
-        &format!("{SEMAPHORE_DOWNLOAD_URL}/{depth_str}/semaphore.zkey"),
-        format!("{depth_subfolder}/semaphore.zkey"),
-    )?;
-    download_and_store_binary(
-        &format!("{SEMAPHORE_DOWNLOAD_URL}/{depth_str}/semaphore.wasm"),
-        format!("{depth_subfolder}/semaphore.wasm"),
-    )?;
+    for extension in extensions {
+        let filename = "semaphore";
+        let download_url = format!("{SEMAPHORE_DOWNLOAD_URL}/{depth_str}/{filename}.{extension}");
+        let path = Path::new(&depth_subfolder).join(format!("{filename}.{extension}"));
+        download_and_store_binary(&download_url, &path)?;
+    }
 
-    let zkey_file = base_path.join(&depth_str).join("semaphore.zkey");
-    let wasm_file = base_path.join(&depth_str).join("semaphore.wasm");
+    // Compute absolute paths
+    let zkey_file = absolute(semaphore_file_path("semaphore.zkey", depth))?;
+    let graph_file = absolute(Path::new("graphs")
+    .join(depth.to_string())
+    .join("graph.bin"))?;
 
     assert!(zkey_file.exists());
-    assert!(wasm_file.exists());
+    assert!(graph_file.exists());
 
     // Export generated paths
     println!(
@@ -60,9 +61,9 @@ fn build_circuit(depth: usize) -> Result<()> {
         zkey_file.display()
     );
     println!(
-        "cargo:rustc-env=BUILD_RS_WASM_FILE_{}={}",
+        "cargo:rustc-env=BUILD_RS_GRAPH_FILE_{}={}",
         depth,
-        wasm_file.display()
+        graph_file.display()
     );
 
     Ok(())
