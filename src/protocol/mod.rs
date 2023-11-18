@@ -162,7 +162,6 @@ fn generate_proof_rs(
     let witness = witness::calculate_witness(inputs, graph).unwrap();
     let full_assignment = witness.into_iter().map(|x| Fr::from_repr(x.into()).unwrap()).collect::<Vec<_>>();
 
-    let now = Instant::now();
     let zkey = zkey(depth);
     let ark_proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
         &zkey.0,
@@ -174,7 +173,6 @@ fn generate_proof_rs(
         full_assignment.as_slice(),
     )?;
     let proof = ark_proof.into();
-    println!("proof generation took: {:.2?}", now.elapsed());
 
     Ok(proof)
 }
