@@ -1,12 +1,12 @@
 use crate::{
-    circuit::{witness_calculator, zkey},
+    circuit::{zkey, graph},
     identity::Identity,
     merkle_tree::{self, Branch},
     poseidon,
     poseidon_tree::PoseidonHash,
     Field,
 };
-use ark_bn254::{Bn254, Parameters};
+use ark_bn254::{Parameters, Fr};
 use ark_circom::CircomReduction;
 use ark_ec::bn::Bn;
 use ark_groth16::{
@@ -16,10 +16,13 @@ use ark_relations::r1cs::SynthesisError;
 use ark_std::UniformRand;
 use color_eyre::Result;
 use ethers_core::types::U256;
+use once_cell::sync::OnceCell;
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
-use std::time::Instant;
+use witness::{Graph, init_graph};
+use std::{time::Instant, collections::HashMap};
 use thiserror::Error;
+use ark_ff::PrimeField;
 
 pub mod authentication;
 
@@ -28,6 +31,8 @@ pub type G1 = (U256, U256);
 
 // Matches the private G2Tup type in ark-circom.
 pub type G2 = ([U256; 2], [U256; 2]);
+
+static WITNESS_GRAPH: OnceCell<Graph> = OnceCell::new();
 
 /// Wrap a proof object so we have serde support
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -144,32 +149,19 @@ fn generate_proof_rs(
     s: ark_bn254::Fr,
 ) -> Result<Proof, ProofError> {
     let depth = merkle_proof.0.len();
-    let inputs = [
-        ("identityNullifier", vec![identity.nullifier]),
-        ("identityTrapdoor", vec![identity.trapdoor]),
-        ("treePathIndices", merkle_proof.path_index()),
-        ("treeSiblings", merkle_proof_to_vec(merkle_proof)),
-        ("externalNullifier", vec![external_nullifier_hash]),
-        ("signalHash", vec![signal_hash]),
-    ];
-    let inputs = inputs.into_iter().map(|(name, values)| {
-        (
-            name.to_string(),
-            values.iter().map(Into::into).collect::<Vec<_>>(),
-        )
-    });
+    let inputs = HashMap::from([
+        ("identityNullifier".to_owned(), vec![identity.nullifier]),
+        ("identityTrapdoor".to_owned(), vec![identity.trapdoor]),
+        ("treePathIndices".to_owned(), merkle_proof.path_index()),
+        ("treeSiblings".to_owned(), merkle_proof_to_vec(merkle_proof)),
+        ("externalNullifier".to_owned(), vec![external_nullifier_hash]),
+        ("signalHash".to_owned(), vec![signal_hash]),
+    ]);
 
-    let now = Instant::now();
+    let graph = WITNESS_GRAPH.get_or_init(|| init_graph(graph(depth)).unwrap());
+    let witness = witness::calculate_witness(inputs, graph).unwrap();
+    let full_assignment = witness.into_iter().map(|x| Fr::from_repr(x.into()).unwrap()).collect::<Vec<_>>();
 
-    let full_assignment = witness_calculator(depth)
-        .lock()
-        .expect("witness_calculator mutex should not get poisoned")
-        .calculate_witness_element::<Bn254, _>(inputs, false)
-        .map_err(ProofError::WitnessError)?;
-
-    println!("witness generation took: {:.2?}", now.elapsed());
-
-    let now = Instant::now();
     let zkey = zkey(depth);
     let ark_proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
         &zkey.0,
@@ -181,7 +173,6 @@ fn generate_proof_rs(
         full_assignment.as_slice(),
     )?;
     let proof = ark_proof.into();
-    println!("proof generation took: {:.2?}", now.elapsed());
 
     Ok(proof)
 }
