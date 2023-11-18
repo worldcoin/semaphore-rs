@@ -6,9 +6,10 @@ use crate::{
     poseidon_tree::PoseidonHash,
     Field,
 };
-use ark_bn254::{Bn254, Parameters};
+use ark_bn254::{Bn254, Parameters, FrParameters};
 use ark_circom::CircomReduction;
 use ark_ec::bn::Bn;
+use ark_ff::Fp256;
 use ark_groth16::{
     create_proof_with_reduction_and_matrices, prepare_verifying_key, Proof as ArkProof,
 };
@@ -144,6 +145,30 @@ fn generate_proof_rs(
     s: ark_bn254::Fr,
 ) -> Result<Proof, ProofError> {
     let depth = merkle_proof.0.len();
+    let full_assignment = generate_witness(identity, merkle_proof, external_nullifier_hash, signal_hash)?;
+
+    let zkey = zkey(depth);
+    let ark_proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
+        &zkey.0,
+        r,
+        s,
+        &zkey.1,
+        zkey.1.num_instance_variables,
+        zkey.1.num_constraints,
+        full_assignment.as_slice(),
+    )?;
+    let proof = ark_proof.into();
+
+    Ok(proof)
+}
+
+pub fn generate_witness(
+    identity: &Identity,
+    merkle_proof: &merkle_tree::Proof<PoseidonHash>,
+    external_nullifier_hash: Field,
+    signal_hash: Field,
+) -> Result<Vec<Fp256<FrParameters>>, ProofError> {
+    let depth = merkle_proof.0.len();
     let inputs = [
         ("identityNullifier", vec![identity.nullifier]),
         ("identityTrapdoor", vec![identity.trapdoor]),
@@ -159,25 +184,11 @@ fn generate_proof_rs(
         )
     });
 
-    let full_assignment = witness_calculator(depth)
+    witness_calculator(depth)
         .lock()
         .expect("witness_calculator mutex should not get poisoned")
         .calculate_witness_element::<Bn254, _>(inputs, false)
-        .map_err(ProofError::WitnessError)?;
-
-    let zkey = zkey(depth);
-    let ark_proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
-        &zkey.0,
-        r,
-        s,
-        &zkey.1,
-        zkey.1.num_instance_variables,
-        zkey.1.num_constraints,
-        full_assignment.as_slice(),
-    )?;
-    let proof = ark_proof.into();
-
-    Ok(proof)
+        .map_err(ProofError::WitnessError)
 }
 
 /// Verifies a given semaphore proof
