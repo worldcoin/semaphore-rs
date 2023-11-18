@@ -20,7 +20,7 @@ use once_cell::sync::OnceCell;
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use witness::{Graph, init_graph};
-use std::{time::Instant, collections::HashMap};
+use std::collections::HashMap;
 use thiserror::Error;
 use ark_ff::PrimeField;
 
@@ -149,18 +149,7 @@ fn generate_proof_rs(
     s: ark_bn254::Fr,
 ) -> Result<Proof, ProofError> {
     let depth = merkle_proof.0.len();
-    let inputs = HashMap::from([
-        ("identityNullifier".to_owned(), vec![identity.nullifier]),
-        ("identityTrapdoor".to_owned(), vec![identity.trapdoor]),
-        ("treePathIndices".to_owned(), merkle_proof.path_index()),
-        ("treeSiblings".to_owned(), merkle_proof_to_vec(merkle_proof)),
-        ("externalNullifier".to_owned(), vec![external_nullifier_hash]),
-        ("signalHash".to_owned(), vec![signal_hash]),
-    ]);
-
-    let graph = WITNESS_GRAPH.get_or_init(|| init_graph(graph(depth)).unwrap());
-    let witness = witness::calculate_witness(inputs, graph).unwrap();
-    let full_assignment = witness.into_iter().map(|x| Fr::from_repr(x.into()).unwrap()).collect::<Vec<_>>();
+    let full_assignment = generate_witness(identity, merkle_proof, external_nullifier_hash, signal_hash);
 
     let zkey = zkey(depth);
     let ark_proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
@@ -175,6 +164,27 @@ fn generate_proof_rs(
     let proof = ark_proof.into();
 
     Ok(proof)
+}
+
+pub fn generate_witness(
+    identity: &Identity,
+    merkle_proof: &merkle_tree::Proof<PoseidonHash>,
+    external_nullifier_hash: Field,
+    signal_hash: Field,
+) -> Vec<Fr> {
+    let depth = merkle_proof.0.len();
+    let inputs = HashMap::from([
+        ("identityNullifier".to_owned(), vec![identity.nullifier]),
+        ("identityTrapdoor".to_owned(), vec![identity.trapdoor]),
+        ("treePathIndices".to_owned(), merkle_proof.path_index()),
+        ("treeSiblings".to_owned(), merkle_proof_to_vec(merkle_proof)),
+        ("externalNullifier".to_owned(), vec![external_nullifier_hash]),
+        ("signalHash".to_owned(), vec![signal_hash]),
+    ]);
+
+    let graph = WITNESS_GRAPH.get_or_init(|| init_graph(graph(depth)).unwrap());
+    let witness = witness::calculate_witness(inputs, graph).unwrap();
+    witness.into_iter().map(|x| Fr::from_repr(x.into()).unwrap()).collect::<Vec<_>>()
 }
 
 /// Verifies a given semaphore proof

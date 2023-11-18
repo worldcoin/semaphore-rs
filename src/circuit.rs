@@ -1,10 +1,10 @@
 use ark_bn254::{Bn254, Fr};
-use ark_circom::{read_zkey, WitnessCalculator};
+use ark_circom::read_zkey;
 use ark_groth16::ProvingKey;
 use ark_relations::r1cs::ConstraintMatrices;
 use core::include_bytes;
-use once_cell::sync::{Lazy, OnceCell};
-use std::{io::Cursor, sync::Mutex};
+use once_cell::sync::Lazy;
+use std::io::Cursor;
 
 use semaphore_depth_config::{get_depth_index, get_supported_depth_count};
 use semaphore_depth_macros::array_for_depths;
