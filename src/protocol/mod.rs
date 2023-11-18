@@ -159,17 +159,12 @@ fn generate_proof_rs(
         )
     });
 
-    let now = Instant::now();
-
     let full_assignment = witness_calculator(depth)
         .lock()
         .expect("witness_calculator mutex should not get poisoned")
         .calculate_witness_element::<Bn254, _>(inputs, false)
         .map_err(ProofError::WitnessError)?;
 
-    println!("witness generation took: {:.2?}", now.elapsed());
-
-    let now = Instant::now();
     let zkey = zkey(depth);
     let ark_proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
         &zkey.0,
@@ -181,7 +176,6 @@ fn generate_proof_rs(
         full_assignment.as_slice(),
     )?;
     let proof = ark_proof.into();
-    println!("proof generation took: {:.2?}", now.elapsed());
 
     Ok(proof)
 }
