@@ -17,8 +17,10 @@ use ark_relations::r1cs::SynthesisError;
 use ark_std::UniformRand;
 use color_eyre::Result;
 use ethers_core::types::U256;
+use once_cell::sync::OnceCell;
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
+use witness::{Graph, init_graph};
 use std::{time::Instant, collections::HashMap};
 use thiserror::Error;
 use ark_ff::PrimeField;
@@ -30,6 +32,8 @@ pub type G1 = (U256, U256);
 
 // Matches the private G2Tup type in ark-circom.
 pub type G2 = ([U256; 2], [U256; 2]);
+
+static WITNESS_GRAPH: OnceCell<Graph> = OnceCell::new();
 
 /// Wrap a proof object so we have serde support
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -155,12 +159,9 @@ fn generate_proof_rs(
         ("signalHash".to_owned(), vec![signal_hash]),
     ]);
 
-    let now = Instant::now();
-
-    let witness = witness::calculate_witness(inputs, graph(depth)).unwrap();
+    let graph = WITNESS_GRAPH.get_or_init(|| init_graph(graph(depth)).unwrap());
+    let witness = witness::calculate_witness(inputs, graph).unwrap();
     let full_assignment = witness.into_iter().map(|x| Fr::from_repr(x.into()).unwrap()).collect::<Vec<_>>();
-
-    println!("witness generation took: {:.2?}", now.elapsed());
 
     let now = Instant::now();
     let zkey = zkey(depth);
