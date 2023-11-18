@@ -138,3 +138,63 @@ mod test {
         b.join().unwrap();
     }
 }
+
+#[cfg(feature = "bench")]
+pub mod bench {
+    use crate::{
+        hash_to_field, identity::Identity, poseidon_tree::LazyPoseidonTree,
+        protocol::{generate_proof, generate_witness}, Field,
+    };
+    use criterion::Criterion;
+    use semaphore_depth_config::get_supported_depths;
+
+    pub fn group(criterion: &mut Criterion) {
+        for depth in get_supported_depths() {
+            bench_proof(criterion, *depth);
+            bench_witness(criterion, *depth);
+        }
+        crate::lazy_merkle_tree::bench::group(criterion);
+    }
+
+    fn bench_proof(criterion: &mut Criterion, depth: usize) {
+        let leaf = Field::from(0);
+
+        // Create tree
+        let mut hello = *b"hello";
+        let id = Identity::from_secret(&mut hello, None);
+        let mut tree = LazyPoseidonTree::new(depth, leaf).derived();
+        tree = tree.update(0, &id.commitment());
+        let merkle_proof = tree.proof(0);
+
+        // change signal and external_nullifier here
+        let signal_hash = hash_to_field(b"xxx");
+        let external_nullifier_hash = hash_to_field(b"appId");
+
+        criterion.bench_function(&format!("proof_{depth}"), move |b| {
+            b.iter(|| {
+                generate_proof(&id, &merkle_proof, external_nullifier_hash, signal_hash).unwrap();
+            });
+        });
+    }
+
+    fn bench_witness(criterion: &mut Criterion, depth: usize) {
+        let leaf = Field::from(0);
+
+        // Create tree
+        let mut hello = *b"hello";
+        let id = Identity::from_secret(&mut hello, None);
+        let mut tree = LazyPoseidonTree::new(depth, leaf).derived();
+        tree = tree.update(0, &id.commitment());
+        let merkle_proof = tree.proof(0);
+
+        // change signal and external_nullifier here
+        let signal_hash = hash_to_field(b"xxx");
+        let external_nullifier_hash = hash_to_field(b"appId");
+
+        criterion.bench_function(&format!("witness_{depth}"), move |b| {
+            b.iter(|| {
+                generate_witness(&id, &merkle_proof, external_nullifier_hash, signal_hash);
+            });
+        });
+    }
+}
