@@ -8,11 +8,12 @@ use core::include_bytes;
 use once_cell::sync::Lazy;
 use std::io::Cursor;
 
+use ark_zkey;
 use semaphore_depth_config::{get_depth_index, get_supported_depth_count};
 use semaphore_depth_macros::array_for_depths;
 
 const ZKEY_BYTES: [&[u8]; get_supported_depth_count()] =
-    array_for_depths!(|depth| include_bytes!(env!(concat!("BUILD_RS_ZKEY_FILE_", depth))));
+    array_for_depths!(|depth| include_bytes!(env!(concat!("BUILD_RS_ARKZKEY_FILE_", depth))));
 
 const GRAPH_BYTES: [&[u8]; get_supported_depth_count()] =
     array_for_depths!(|depth| include_bytes!(env!(concat!("BUILD_RS_GRAPH_FILE_", depth))));
@@ -20,7 +21,7 @@ const GRAPH_BYTES: [&[u8]; get_supported_depth_count()] =
 static ZKEY: [Lazy<(ProvingKey<Bn254>, ConstraintMatrices<Fr>)>; get_supported_depth_count()] =
     array_for_depths!(|depth| Lazy::new(|| {
         let mut reader = Cursor::new(ZKEY_BYTES[get_depth_index(depth).unwrap()]);
-        read_zkey(&mut reader).expect("zkey should be valid")
+        ark_zkey::read_arkzkey(&mut reader).expect("zkey should be valid")
     }));
 
 #[must_use]

@@ -50,9 +50,8 @@ ark-groth16 = { git = "https://github.com/arkworks-rs/groth16", rev = "765817f",
     "parallel",
 ] }
 ark-relations = { version = "0.3.0", default-features = false }
-ark-std = { version = "0.3.0", default-features = false, features = [
-    "parallel",
-] }
+ark-std = { version = "0.3.0", default-features = false, features = ["parallel"] }
+ark-zkey = { path = "crates/ark-zkey" }
 color-eyre = "0.6"
 hex = "0.4.0"
 hex-literal = "0.4"
@@ -91,6 +90,7 @@ tiny-keccak = "2.0.2"
 tracing-test = "0.2"
 
 [build-dependencies]
+ark-zkey = { path = "crates/ark-zkey" }
 color-eyre = "0.6"
 enumset = "1.0.8"
 reqwest = { version = "0.11", features = ["blocking"] }
