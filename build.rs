@@ -34,7 +34,9 @@ fn create_arkzkey(path: PathBuf) -> Result<PathBuf> {
     let ark_zkey_path = path.join("-arkzkey");
 
     let (original_proving_key, original_constraint_matrices) =
-        ark_zkey::read_proving_key_and_matrices()?;
+        ark_zkey::read_proving_key_and_matrices_from_zkey(
+            path.to_str().expect("Failed to convert path."),
+        )?;
 
     ark_zkey::convert_zkey(
         original_proving_key,
