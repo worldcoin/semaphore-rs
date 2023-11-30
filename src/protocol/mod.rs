@@ -1,18 +1,16 @@
 use crate::{
-    circuit::{zkey, graph},
+    circuit::{graph, zkey},
     identity::Identity,
     merkle_tree::{self, Branch},
     poseidon,
     poseidon_tree::PoseidonHash,
     Field,
 };
-use ark_bn254::{Parameters, Fr};
+use ark_bn254::{Config, Fr};
 use ark_circom::CircomReduction;
 use ark_ec::bn::Bn;
-use ark_ff::Fp256;
-use ark_groth16::{
-    create_proof_with_reduction_and_matrices, prepare_verifying_key, Proof as ArkProof,
-};
+use ark_ff::PrimeField;
+use ark_groth16::{prepare_verifying_key, Groth16, Proof as ArkProof};
 use ark_relations::r1cs::SynthesisError;
 use ark_std::UniformRand;
 use color_eyre::Result;
@@ -20,10 +18,9 @@ use ethers_core::types::U256;
 use once_cell::sync::OnceCell;
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
-use witness::{Graph, init_graph};
 use std::collections::HashMap;
 use thiserror::Error;
-use ark_ff::PrimeField;
+use witness::{init_graph, Graph};
 
 pub mod authentication;
 
@@ -39,15 +36,15 @@ static WITNESS_GRAPH: OnceCell<Graph> = OnceCell::new();
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Proof(pub G1, pub G2, pub G1);
 
-impl From<ArkProof<Bn<Parameters>>> for Proof {
-    fn from(proof: ArkProof<Bn<Parameters>>) -> Self {
+impl From<ArkProof<Bn<Config>>> for Proof {
+    fn from(proof: ArkProof<Bn<Config>>) -> Self {
         let proof = ark_circom::ethereum::Proof::from(proof);
         let (a, b, c) = proof.as_tuple();
         Self(a, b, c)
     }
 }
 
-impl From<Proof> for ArkProof<Bn<Parameters>> {
+impl From<Proof> for ArkProof<Bn<Config>> {
     fn from(proof: Proof) -> Self {
         let eth_proof = ark_circom::ethereum::Proof {
             a: ark_circom::ethereum::G1 {
@@ -150,10 +147,11 @@ fn generate_proof_rs(
     s: ark_bn254::Fr,
 ) -> Result<Proof, ProofError> {
     let depth = merkle_proof.0.len();
-    let full_assignment = generate_witness(identity, merkle_proof, external_nullifier_hash, signal_hash);
+    let full_assignment =
+        generate_witness(identity, merkle_proof, external_nullifier_hash, signal_hash);
 
     let zkey = zkey(depth);
-    let ark_proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
+    let ark_proof = Groth16::<_, CircomReduction>::create_proof_with_reduction_and_matrices(
         &zkey.0,
         r,
         s,
@@ -179,13 +177,19 @@ pub fn generate_witness(
         ("identityTrapdoor".to_owned(), vec![identity.trapdoor]),
         ("treePathIndices".to_owned(), merkle_proof.path_index()),
         ("treeSiblings".to_owned(), merkle_proof_to_vec(merkle_proof)),
-        ("externalNullifier".to_owned(), vec![external_nullifier_hash]),
+        (
+            "externalNullifier".to_owned(),
+            vec![external_nullifier_hash],
+        ),
         ("signalHash".to_owned(), vec![signal_hash]),
     ]);
 
     let graph = WITNESS_GRAPH.get_or_init(|| init_graph(graph(depth)).unwrap());
     let witness = witness::calculate_witness(inputs, graph).unwrap();
-    witness.into_iter().map(|x| Fr::from_repr(x.into()).unwrap()).collect::<Vec<_>>()
+    witness
+        .into_iter()
+        .map(|x| Fr::from_bigint(x.into()).expect("Couldn't cast U256 to BigInteger"))
+        .collect::<Vec<_>>()
 }
 
 /// Verifies a given semaphore proof
@@ -211,7 +215,7 @@ pub fn verify_proof(
         .collect::<Result<Vec<_>, _>>()?;
 
     let ark_proof = (*proof).into();
-    let result = ark_groth16::verify_proof(&pvk, &ark_proof, &public_inputs[..])?;
+    let result = Groth16::<_, CircomReduction>::verify_proof(&pvk, &ark_proof, &public_inputs[..])?;
     Ok(result)
 }
 
@@ -259,7 +263,7 @@ mod test {
     #[test_all_depths]
     fn test_proof_cast_roundtrip(depth: usize) {
         let proof = arb_proof(123, depth);
-        let ark_proof: ArkProof<Bn<Parameters>> = proof.into();
+        let ark_proof: ArkProof<Bn<Config>> = proof.into();
         let result: Proof = ark_proof.into();
         assert_eq!(proof, result);
     }

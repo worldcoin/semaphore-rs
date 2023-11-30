@@ -17,7 +17,9 @@ pub mod poseidon_tree;
 pub mod protocol;
 pub mod util;
 
-use ark_bn254::Parameters;
+pub mod lazy_merkle_tree;
+
+use ark_bn254::Config;
 use ark_ec::bn::Bn;
 
 // Export types
@@ -25,7 +27,10 @@ pub use crate::field::{hash_to_field, Field};
 
 pub use semaphore_depth_config::get_supported_depths;
 
-pub type Groth16Proof = ark_groth16::Proof<Bn<Parameters>>;
+#[cfg(feature = "dylib")]
+pub use circuit::initialize;
+
+pub type Groth16Proof = ark_groth16::Proof<Bn<Config>>;
 pub type EthereumGroth16Proof = ark_circom::ethereum::Proof;
 
 #[allow(dead_code)]

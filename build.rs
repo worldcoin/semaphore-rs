@@ -31,7 +31,8 @@ fn semaphore_file_path(file_name: &str, depth: usize) -> PathBuf {
 }
 
 fn create_arkzkey(path: PathBuf) -> Result<PathBuf> {
-    let ark_zkey_path = path.join("-arkzkey");
+    let mut ark_zkey_path = path.clone();
+    ark_zkey_path.set_extension("arkzkey");
 
     let (original_proving_key, original_constraint_matrices) =
         ark_zkey::read_proving_key_and_matrices_from_zkey(
@@ -41,7 +42,7 @@ fn create_arkzkey(path: PathBuf) -> Result<PathBuf> {
     ark_zkey::convert_zkey(
         original_proving_key,
         original_constraint_matrices,
-        &ark_zkey_path.to_str().unwrap(),
+        ark_zkey_path.to_str().unwrap(),
     )?;
 
     Ok(ark_zkey_path)
@@ -73,7 +74,7 @@ fn build_circuit(depth: usize) -> Result<()> {
 
     // Compute absolute paths
     let zkey_file = absolute(semaphore_file_path("semaphore.zkey", depth))?;
-    let arkzkey_file = absolute(semaphore_file_path("semaphore.zkey-arkzkey", depth))?;
+    let arkzkey_file = absolute(semaphore_file_path("semaphore.arkzkey", depth))?;
     let graph_file = absolute(
         Path::new("graphs")
             .join(depth.to_string())
