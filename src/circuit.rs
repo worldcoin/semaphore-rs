@@ -18,8 +18,8 @@ const GRAPH_BYTES: [&[u8]; get_supported_depth_count()] =
 
 static ZKEY: [Lazy<(ProvingKey<Bn254>, ConstraintMatrices<Fr>)>; get_supported_depth_count()] =
     array_for_depths!(|depth| Lazy::new(|| {
-        let mut reader = Cursor::new(ZKEY_BYTES[get_depth_index(depth).unwrap()]);
-        ark_zkey::read_arkzkey(&mut reader).expect("zkey should be valid")
+        ark_zkey::read_arkzkey_from_bytes(ZKEY_BYTES[get_depth_index(depth).unwrap()])
+            .expect("zkey should be valid")
     }));
 
 #[must_use]

@@ -61,7 +61,7 @@ pub fn deserialize_proving_key(data: Vec<u8>) -> SerializableProvingKey {
 }
 
 // takes bytes from .zkey files
-const ZKEY_DATA: &[u8] = &[0u8];
+const ZKEY_DATA: &[u8] = &[];
 
 pub fn read_proving_key_and_matrices(
 ) -> Result<(SerializableProvingKey, SerializableConstraintMatrices<Fr>)> {
@@ -220,110 +220,99 @@ pub fn convert_zkey(
     Ok(())
 }
 
-// fn read_zkey_with_mmap(zkey_path: &str) -> Result<(ProvingKey<Bn254>, ConstraintMatrices<Fr>)> {
-//     let file = File::open(zkey_path)?;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use std::time::Instant;
 
-//     let mmap = unsafe { Mmap::map(&file)? };
+//     fn circuit_naive_read() -> Result<()> {
+//         println!("Reading zkey...");
+//         let now = Instant::now();
 
-//     let cursor = Cursor::new(&mmap);
-//     let (proving_key, matrices) = read_zkey(&mut cursor.clone())?;
+//         let mut cursor = Cursor::new(ZKEY_DATA);
 
-//     Ok((proving_key, matrices))
+//         let (_proving_key, _matrices) =
+//             read_zkey(&mut cursor).wrap_err("Failed to process zkey data")?;
+//         println!("Time to read zkey data: {:?}", now.elapsed());
+
+//         Ok(())
+//     }
+
+//     fn test_circuit_serialization_deserialization(dir: &str, circuit: &str) -> Result<()> {
+//         let _zkey_path = format!("{}/target/{}_final.zkey", dir, circuit);
+//         let arkzkey_path = format!("{}/target/{}_final.arkzkey", dir, circuit);
+
+//         let (original_proving_key, original_constraint_matrices) = read_proving_key_and_matrices()?;
+
+//         println!("[build] Writing arkzkey to: {}", arkzkey_path);
+//         let now = Instant::now();
+//         convert_zkey(
+//             original_proving_key.clone(),
+//             original_constraint_matrices.clone(),
+//             &arkzkey_path,
+//         )?;
+//         println!("[build] Time to write arkzkey: {:?}", now.elapsed());
+
+//         println!("Reading arkzkey from: {}", arkzkey_path);
+//         let now = Instant::now();
+//         let (deserialized_proving_key, deserialized_constraint_matrices) =
+//             read_arkzkey(&arkzkey_path)?;
+//         println!("Time to read arkzkey: {:?}", now.elapsed());
+
+//         assert_eq!(
+//             original_proving_key, deserialized_proving_key,
+//             "Original and deserialized proving keys do not match"
+//         );
+
+//         assert_eq!(
+//             original_constraint_matrices, deserialized_constraint_matrices,
+//             "Original and deserialized constraint matrices do not match"
+//         );
+
+//         //flame::dump_html(&mut std::fs::File::create("flame-graph.html").unwrap()).unwrap();
+
+//         Ok(())
+//     }
+
+//     #[test]
+//     fn test_multiplier2_serialization_deserialization() -> Result<()> {
+//         test_circuit_serialization_deserialization(
+//             "../mopro-core/examples/circom/multiplier2",
+//             "multiplier2",
+//         )
+//     }
+
+//     #[test]
+//     fn test_keccak256_serialization_deserialization() -> Result<()> {
+//         test_circuit_serialization_deserialization(
+//             "../mopro-core/examples/circom/keccak256",
+//             "keccak256_256_test",
+//         )
+//     }
+
+//     #[test]
+//     fn test_rsa_serialization_deserialization() -> Result<()> {
+//         test_circuit_serialization_deserialization("../mopro-core/examples/circom/rsa", "main")
+//     }
+
+//     // XXX: We do include_bytes for zkey data, so need to manually change this
+//     #[test]
+//     fn test_circuit_naive_read() -> Result<()> {
+//         circuit_naive_read()
+//     }
+
+//     // #[test]
+//     // fn test_read_arkzkey_from_bytes() -> Result<()> {
+//     //     const ARKZKEY_BYTES: &[u8] = include_bytes!(
+//     //         "../../mopro-core/examples/circom/keccak256/target/keccak256_256_test_final.arkzkey"
+//     //     );
+
+//     //     println!("Reading arkzkey from bytes (keccak)");
+//     //     let now = Instant::now();
+//     //     let (_deserialized_proving_key, _deserialized_constraint_matrices) =
+//     //         read_arkzkey_from_bytes(ARKZKEY_BYTES)?;
+//     //     println!("Time to read arkzkey: {:?}", now.elapsed());
+
+//     //     Ok(())
+//     // }
 // }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::time::Instant;
-
-    fn circuit_naive_read() -> Result<()> {
-        println!("Reading zkey...");
-        let now = Instant::now();
-
-        let mut cursor = Cursor::new(ZKEY_DATA);
-
-        let (_proving_key, _matrices) =
-            read_zkey(&mut cursor).wrap_err("Failed to process zkey data")?;
-        println!("Time to read zkey data: {:?}", now.elapsed());
-
-        Ok(())
-    }
-
-    fn test_circuit_serialization_deserialization(dir: &str, circuit: &str) -> Result<()> {
-        let _zkey_path = format!("{}/target/{}_final.zkey", dir, circuit);
-        let arkzkey_path = format!("{}/target/{}_final.arkzkey", dir, circuit);
-
-        let (original_proving_key, original_constraint_matrices) = read_proving_key_and_matrices()?;
-
-        println!("[build] Writing arkzkey to: {}", arkzkey_path);
-        let now = Instant::now();
-        convert_zkey(
-            original_proving_key.clone(),
-            original_constraint_matrices.clone(),
-            &arkzkey_path,
-        )?;
-        println!("[build] Time to write arkzkey: {:?}", now.elapsed());
-
-        println!("Reading arkzkey from: {}", arkzkey_path);
-        let now = Instant::now();
-        let (deserialized_proving_key, deserialized_constraint_matrices) =
-            read_arkzkey(&arkzkey_path)?;
-        println!("Time to read arkzkey: {:?}", now.elapsed());
-
-        assert_eq!(
-            original_proving_key, deserialized_proving_key,
-            "Original and deserialized proving keys do not match"
-        );
-
-        assert_eq!(
-            original_constraint_matrices, deserialized_constraint_matrices,
-            "Original and deserialized constraint matrices do not match"
-        );
-
-        //flame::dump_html(&mut std::fs::File::create("flame-graph.html").unwrap()).unwrap();
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_multiplier2_serialization_deserialization() -> Result<()> {
-        test_circuit_serialization_deserialization(
-            "../mopro-core/examples/circom/multiplier2",
-            "multiplier2",
-        )
-    }
-
-    #[test]
-    fn test_keccak256_serialization_deserialization() -> Result<()> {
-        test_circuit_serialization_deserialization(
-            "../mopro-core/examples/circom/keccak256",
-            "keccak256_256_test",
-        )
-    }
-
-    #[test]
-    fn test_rsa_serialization_deserialization() -> Result<()> {
-        test_circuit_serialization_deserialization("../mopro-core/examples/circom/rsa", "main")
-    }
-
-    // XXX: We do include_bytes for zkey data, so need to manually change this
-    #[test]
-    fn test_circuit_naive_read() -> Result<()> {
-        circuit_naive_read()
-    }
-
-    // #[test]
-    // fn test_read_arkzkey_from_bytes() -> Result<()> {
-    //     const ARKZKEY_BYTES: &[u8] = include_bytes!(
-    //         "../../mopro-core/examples/circom/keccak256/target/keccak256_256_test_final.arkzkey"
-    //     );
-
-    //     println!("Reading arkzkey from bytes (keccak)");
-    //     let now = Instant::now();
-    //     let (_deserialized_proving_key, _deserialized_constraint_matrices) =
-    //         read_arkzkey_from_bytes(ARKZKEY_BYTES)?;
-    //     println!("Time to read arkzkey: {:?}", now.elapsed());
-
-    //     Ok(())
-    // }
-}

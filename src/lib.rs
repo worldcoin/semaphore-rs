@@ -15,7 +15,7 @@ pub mod util;
 
 pub mod lazy_merkle_tree;
 
-use ark_bn254::Parameters;
+use ark_bn254::Config;
 use ark_ec::bn::Bn;
 
 // Export types
@@ -26,7 +26,7 @@ pub use semaphore_depth_config::get_supported_depths;
 #[cfg(feature = "dylib")]
 pub use circuit::initialize;
 
-pub type Groth16Proof = ark_groth16::Proof<Bn<Parameters>>;
+pub type Groth16Proof = ark_groth16::Proof<Bn<Config>>;
 pub type EthereumGroth16Proof = ark_circom::ethereum::Proof;
 
 #[cfg(test)]
