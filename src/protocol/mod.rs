@@ -13,12 +13,14 @@ use ark_ff::PrimeField;
 use ark_groth16::{prepare_verifying_key, Groth16, Proof as ArkProof};
 use ark_relations::r1cs::SynthesisError;
 use ark_std::UniformRand;
-use color_eyre::{eyre, Result};
+use color_eyre::Result;
 use ethers_core::types::U256;
-use once_cell::sync::OnceCell;
+use once_cell::sync::Lazy;
 use rand::{thread_rng, Rng};
+use semaphore_depth_config::{get_depth_index, get_supported_depth_count};
+use semaphore_depth_macros::array_for_depths;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Mutex};
+use std::collections::HashMap;
 use thiserror::Error;
 use witness::{init_graph, Graph};
 
@@ -30,34 +32,9 @@ pub type G1 = (U256, U256);
 // Matches the private G2Tup type in ark-circom.
 pub type G2 = ([U256; 2], [U256; 2]);
 
-static WITNESS_GRAPH: OnceCell<Mutex<WitnessGraphs>> = OnceCell::new();
-
-pub struct WitnessGraphs {
-    graphs: Vec<(usize, Graph)>,
-}
-
-impl WitnessGraphs {
-    pub(crate) fn new() -> WitnessGraphs {
-        Self { graphs: Vec::new() }
-    }
-
-    pub(crate) fn get_or_init<F>(&mut self, depth: usize, initializer: F) -> &Graph
-    where
-        F: FnOnce() -> eyre::Result<Graph>,
-    {
-        let position = self.graphs.iter().position(|(d, _)| *d == depth);
-
-        let (_, graph) = match position {
-            Some(index) => &mut self.graphs[index],
-            None => {
-                self.graphs.push((depth, initializer().unwrap()));
-                self.graphs.last_mut().unwrap()
-            }
-        };
-
-        graph
-    }
-}
+static WITHESS_GRAPH: [Lazy<Graph>; get_supported_depth_count()] = array_for_depths!(|depth| {
+    Lazy::new(|| init_graph(graph(depth)).expect("Failed to initialize Graph"))
+});
 
 /// Wrap a proof object so we have serde support
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -211,12 +188,9 @@ pub fn generate_witness(
         ("signalHash".to_owned(), vec![signal_hash]),
     ]);
 
-    let mut graph_lock = WITNESS_GRAPH
-        .get_or_init(|| Mutex::new(WitnessGraphs::new()))
-        .lock()
-        .expect("couldn't get a lock for mutex");
+    let graph = &WITHESS_GRAPH
+        [get_depth_index(depth).unwrap_or_else(|| panic!("Depth {depth} not supported"))];
 
-    let graph = graph_lock.get_or_init(depth, || init_graph(graph(depth)));
     let witness = witness::calculate_witness(inputs, graph).unwrap();
     witness
         .into_iter()
