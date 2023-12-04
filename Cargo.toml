@@ -39,8 +39,7 @@ ark-relations = { version = "=0.4.0", default-features = false }
 ark-std = { version = "0.4.0", default-features = false, features = ["parallel"] }
 # TODO: Need to give mopro a example zkey for satisfying its tests
 # for now i just commented them out 
-# ark-zkey = { git = "https://github.com/worldcoin/mopro" }
-ark-zkey = { path = "crates/ark-zkey" }
+ark-zkey = { git = "https://github.com/worldcoin/mopro" }
 color-eyre = "0.6"
 criterion = { version = "0.3", optional = true, features = ["async_tokio"] }
 hex = "0.4.0"
@@ -77,7 +76,7 @@ tiny-keccak = "2.0.2"
 tracing-test = "0.2"
 
 [build-dependencies]
-ark-zkey = { path = "crates/ark-zkey" }
+ark-zkey = { git = "https://github.com/worldcoin/mopro" }
 color-eyre = "0.6"
 enumset = "1.0.8"
 reqwest = { version = "0.11", features = ["blocking"] }
