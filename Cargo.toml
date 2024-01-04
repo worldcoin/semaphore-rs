@@ -31,14 +31,14 @@ required-features = ["bench", "proptest"]
 
 [dependencies]
 ark-bn254 = { version = "=0.4.0" }
-ark-circom = { git = "https://github.com/gakonst/ark-circom", features = ["circom-2"] }
+ark-circom = { git = "https://github.com/arkworks-rs/circom-compat.git", rev="f97ac2b", features = ["circom-2"] }
 ark-ec = { version = "0.4.1", default-features = false, features = ["parallel"] }
 ark-ff = { version = "0.4.1", default-features = false, features = ["parallel", "asm"] }
 ark-groth16 = { version = "=0.4.0", features = ["parallel"] }
 ark-relations = { version = "=0.4.0", default-features = false }
 ark-std = { version = "0.4.0", default-features = false, features = ["parallel"] }
 # TODO: Need to give mopro a example zkey for satisfying its tests
-# for now i just commented them out 
+# for now i just commented them out
 # ark-zkey = { git = "https://github.com/worldcoin/mopro" }
 ark-zkey = { path = "crates/ark-zkey" }
 color-eyre = "0.6"
