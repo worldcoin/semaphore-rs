@@ -46,7 +46,8 @@ pub enum Branch<H: Hasher> {
 }
 
 /// Merkle proof path, bottom to top.
-#[derive(Clone, PartialEq, Eq, Serialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(bound(deserialize = "H::Hash: Deserialize<'de>",))]
 pub struct Proof<H: Hasher>(pub Vec<Branch<H>>);
 
 /// For a given node index, return the parent node index
