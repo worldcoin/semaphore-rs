@@ -32,7 +32,7 @@ required-features = ["bench", "proptest"]
 
 [dependencies]
 ark-bn254 = { version = "0.3.0" }
-ark-circom = { git = "https://github.com/gakonst/ark-circom", rev = "a93c8b0", features = ["circom-2"] }
+ark-circom = { git = "https://github.com/gakonst/ark-circom", rev = "06eb075", features = ["circom-2"] }
 ark-ec = { version = "0.3.0", default-features = false, features = ["parallel"] }
 ark-ff = { version = "0.3.0", default-features = false, features = ["parallel", "asm"] }
 ark-groth16 = { git = "https://github.com/arkworks-rs/groth16", rev = "765817f", features = ["parallel"] }
@@ -51,7 +51,7 @@ ruint = { version = "1.2.0", features = ["serde", "num-bigint", "ark-ff"] }
 semaphore-depth-config = { path = "crates/semaphore-depth-config" }
 serde = "1.0"
 sha2 = "0.10.1"
-thiserror = "1.0.0"
+thiserror = "1.0"
 tiny-keccak = { version = "2.0.2" }
 wasmer = { version = "2.0" }
 semaphore-depth-macros = { path = "crates/semaphore-depth-macros" }
