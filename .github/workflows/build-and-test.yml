@@ -2,8 +2,8 @@ name: Build and Test
 on: push
 
 env:
-  RUST_VERSION: 1.70.0
-  NIGHTLY_VERSION: nightly-2023-05-31
+  RUST_VERSION: 1.76.0
+  NIGHTLY_VERSION: nightly-2024-04-02
   CARGO_VET_VERSION: 0.7.0
   CARGO_VET_REPO: https://github.com/mozilla/cargo-vet
 
