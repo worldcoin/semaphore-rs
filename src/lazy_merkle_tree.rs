@@ -687,7 +687,6 @@ impl<H: Hasher> Clone for DenseTree<H> {
 
 impl<H: Hasher> DenseTree<H> {
     fn new_with_values(values: &[H::Hash], empty_value: &H::Hash, depth: usize) -> Self {
-        println!("depth: {depth}");
         let leaf_count = 1 << depth;
         let storage_size = 1 << (depth + 1);
         let mut storage = Vec::with_capacity(storage_size);
