@@ -10,6 +10,7 @@ use std::{
 };
 
 use mmap_rs::{MmapMut, MmapOptions};
+use rayon::prelude::*;
 use thiserror::Error;
 
 pub trait VersionMarker {}
@@ -685,18 +686,35 @@ impl<H: Hasher> Clone for DenseTree<H> {
 }
 
 impl<H: Hasher> DenseTree<H> {
-    fn new_with_values(values: &[H::Hash], empty_leaf: &H::Hash, depth: usize) -> Self {
+    fn new_with_values(values: &[H::Hash], empty_value: &H::Hash, depth: usize) -> Self {
+        println!("depth: {depth}");
         let leaf_count = 1 << depth;
-        let first_leaf_index = 1 << depth;
         let storage_size = 1 << (depth + 1);
-        assert!(values.len() <= leaf_count);
-        let mut storage = vec![empty_leaf.clone(); storage_size];
-        storage[first_leaf_index..(first_leaf_index + values.len())].clone_from_slice(values);
-        for i in (1..first_leaf_index).rev() {
-            let left = &storage[2 * i];
-            let right = &storage[2 * i + 1];
-            storage[i] = H::hash_node(left, right);
+        let mut storage = Vec::with_capacity(storage_size);
+
+        let empties = repeat(empty_value.clone()).take(leaf_count);
+        storage.extend(empties);
+        storage.extend_from_slice(values);
+        if values.len() < leaf_count {
+            let empties = repeat(empty_value.clone()).take(leaf_count - values.len());
+            storage.extend(empties);
         }
+
+        // We iterate over mutable layers of the tree
+        for current_depth in (1..=depth).rev() {
+            let (top, child_layer) = storage.split_at_mut(1 << current_depth);
+            let parent_layer = &mut top[(1 << (current_depth - 1))..];
+
+            parent_layer
+                .par_iter_mut()
+                .enumerate()
+                .for_each(|(i, value)| {
+                    let left = &child_layer[2 * i];
+                    let right = &child_layer[2 * i + 1];
+                    *value = H::hash_node(left, right);
+                });
+        }
+
         Self {
             depth,
             root_index: 1,
