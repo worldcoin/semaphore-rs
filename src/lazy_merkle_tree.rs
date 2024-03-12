@@ -915,10 +915,20 @@ impl<H: Hasher> DenseMMapTree<H> {
 
         let mut mmap = MmapMutWrapper::new_with_initial_values(path_buf, empty_leaf, storage_size)?;
         mmap[first_leaf_index..(first_leaf_index + values.len())].clone_from_slice(values);
-        for i in (1..first_leaf_index).rev() {
-            let left = &mmap[2 * i];
-            let right = &mmap[2 * i + 1];
-            mmap[i] = H::hash_node(left, right);
+
+        // We iterate over mutable layers of the tree
+        for current_depth in (1..=depth).rev() {
+            let (top, child_layer) = mmap.split_at_mut(1 << current_depth);
+            let parent_layer = &mut top[(1 << (current_depth - 1))..];
+
+            parent_layer
+                .par_iter_mut()
+                .enumerate()
+                .for_each(|(i, value)| {
+                    let left = &child_layer[2 * i];
+                    let right = &child_layer[2 * i + 1];
+                    *value = H::hash_node(left, right);
+                });
         }
 
         Ok(Self {
