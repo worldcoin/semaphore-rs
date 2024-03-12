@@ -6,7 +6,7 @@ use crate::{
     poseidon_tree::PoseidonHash,
     Field,
 };
-use ark_bn254::{Bn254, Parameters, FrParameters};
+use ark_bn254::{Bn254, FrParameters, Parameters};
 use ark_circom::CircomReduction;
 use ark_ec::bn::Bn;
 use ark_ff::Fp256;
@@ -19,7 +19,6 @@ use color_eyre::Result;
 use ethers_core::types::U256;
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
-use std::time::Instant;
 use thiserror::Error;
 
 pub mod authentication;
@@ -145,7 +144,8 @@ fn generate_proof_rs(
     s: ark_bn254::Fr,
 ) -> Result<Proof, ProofError> {
     let depth = merkle_proof.0.len();
-    let full_assignment = generate_witness(identity, merkle_proof, external_nullifier_hash, signal_hash)?;
+    let full_assignment =
+        generate_witness(identity, merkle_proof, external_nullifier_hash, signal_hash)?;
 
     let zkey = zkey(depth);
     let ark_proof = create_proof_with_reduction_and_matrices::<_, CircomReduction>(
