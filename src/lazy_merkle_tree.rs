@@ -1136,7 +1136,7 @@ impl<H: Hasher> MmapMutWrapper<H> {
         };
 
         file.set_len(file_size).expect("cannot set file size");
-        if file.write_all(&buf).is_err() {
+        if file.write_all(buf).is_err() {
             return Err(DenseMMapError::FileCannotWriteBytes);
         }
 

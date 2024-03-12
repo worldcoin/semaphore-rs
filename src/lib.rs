@@ -35,6 +35,7 @@ mod test {
         hash_to_field,
         identity::Identity,
         poseidon_tree::LazyPoseidonTree,
+        protocol,
         protocol::{generate_nullifier_hash, generate_proof, verify_proof},
         Field,
     };
@@ -90,6 +91,36 @@ mod test {
             assert!(success);
         }
     }
+
+    #[test_all_depths]
+    fn test_auth_flow(depth: usize) {
+        let mut secret = *b"oh so secret";
+        let id = Identity::from_secret(&mut secret[..], None);
+        let signal_hash = hash_to_field(b"signal");
+        let external_nullifier_hash = hash_to_field(b"appId");
+        let nullifier_hash = generate_nullifier_hash(&id, external_nullifier_hash);
+        let id_commitment = id.commitment();
+
+        let proof = protocol::authentication::generate_proof(
+            depth,
+            &id,
+            external_nullifier_hash,
+            signal_hash,
+        )
+        .unwrap();
+
+        let success = protocol::authentication::verify_proof(
+            depth,
+            id_commitment,
+            nullifier_hash,
+            signal_hash,
+            external_nullifier_hash,
+            &proof,
+        )
+        .unwrap();
+        assert!(success);
+    }
+
     #[test_all_depths]
     fn test_single(depth: usize) {
         // Note that rust will still run tests in parallel
@@ -114,8 +145,11 @@ mod test {
 #[cfg(feature = "bench")]
 pub mod bench {
     use crate::{
-        hash_to_field, identity::Identity, poseidon_tree::LazyPoseidonTree,
-        protocol::generate_proof, Field,
+        hash_to_field,
+        identity::Identity,
+        poseidon_tree::LazyPoseidonTree,
+        protocol::{generate_proof, generate_witness},
+        Field,
     };
     use criterion::Criterion;
     use semaphore_depth_config::get_supported_depths;
@@ -123,6 +157,7 @@ pub mod bench {
     pub fn group(criterion: &mut Criterion) {
         for depth in get_supported_depths() {
             bench_proof(criterion, *depth);
+            bench_witness(criterion, *depth);
         }
         crate::lazy_merkle_tree::bench::group(criterion);
     }
@@ -144,6 +179,27 @@ pub mod bench {
         criterion.bench_function(&format!("proof_{depth}"), move |b| {
             b.iter(|| {
                 generate_proof(&id, &merkle_proof, external_nullifier_hash, signal_hash).unwrap();
+            });
+        });
+    }
+
+    fn bench_witness(criterion: &mut Criterion, depth: usize) {
+        let leaf = Field::from(0);
+
+        // Create tree
+        let mut hello = *b"hello";
+        let id = Identity::from_secret(&mut hello, None);
+        let mut tree = LazyPoseidonTree::new(depth, leaf).derived();
+        tree = tree.update(0, &id.commitment());
+        let merkle_proof = tree.proof(0);
+
+        // change signal and external_nullifier here
+        let signal_hash = hash_to_field(b"xxx");
+        let external_nullifier_hash = hash_to_field(b"appId");
+
+        criterion.bench_function(&format!("witness_{depth}"), move |b| {
+            b.iter(|| {
+                generate_witness(&id, &merkle_proof, external_nullifier_hash, signal_hash).unwrap();
             });
         });
     }
