@@ -1,4 +1,7 @@
-use crate::merkle_tree::{Branch, Hasher, Proof};
+use crate::{
+    merkle_tree::{Branch, Hasher, Proof},
+    util::as_bytes,
+};
 use std::{
     fs::OpenOptions,
     io::Write,
@@ -686,7 +689,7 @@ impl<H: Hasher> Clone for DenseTree<H> {
 }
 
 impl<H: Hasher> DenseTree<H> {
-    fn new_with_values(values: &[H::Hash], empty_value: &H::Hash, depth: usize) -> Self {
+    fn vec_from_values(values: &[H::Hash], empty_value: &H::Hash, depth: usize) -> Vec<H::Hash> {
         let leaf_count = 1 << depth;
         let storage_size = 1 << (depth + 1);
         let mut storage = Vec::with_capacity(storage_size);
@@ -713,6 +716,12 @@ impl<H: Hasher> DenseTree<H> {
                     *value = H::hash_node(left, right);
                 });
         }
+
+        storage
+    }
+
+    fn new_with_values(values: &[H::Hash], empty_value: &H::Hash, depth: usize) -> Self {
+        let storage = Self::vec_from_values(values, empty_value, depth);
 
         Self {
             depth,
@@ -898,7 +907,7 @@ impl<H: Hasher> DenseMMapTree<H> {
     /// - returns Err if mmap creation fails
     fn new_with_values(
         values: &[H::Hash],
-        empty_leaf: &H::Hash,
+        empty_value: &H::Hash,
         depth: usize,
         mmap_file_path: &str,
     ) -> Result<Self, DenseMMapError> {
@@ -907,19 +916,9 @@ impl<H: Hasher> DenseMMapTree<H> {
             Err(_e) => return Err(DenseMMapError::FailedToCreatePathBuf),
         };
 
-        let leaf_count = 1 << depth;
-        let first_leaf_index = 1 << depth;
-        let storage_size = 1 << (depth + 1);
+        let storage = DenseTree::<H>::vec_from_values(values, empty_value, depth);
 
-        assert!(values.len() <= leaf_count);
-
-        let mut mmap = MmapMutWrapper::new_with_initial_values(path_buf, empty_leaf, storage_size)?;
-        mmap[first_leaf_index..(first_leaf_index + values.len())].clone_from_slice(values);
-        for i in (1..first_leaf_index).rev() {
-            let left = &mmap[2 * i];
-            let right = &mmap[2 * i + 1];
-            mmap[i] = H::hash_node(left, right);
-        }
+        let mmap = MmapMutWrapper::new_from_storage(path_buf, &storage)?;
 
         Ok(Self {
             depth,
@@ -1130,29 +1129,14 @@ impl<H: Hasher> MmapMutWrapper<H> {
     /// - file size cannot be set
     /// - file is too large, possible truncation can occur
     /// - cannot build memory map
-    pub fn new_with_initial_values(
+    pub fn new_from_storage(
         file_path: PathBuf,
-        initial_value: &H::Hash,
-        storage_size: usize,
+        storage: &[H::Hash],
     ) -> Result<Self, DenseMMapError> {
-        let size_of_val = std::mem::size_of_val(initial_value);
-        let initial_vals: Vec<H::Hash> = vec![initial_value.clone(); storage_size];
-
-        // cast Hash pointer to u8 pointer
-        let ptr = initial_vals.as_ptr().cast::<u8>();
-
-        let size_of_buffer: usize = storage_size * size_of_val;
-
-        let buf: &[u8] = unsafe {
-            // moving pointer by u8 for storage_size * size of hash would get us the full
-            // buffer
-            std::slice::from_raw_parts(ptr, size_of_buffer)
-        };
-
-        // assure that buffer is correct length
-        assert_eq!(buf.len(), size_of_buffer);
-
-        let file_size: u64 = storage_size as u64 * size_of_val as u64;
+        // Safety: potential uninitialized padding from `H::Hash` is safe to use if
+        // we're casting back to the same type.
+        let buf = unsafe { as_bytes(storage) };
+        let buf_len = buf.len();
 
         let mut file = match OpenOptions::new()
             .read(true)
@@ -1165,13 +1149,13 @@ impl<H: Hasher> MmapMutWrapper<H> {
             Err(_e) => return Err(DenseMMapError::FileCreationFailed),
         };
 
-        file.set_len(file_size).expect("cannot set file size");
+        file.set_len(buf_len as u64).expect("cannot set file size");
         if file.write_all(buf).is_err() {
             return Err(DenseMMapError::FileCannotWriteBytes);
         }
 
         let mmap = unsafe {
-            MmapOptions::new(usize::try_from(file_size).expect("file size truncated"))
+            MmapOptions::new(usize::try_from(buf_len as u64).expect("file size truncated"))
                 .expect("cannot create memory map")
                 .with_file(file, 0)
                 .map_mut()
