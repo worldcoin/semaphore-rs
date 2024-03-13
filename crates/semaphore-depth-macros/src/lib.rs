@@ -27,11 +27,13 @@ use syn::{
 ///     assert!(depth > 0);
 /// }
 ///
+/// # #[no_run]
 /// #[test]
 /// fn test_depth_non_zero_depth_16() {
 ///     test_depth_non_zero(16);
 /// }
 ///
+/// # #[no_run]
 /// #[test]
 /// fn test_depth_non_zero_depth_30() {
 ///     test_depth_non_zero(30);
