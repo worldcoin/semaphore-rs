@@ -86,7 +86,6 @@ impl<H: Hasher, Version: VersionMarker> LazyMerkleTree<H, Version> {
 
     /// Creates a new memory mapped file specified by path and creates a tree
     /// with dense prefix of the given depth with initial values
-    #[must_use]
     pub fn new_mmapped_with_dense_prefix_with_init_values(
         depth: usize,
         prefix_depth: usize,
@@ -1736,8 +1735,7 @@ pub mod bench {
         let prefix_depth = depth;
         let empty_value = Field::from(0);
 
-        let initial_values: Vec<ruint::Uint<256, 4>> =
-            (0..(1 << depth)).map(|value| Field::from(value)).collect();
+        let initial_values: Vec<ruint::Uint<256, 4>> = (0..(1 << depth)).map(Field::from).collect();
 
         TreeValues {
             depth,
