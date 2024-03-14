@@ -269,7 +269,7 @@ mod test {
     #[test_all_depths]
     fn test_proof_serialize(depth: usize) {
         let proof = arb_proof(456, depth);
-        let json = serde_json::to_value(&proof).unwrap();
+        let json = serde_json::to_value(proof).unwrap();
         let valid_values = match depth {
             16 => json!([
                 [

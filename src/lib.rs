@@ -1,5 +1,5 @@
 #![doc = include_str!("../README.md")]
-#![warn(clippy::all, clippy::pedantic, clippy::cargo, clippy::nursery)]
+#![warn(clippy::all, clippy::cargo)]
 // TODO: ark-circom and ethers-core pull in a lot of dependencies, some duplicate.
 #![allow(clippy::multiple_crate_versions)]
 

@@ -16,6 +16,18 @@ pub(crate) fn keccak256(bytes: &[u8]) -> [u8; 32] {
     output
 }
 
+/// function to convert a reference to any type to a slice of bytes
+/// # Safety
+/// This function is unsafe because it transmutes a reference to a slice of
+/// bytes. If `T` is not densly packed, then the padding bytes will be
+/// unitialized.
+pub(crate) unsafe fn as_bytes<T: ?Sized>(p: &T) -> &[u8] {
+    ::core::slice::from_raw_parts(
+        (p as *const T).cast::<u8>(),
+        ::core::mem::size_of_val::<T>(p),
+    )
+}
+
 pub(crate) fn bytes_to_hex<const N: usize, const M: usize>(bytes: &[u8; N]) -> [u8; M] {
     // TODO: Replace `M` with a const expression once it's stable.
     debug_assert_eq!(M, 2 * N + 2);
@@ -112,6 +124,26 @@ pub(crate) fn deserialize_bytes<'de, const N: usize, D: Deserializer<'de>>(
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_as_bytes() {
+        // test byte array
+        let bytes = [0, 1, 2, 3u8];
+        let converted: [u8; 4] = unsafe { as_bytes(&bytes).try_into().unwrap() };
+        assert_eq!(bytes, converted);
+
+        // test u64 array
+        let array = [1u64, 1];
+        let converted: [u8; 16] = unsafe { as_bytes(&array).try_into().unwrap() };
+        let expected = [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0];
+        assert_eq!(converted, expected);
+
+        // test u64
+        let value = 1u64;
+        let converted: [u8; 8] = unsafe { as_bytes(&value).try_into().unwrap() };
+        let expected = [1, 0, 0, 0, 0, 0, 0, 0];
+        assert_eq!(converted, expected);
+    }
 
     #[test]
     fn test_serialize_bytes_hex() {
