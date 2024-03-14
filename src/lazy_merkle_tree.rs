@@ -1134,7 +1134,7 @@ impl<H: Hasher> MmapMutWrapper<H> {
     ) -> Result<Self, DenseMMapError> {
         // Safety: potential uninitialized padding from `H::Hash` is safe to use if
         // we're casting back to the same type.
-        let buf = unsafe { as_bytes(storage) };
+        let buf = bytemuck::cast_slice(storage);
         let buf_len = buf.len();
 
         let mut file = match OpenOptions::new()
@@ -1218,17 +1218,13 @@ impl<H: Hasher> Deref for MmapMutWrapper<H> {
     type Target = [H::Hash];
 
     fn deref(&self) -> &Self::Target {
-        let bytes: &[u8] = &self.mmap;
-        let ptr = bytes.as_ptr().cast::<H::Hash>();
-        unsafe { std::slice::from_raw_parts(ptr, bytes.len() / std::mem::size_of::<H::Hash>()) }
+        bytemuck::cast_slice(self.mmap.as_slice())
     }
 }
 
 impl<H: Hasher> DerefMut for MmapMutWrapper<H> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        let bytes: &mut [u8] = self.mmap.as_mut_slice();
-        let ptr = bytes.as_mut_ptr().cast::<H::Hash>();
-        unsafe { std::slice::from_raw_parts_mut(ptr, bytes.len() / std::mem::size_of::<H::Hash>()) }
+        bytemuck::cast_slice_mut(self.mmap.as_mut_slice())
     }
 }
 
