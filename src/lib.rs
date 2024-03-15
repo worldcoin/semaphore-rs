@@ -4,16 +4,16 @@
 #![allow(clippy::multiple_crate_versions)]
 
 mod circuit;
+pub mod dynamic_merkle_tree;
 mod field;
 pub mod hash;
 pub mod identity;
+pub mod lazy_merkle_tree;
 pub mod merkle_tree;
 pub mod poseidon;
 pub mod poseidon_tree;
 pub mod protocol;
 pub mod util;
-
-pub mod lazy_merkle_tree;
 
 use ark_bn254::Parameters;
 use ark_ec::bn::Bn;
