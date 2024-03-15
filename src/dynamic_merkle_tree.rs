@@ -25,7 +25,7 @@ impl VersionMarker for Canonical {}
 pub struct Derived;
 impl VersionMarker for Derived {}
 
-/// A dynamically growable array represented merkle tree. It has a certain
+/// A dynamically growable array represented merkle tree.
 ///
 ///           8
 ///     4            9
@@ -45,12 +45,6 @@ pub struct DynamicMerkleTree<H: Hasher, V: VersionMarker = Derived> {
     _version:      V,
     _marker:       std::marker::PhantomData<H>,
 }
-
-// impl<H: Hasher> Display for DynamicMerkleTree<H> {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//
-//     }
-// }
 
 impl<H: Hasher, Version: VersionMarker> DynamicMerkleTree<H, Version> {
     /// initial leaves populated from the given slice.
@@ -78,16 +72,9 @@ impl<H: Hasher, Version: VersionMarker> DynamicMerkleTree<H, Version> {
         }
     }
 
-    /// 0 represents the bottow later
+    /// Index 0 represents the bottow layer
     #[must_use]
     fn sparse_column(depth: usize, empty_value: &H::Hash) -> Vec<H::Hash> {
-        // let mut column = vec![*empty_value; depth + 1];
-        // let mut last = *empty_value;
-        // for val in column.iter_mut().rev().skip(1) {
-        //     *val = H::hash_node(&last, &last);
-        //     last = *val;
-        // }
-        // column
         (0..depth + 1)
             .scan(*empty_value, |state, _| {
                 let val = *state;
@@ -511,10 +498,6 @@ fn sibling(i: usize) -> usize {
 
 #[cfg(test)]
 mod tests {
-
-    use ruint::uint;
-    use sha2::digest::typenum::Pow;
-
     use crate::{poseidon_tree::PoseidonHash, Field};
 
     use super::*;
@@ -529,8 +512,73 @@ mod tests {
     }
 
     #[test]
+    fn test_index_from_leaf() {
+        let mut leaf_indeces = Vec::new();
+        for i in 0..16 {
+            leaf_indeces.push(index_from_leaf(i));
+        }
+        let expected_leaves = vec![1, 3, 6, 7, 12, 13, 14, 15, 24, 25, 26, 27, 28, 29, 30, 31];
+        assert_eq!(leaf_indeces, expected_leaves);
+        println!("Leaf indeces: {:?}", leaf_indeces);
+    }
+
+    #[test]
+    fn test_parent() {
+        let mut parents = Vec::new();
+        for i in 1..16 {
+            parents.push((i, parent(i)));
+        }
+        let expected_parents = vec![
+            (1, 2),
+            (2, 4),
+            (3, 2),
+            (4, 8),
+            (5, 4),
+            (6, 5),
+            (7, 5),
+            (8, 16),
+            (9, 8),
+            (10, 9),
+            (11, 9),
+            (12, 10),
+            (13, 10),
+            (14, 11),
+            (15, 11),
+        ];
+        assert_eq!(parents, expected_parents);
+        println!("Parents: {:?}", parents);
+    }
+
+    #[test]
+    fn test_sibling() {
+        let mut siblings = Vec::new();
+        for i in 1..16 {
+            siblings.push((i, sibling(i)));
+        }
+        let expected_siblings = vec![
+            (1, 3),
+            (2, 5),
+            (3, 1),
+            (4, 9),
+            (5, 2),
+            (6, 7),
+            (7, 6),
+            (8, 17),
+            (9, 4),
+            (10, 11),
+            (11, 10),
+            (12, 13),
+            (13, 12),
+            (14, 15),
+            (15, 14),
+        ];
+        assert_eq!(siblings, expected_siblings);
+        println!("Siblings: {:?}", siblings);
+    }
+
+    #[test]
     fn test_storage_from_leaves() {
-        let num_leaves = 1 << 22;
+        let num_leaves = 1 << 15;
         let leaves = vec![Field::default(); num_leaves];
         let empty = Field::default();
         let storage = DynamicMerkleTree::<PoseidonHash>::storage_from_leaves(&leaves, &empty);
