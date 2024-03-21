@@ -1,13 +1,7 @@
 use crate::merkle_tree::{Branch, Hasher, Proof};
-use std::{
-    iter::{once, repeat, successors},
-    ops::DerefMut,
-    sync::{Arc, Mutex},
-};
+use std::iter::repeat;
 
-use mmap_rs::{MmapMut, MmapOptions};
 use rayon::prelude::*;
-use thiserror::Error;
 
 pub trait VersionMarker {}
 #[derive(Debug)]
@@ -19,7 +13,7 @@ impl VersionMarker for Derived {}
 
 /// A dynamically growable array represented merkle tree.
 ///
-/// ```ignore
+/// ```markdown
 ///           8
 ///     4            9
 ///  2     5     10     11
@@ -91,15 +85,9 @@ impl<H: Hasher, Version: VersionMarker> DynamicMerkleTree<H, Version> {
         for height in 1..(depth + 1) {
             let left_index = 1 << height;
             let storage_slice = &mut storage[left_index..(left_index << 1)];
-            println!(
-                "\n left_index: {}, right_index: {}",
-                left_index,
-                left_index << 1
-            );
             let leaf_start = left_index >> 1;
             let leaf_end = left_index.min(num_leaves);
             let leaf_slice = &leaves[leaf_start..leaf_end];
-            println!("leaf_slice: {:?}", leaf_slice);
             let root = Self::init_subtree_with_leaves(storage_slice, leaf_slice);
             let hash = H::hash_node(&last_sub_root, &root);
             storage[left_index] = hash;
@@ -117,7 +105,7 @@ impl<H: Hasher, Version: VersionMarker> DynamicMerkleTree<H, Version> {
     /// storage.len() must be a power of 2 and greater than or equal to 2
     /// storage is 1 indexed
     ///
-    /// ```ignore
+    /// ```markdown
     ///           8    (subtree)
     ///      4      [     9     ]
     ///   2     5   [  10    11 ]
@@ -155,7 +143,7 @@ impl<H: Hasher, Version: VersionMarker> DynamicMerkleTree<H, Version> {
 
     /// Assumes that storage is already initialized with empty values
     /// This is much faster than init_subtree_with_leaves
-    /// ```ignore
+    /// ```markdown
     ///           8    (subtree)
     ///      4      [     9     ]
     ///   2     5   [  10    11 ]
@@ -178,7 +166,8 @@ impl<H: Hasher, Version: VersionMarker> DynamicMerkleTree<H, Version> {
         storage[1]
     }
 
-    fn expand(&mut self) {
+    fn reallocate(&mut self) {
+        panic!();
         let current_size = self.storage.len();
         self.storage
             .extend(repeat(self.empty_value).take(current_size));
@@ -189,11 +178,32 @@ impl<H: Hasher, Version: VersionMarker> DynamicMerkleTree<H, Version> {
         match self.storage.get_mut(self.num_leaves + 1) {
             Some(val) => *val = leaf,
             None => {
-                self.expand();
+                self.reallocate();
                 self.storage[self.num_leaves + 1] = leaf;
             }
         }
         self.num_leaves += 1;
+    }
+
+    pub fn set_leaf(&mut self, leaf: usize, value: H::Hash) {
+        let index = index_from_leaf(leaf);
+        self.storage[index] = value;
+        let storage_depth = self.storage.len().ilog2() as usize;
+    }
+
+    fn propogate_up(&mut self, mut index: usize) -> Option<()> {
+        loop {
+            let sibling = self.storage.get(sibling(index)).copied()?;
+        }
+        // let storage_depth = self.storage.len().ilog2() as usize;
+        // let mut current_index = index;
+        // for _ in 0..storage_depth {
+        //     let sibling = self.storage[sibling(current_index)];
+        //     let parent_index = parent(current_index);
+        //     let parent = H::hash_node(&sibling,
+        // &self.storage[current_index]);     self.storage[parent_index]
+        // = parent;     current_index = parent_index;
+        // }
     }
 
     // pub fn extend_from_slice(&mut self, leaves: H::Hash) {
@@ -475,18 +485,6 @@ impl<H: Hasher, Version: VersionMarker> DynamicMerkleTree<H, Version> {
 //     }
 // }
 
-// fn is_leaf(i: usize) -> bool {
-//     let next_pow = i.next_power_of_two();
-//     let prev_pow = next_pow >> 1;
-//     let half = prev_pow >> 1;
-//     i >= half + prev_pow
-// }
-
-// Bottom layer of the tree is height 0
-fn index(height: usize, offset: usize) -> usize {
-    todo!()
-}
-
 // leaves are 0 indexed
 fn index_from_leaf(leaf: usize) -> usize {
     leaf + (leaf + 1).next_power_of_two()
@@ -502,21 +500,21 @@ fn parent(i: usize) -> usize {
     shifted_parent + prev_pow
 }
 
-fn sibling(i: usize) -> usize {
+fn sibling(i: usize) -> Branch<usize> {
     let next_pow = i.next_power_of_two();
     if i == next_pow {
-        return (i << 1) + 1;
+        return Branch::Left((i << 1) + 1);
     }
     let prev_pow = next_pow >> 1;
     if i - 1 == prev_pow {
-        return prev_pow >> 1;
+        return Branch::Right(prev_pow >> 1);
     }
     if i & 1 == 0 {
         // even
-        i + 1
+        Branch::Left(i + 1)
     } else {
         // odd
-        i - 1
+        Branch::Right(i - 1)
     }
 }
 
@@ -546,7 +544,6 @@ fn children(i: usize) -> Option<(usize, usize)> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{poseidon_tree::PoseidonHash, Field};
 
     use super::*;
 
@@ -680,6 +677,16 @@ mod tests {
         let empty = 0;
         let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves(10, &empty, &leaves);
         debug_tree(&tree);
-        // assert_eq!(storage, vec![0, 10, 3, 7, 1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_push() {
+        let num_leaves = 1 << 3;
+        let leaves = vec![1; num_leaves];
+        let empty = 0;
+        let mut tree = DynamicMerkleTree::<TestHasher>::new_with_leaves(10, &empty, &leaves);
+        debug_tree(&tree);
+        tree.push(3);
+        debug_tree(&tree);
     }
 }
