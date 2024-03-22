@@ -167,7 +167,6 @@ impl<H: Hasher, Version: VersionMarker> DynamicMerkleTree<H, Version> {
     }
 
     fn reallocate(&mut self) {
-        panic!();
         let current_size = self.storage.len();
         self.storage
             .extend(repeat(self.empty_value).take(current_size));
@@ -188,23 +187,22 @@ impl<H: Hasher, Version: VersionMarker> DynamicMerkleTree<H, Version> {
     pub fn set_leaf(&mut self, leaf: usize, value: H::Hash) {
         let index = index_from_leaf(leaf);
         self.storage[index] = value;
-        let storage_depth = self.storage.len().ilog2() as usize;
+        self.propogate_up(index);
     }
 
     fn propogate_up(&mut self, mut index: usize) -> Option<()> {
-        // loop {
-        //     let sibling = self.storage.get(sibling(index)).copied()?;
-        // }
-        // let storage_depth = self.storage.len().ilog2() as usize;
-        // let mut current_index = index;
-        // for _ in 0..storage_depth {
-        //     let sibling = self.storage[sibling(current_index)];
-        //     let parent_index = parent(current_index);
-        //     let parent = H::hash_node(&sibling,
-        // &self.storage[current_index]);     self.storage[parent_index]
-        // = parent;     current_index = parent_index;
-        // }
-        todo!()
+        loop {
+            let (left, right) = match sibling(index) {
+                Branch::Left(sibling) => (index, sibling),
+                Branch::Right(sibling) => (sibling, index),
+            };
+            let left_hash = self.storage.get(left)?;
+            let right_hash = self.storage[right];
+            let parent_index = parent(index);
+            let parent_hash = H::hash_node(left_hash, &right_hash);
+            self.storage[parent_index] = parent_hash;
+            index = parent_index;
+        }
     }
 
     // pub fn extend_from_slice(&mut self, leaves: H::Hash) {
