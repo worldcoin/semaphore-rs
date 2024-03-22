@@ -716,12 +716,42 @@ mod tests {
     }
 
     #[test]
-    fn test_storage_from_leaves() {
+    fn test_even_leaves() {
         let num_leaves = 1 << 3;
         let leaves = vec![1; num_leaves];
         let empty = 0;
         let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves(10, &empty, &leaves);
+        let expected = DynamicMerkleTree::<TestHasher, Canonical> {
+            depth:         10,
+            num_leaves:    8,
+            root:          8,
+            empty_value:   0,
+            sparse_column: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            storage:       vec![0, 1, 2, 1, 4, 2, 1, 1, 8, 4, 2, 2, 1, 1, 1, 1],
+            _version:      Canonical,
+            _marker:       std::marker::PhantomData,
+        };
         debug_tree(&tree);
+        assert_eq!(tree, expected);
+    }
+
+    #[test]
+    fn test_no_leaves() {
+        let leaves = vec![];
+        let empty = 0;
+        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves(10, &empty, &leaves);
+        let expected = DynamicMerkleTree::<TestHasher, Canonical> {
+            depth:         10,
+            num_leaves:    0,
+            root:          0,
+            empty_value:   0,
+            sparse_column: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            storage:       vec![0, 0],
+            _version:      Canonical,
+            _marker:       std::marker::PhantomData,
+        };
+        debug_tree(&tree);
+        assert_eq!(tree, expected);
     }
 
     #[test]
