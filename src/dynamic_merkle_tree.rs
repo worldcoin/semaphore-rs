@@ -192,9 +192,9 @@ impl<H: Hasher, Version: VersionMarker> DynamicMerkleTree<H, Version> {
     }
 
     fn propogate_up(&mut self, mut index: usize) -> Option<()> {
-        loop {
-            let sibling = self.storage.get(sibling(index)).copied()?;
-        }
+        // loop {
+        //     let sibling = self.storage.get(sibling(index)).copied()?;
+        // }
         // let storage_depth = self.storage.len().ilog2() as usize;
         // let mut current_index = index;
         // for _ in 0..storage_depth {
@@ -204,6 +204,7 @@ impl<H: Hasher, Version: VersionMarker> DynamicMerkleTree<H, Version> {
         // &self.storage[current_index]);     self.storage[parent_index]
         // = parent;     current_index = parent_index;
         // }
+        todo!()
     }
 
     // pub fn extend_from_slice(&mut self, leaves: H::Hash) {
@@ -239,7 +240,7 @@ impl<H: Hasher, Version: VersionMarker> DynamicMerkleTree<H, Version> {
 
         let mut index = index_from_leaf(leaf);
         for _ in 0..storage_depth {
-            let sibling = self.storage[sibling(index)];
+            let sibling = self.storage[sibling(index).into_inner()];
             let branch = if index & 1 == 0 {
                 // even
                 Branch::Left(sibling)
@@ -622,22 +623,23 @@ mod tests {
         for i in 1..16 {
             siblings.push((i, sibling(i)));
         }
+        use Branch::*;
         let expected_siblings = vec![
-            (1, 3),
-            (2, 5),
-            (3, 1),
-            (4, 9),
-            (5, 2),
-            (6, 7),
-            (7, 6),
-            (8, 17),
-            (9, 4),
-            (10, 11),
-            (11, 10),
-            (12, 13),
-            (13, 12),
-            (14, 15),
-            (15, 14),
+            (1, Left(3)),
+            (2, Left(5)),
+            (3, Right(1)),
+            (4, Left(9)),
+            (5, Right(2)),
+            (6, Left(7)),
+            (7, Right(6)),
+            (8, Left(17)),
+            (9, Right(4)),
+            (10, Left(11)),
+            (11, Right(10)),
+            (12, Left(13)),
+            (13, Right(12)),
+            (14, Left(15)),
+            (15, Right(14)),
         ];
         assert_eq!(siblings, expected_siblings);
         println!("Siblings: {:?}", siblings);
