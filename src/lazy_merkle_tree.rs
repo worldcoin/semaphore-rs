@@ -350,7 +350,7 @@ impl<H: Hasher> AnyTree<H> {
         Proof(path)
     }
 
-    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H>>) {
+    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H::Hash>>) {
         match self {
             Self::Empty(tree) => tree.write_proof(index, path),
             Self::Sparse(tree) => tree.write_proof(index, path),
@@ -455,7 +455,7 @@ impl<H: Hasher> EmptyTree<H> {
         }
     }
 
-    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H>>) {
+    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H::Hash>>) {
         for depth in (1..=self.depth).rev() {
             let val = self.empty_tree_values[depth - 1].clone();
             let branch = if get_turn_at_depth(index, depth) == Turn::Left {
@@ -604,7 +604,7 @@ impl<H: Hasher> SparseTree<H> {
         }
     }
 
-    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H>>) {
+    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H::Hash>>) {
         if let Some(children) = &self.children {
             let next_index = clear_turn_at_depth(index, self.depth);
             if get_turn_at_depth(index, self.depth) == Turn::Left {
@@ -743,7 +743,7 @@ impl<H: Hasher> DenseTree<H> {
         fun(r)
     }
 
-    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H>>) {
+    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H::Hash>>) {
         self.with_ref(|r| r.write_proof(index, path));
     }
 
@@ -832,7 +832,7 @@ impl<'a, H: Hasher> DenseTreeRef<'a, H> {
         }
     }
 
-    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H>>) {
+    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H::Hash>>) {
         if self.depth == 0 {
             return;
         }
@@ -970,7 +970,7 @@ impl<H: Hasher> DenseMMapTree<H> {
         fun(r)
     }
 
-    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H>>) {
+    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H::Hash>>) {
         self.with_ref(|r| r.write_proof(index, path));
     }
 
@@ -1059,7 +1059,7 @@ impl<'a, H: Hasher> DenseTreeMMapRef<'a, H> {
         }
     }
 
-    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H>>) {
+    fn write_proof(&self, index: usize, path: &mut Vec<Branch<H::Hash>>) {
         if self.depth == 0 {
             return;
         }
