@@ -1,8 +1,5 @@
-use crate::{
-    merkle_tree::{Branch, Hasher, Proof},
-    util::as_bytes,
-};
-use color_eyre::eyre::Result;
+use crate::merkle_tree::{Branch, Hasher, Proof};
+use color_eyre::eyre::{bail, Result};
 use std::{
     fs::OpenOptions,
     io::Write,
@@ -39,19 +36,24 @@ pub struct DynamicMerkleTree<H: Hasher, S: DynamicTreeStorage<H> = Vec<<H as Has
 
 impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
     #[must_use]
-    pub fn new(depth: usize, empty_value: &H::Hash) -> DynamicMerkleTree<H, S> {
-        Self::new_with_leaves(depth, empty_value, &[])
+    pub fn new(
+        config: S::StorageConfig,
+        depth: usize,
+        empty_value: &H::Hash,
+    ) -> DynamicMerkleTree<H, S> {
+        Self::new_with_leaves(config, depth, empty_value, &[])
     }
 
     /// initial leaves populated from the given slice.
     #[must_use]
     pub fn new_with_leaves(
+        config: S::StorageConfig,
         depth: usize,
         empty_value: &H::Hash,
         leaves: &[H::Hash],
     ) -> DynamicMerkleTree<H, S> {
         assert!(depth > 0);
-        let storage = Self::storage_from_leaves(empty_value, leaves);
+        let storage = Self::storage_from_leaves(config, empty_value, leaves);
         let sparse_column = Self::sparse_column(depth, empty_value);
         let num_leaves = leaves.len();
 
@@ -81,7 +83,11 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
             .collect()
     }
 
-    fn storage_from_leaves(empty_value: &H::Hash, leaves: &[H::Hash]) -> S {
+    fn storage_from_leaves(
+        config: S::StorageConfig,
+        empty_value: &H::Hash,
+        leaves: &[H::Hash],
+    ) -> S {
         let num_leaves = leaves.len();
         let base_len = num_leaves.next_power_of_two();
         let storage_size = base_len << 1;
@@ -103,7 +109,7 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
             last_sub_root = hash;
         }
 
-        S::checked_from_vec(storage).unwrap()
+        S::init(config, storage).unwrap()
     }
 
     /// Subtrees are 1 indexed and directly attached to the left most branch
@@ -157,17 +163,19 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
     //     Self::init_subtree(&self.sparse_column, &mut
     // self.storage[current_size..]); }
 
-    pub fn push(&mut self, leaf: H::Hash) {
+    pub fn push(&mut self, leaf: H::Hash) -> Result<()> {
         let index = index_from_leaf(self.num_leaves);
         match self.storage.get_mut(index) {
             Some(val) => *val = leaf,
             None => {
-                self.storage.reallocate(&self.sparse_column);
+                self.storage
+                    .reallocate(&self.empty_value, &self.sparse_column)?;
                 self.storage[index] = leaf;
             }
         }
         self.num_leaves += 1;
         self.propogate_up(index);
+        Ok(())
     }
 
     // pub fn extend_from_slice(&mut self, leaves: &[H::Hash]) {
@@ -311,11 +319,13 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
 // so that we can have type level information that the length
 // is always exactly a power of 2
 pub trait DynamicTreeStorage<H: Hasher>:
-    Deref<Target = [H::Hash]> + DerefMut<Target = [H::Hash]> + Default
+    Deref<Target = [H::Hash]> + DerefMut<Target = [H::Hash]> + Sized
 {
-    fn reallocate(&mut self, sparse_column: &[H::Hash]);
+    type StorageConfig;
 
-    fn checked_from_vec(vec: Vec<H::Hash>) -> Result<Self>;
+    fn reallocate(&mut self, empty_leaf: &H::Hash, sparse_column: &[H::Hash]) -> Result<()>;
+
+    fn init(config: Self::StorageConfig, vec: Vec<H::Hash>) -> Result<Self>;
 
     fn storage_root(&self) -> H::Hash {
         self[self.len() >> 1]
@@ -327,153 +337,199 @@ pub trait DynamicTreeStorage<H: Hasher>:
 }
 
 impl<H: Hasher> DynamicTreeStorage<H> for Vec<H::Hash> {
-    fn reallocate(&mut self, sparse_column: &[H::Hash]) {
-        let current_size = self.len();
-        self.extend(repeat(self[0]).take(current_size));
-        init_subtree::<H>(sparse_column, &mut self[current_size..]);
+    type StorageConfig = ();
+
+    fn init(_config: (), vec: Vec<H::Hash>) -> Result<Self> {
+        Ok(vec)
     }
 
-    fn checked_from_vec(vec: Vec<H::Hash>) -> Result<Self> {
-        Ok(vec)
+    fn reallocate(&mut self, empty_leaf: &H::Hash, sparse_column: &[H::Hash]) -> Result<()> {
+        let current_size = self.len();
+        self.extend(repeat(*empty_leaf).take(current_size));
+        init_subtree::<H>(sparse_column, &mut self[current_size..]);
+        Ok(())
     }
 }
 
-// pub struct DynamicMMapMerkleTree<H: Hasher>(MmapMutWrapper<H>);
-//
-// pub struct MmapMutWrapper<H: Hasher> {
-//     mmap:    MmapMut,
-//     phantom: std::marker::PhantomData<H>,
-// }
-//
-// impl<H: Hasher> MmapMutWrapper<H> {
-//     /// Creates a new memory map backed with file with provided size
-//     /// and fills the entire map with initial value
-//     ///
-//     /// # Errors
-//     ///
-//     /// - returns Err if file creation has failed
-//     /// - returns Err if bytes couldn't be written to file
-//     ///
-//     /// # Panics
-//     ///
-//     /// - empty hash value serialization failed
-//     /// - file size cannot be set
-//     /// - file is too large, possible truncation can occur
-//     /// - cannot build memory map
-//     pub fn new(
-//         file_path: PathBuf,
-//         dynamic_tree: &DynamicMerkleTree<H>,
-//     ) -> Result<Self, DenseMMapError> {
-//         // Safety: potential uninitialized padding from `H::Hash` is safe to
-// use if         // we're casting back to the same type.
-//         let buf: &[u8] = unsafe { as_bytes(&dynamic_tree) };
-//         let buf_len = buf.len();
-//
-//         let mut file = match OpenOptions::new()
-//             .read(true)
-//             .write(true)
-//             .create(true)
-//             .truncate(true)
-//             .open(file_path)
-//         {
-//             Ok(file) => file,
-//             Err(_e) => return Err(DenseMMapError::FileCreationFailed),
-//         };
-//
-//         file.set_len(buf_len as u64).expect("cannot set file size");
-//         if file.write_all(buf).is_err() {
-//             return Err(DenseMMapError::FileCannotWriteBytes);
-//         }
-//
-//         let mmap = unsafe {
-//             MmapOptions::new(usize::try_from(buf_len as u64).expect("file
-// size truncated"))                 .expect("cannot create memory map")
-//                 .with_file(file, 0)
-//                 .map_mut()
-//                 .expect("cannot build memory map")
-//         };
-//
-//         Ok(Self {
-//             mmap,
-//             phantom: std::marker::PhantomData,
-//         })
-//     }
-//
-//     /// Given the file path and tree depth,
-//     /// it attempts to restore the memory map
-//     ///
-//     /// # Errors
-//     ///
-//     /// - returns Err if file doesn't exist
-//     /// - returns Err if file size doesn't match the expected tree size
-//     ///
-//     /// # Panics
-//     ///
-//     /// - cannot get file metadata to check for file length
-//     /// - truncated file size when attempting to build memory map
-//     /// - cannot build memory map
-//     pub fn attempt_restore(
-//         empty_leaf: &H::Hash,
-//         depth: usize,
-//         file_path: PathBuf,
-//     ) -> Result<Self, DenseMMapError> {
-//         let file = match
-// OpenOptions::new().read(true).write(true).open(file_path) {
-// Ok(file) => file,             Err(_e) => return
-// Err(DenseMMapError::FileDoesntExist),         };
-//
-//         let size_of_empty_leaf = std::mem::size_of_val(empty_leaf);
-//         let expected_file_size = (1 << (depth + 1)) * size_of_empty_leaf as
-// u64;
-//
-//         if expected_file_size != file.metadata().expect("cannot get file
-// metadata").len() {             return
-// Err(DenseMMapError::FileSizeShouldMatchTree);         }
-//
-//         let mmap = unsafe {
-//             MmapOptions::new(
-//                 usize::try_from(expected_file_size).expect("expected file
-// size truncated"),             )
-//             .expect("cannot create memory map")
-//             .with_file(file, 0)
-//             .map_mut()
-//             .expect("cannot build memory map")
-//         };
-//
-//         Ok(Self {
-//             mmap,
-//             phantom: std::marker::PhantomData,
-//         })
-//     }
-// }
-//
-// impl<H: Hasher> Deref for MmapMutWrapper<H> {
-//     type Target = [H::Hash];
-//
-//     fn deref(&self) -> &Self::Target {
-//         bytemuck::cast_slice(self.mmap.as_slice())
-//     }
-// }
-//
-// impl<H: Hasher> DerefMut for MmapMutWrapper<H> {
-//     fn deref_mut(&mut self) -> &mut Self::Target {
-//         bytemuck::cast_slice_mut(self.mmap.as_mut_slice())
-//     }
-// }
-//
-// #[derive(Error, Debug)]
-// pub enum DenseMMapError {
-//     #[error("file size should match expected tree size")]
-//     FileSizeShouldMatchTree,
-//     #[error("file doesn't exist")]
-//     FileDoesntExist,
-//     #[error("failed to create a file")]
-//     FileCreationFailed,
-//     #[error("cannot write bytes to file")]
-//     FileCannotWriteBytes,
-//     #[error("failed to create pathbuf")]
-//     FailedToCreatePathBuf,
-// }
+pub struct MmapTreeStorageConfig {
+    pub file_path: PathBuf,
+}
+
+impl<H: Hasher> DynamicTreeStorage<H> for MmapVec<H> {
+    type StorageConfig = MmapTreeStorageConfig;
+
+    fn init(config: MmapTreeStorageConfig, vec: Vec<H::Hash>) -> Result<Self> {
+        Ok(Self::new(config.file_path, &vec)?)
+    }
+
+    fn reallocate(&mut self, empty_leaf: &H::Hash, sparse_column: &[H::Hash]) -> Result<()> {
+        let current_size = self.len();
+        self.reallocate(empty_leaf)?;
+        init_subtree::<H>(sparse_column, &mut self[current_size..]);
+        Ok(())
+    }
+}
+
+pub struct MmapVec<H: Hasher> {
+    mmap:      MmapMut,
+    file_path: PathBuf,
+    phantom:   std::marker::PhantomData<H>,
+}
+
+impl<H: Hasher> MmapVec<H> {
+    /// Creates a new memory map backed with file with provided size
+    /// and fills the entire map with initial value
+    ///
+    /// # Errors
+    ///
+    /// - returns Err if file creation has failed
+    /// - returns Err if bytes couldn't be written to file
+    ///
+    /// # Panics
+    ///
+    /// - empty hash value serialization failed
+    /// - file size cannot be set
+    /// - file is too large, possible truncation can occur
+    /// - cannot build memory map
+    pub fn new(file_path: PathBuf, storage: &[H::Hash]) -> Result<Self, DenseMMapError> {
+        // Safety: potential uninitialized padding from `H::Hash` is safe to use if
+        // we're casting back to the same type.
+        let buf = bytemuck::cast_slice(storage);
+        let buf_len = buf.len();
+
+        let mut file = match OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(file_path.clone())
+        {
+            Ok(file) => file,
+            Err(_e) => return Err(DenseMMapError::FileCreationFailed),
+        };
+
+        file.set_len(buf_len as u64).expect("cannot set file size");
+        if file.write_all(buf).is_err() {
+            return Err(DenseMMapError::FileCannotWriteBytes);
+        }
+
+        let mmap = unsafe {
+            MmapOptions::new(usize::try_from(buf_len as u64).expect("file size truncated"))
+                .expect("cannot create memory map")
+                .with_file(file, 0)
+                .map_mut()
+                .expect("cannot build memory map")
+        };
+
+        Ok(Self {
+            mmap,
+            file_path,
+            phantom: std::marker::PhantomData,
+        })
+    }
+
+    /// Given the file path and tree depth,
+    /// it attempts to restore the memory map
+    ///
+    /// # Errors
+    ///
+    /// - returns Err if file doesn't exist
+    /// - returns Err if file size doesn't match the expected tree size
+    ///
+    /// # Panics
+    ///
+    /// - cannot get file metadata to check for file length
+    /// - truncated file size when attempting to build memory map
+    /// - cannot build memory map
+    pub fn restore(empty_leaf: &H::Hash, file_path: PathBuf) -> Result<Self> {
+        let file = match OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(file_path.clone())
+        {
+            Ok(file) => file,
+            Err(_e) => bail!("File doesn't exist"),
+        };
+
+        let file_size = file.metadata().expect("cannot get file metadata").len();
+        let size_of_empty_leaf = std::mem::size_of_val(empty_leaf);
+        if !(file_size / size_of_empty_leaf as u64).is_power_of_two() {
+            bail!("File size should be a power of 2");
+        }
+
+        let mmap = unsafe {
+            MmapOptions::new(file_size as usize)
+                .expect("cannot create memory map")
+                .with_file(file, 0)
+                .map_mut()
+                .expect("cannot build memory map")
+        };
+
+        Ok(Self {
+            mmap,
+            file_path,
+            phantom: std::marker::PhantomData,
+        })
+    }
+
+    pub fn reallocate(&mut self, empty_leaf: &H::Hash) -> Result<()> {
+        let file = match OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(self.file_path.clone())
+        {
+            Ok(file) => file,
+            Err(_e) => bail!("File doesn't exist"),
+        };
+
+        let file_size = file.metadata().expect("cannot get file metadata").len();
+        let size_of_empty_leaf = std::mem::size_of_val(empty_leaf);
+        if !(file_size / size_of_empty_leaf as u64).is_power_of_two() {
+            bail!("File size should be a power of 2");
+        }
+
+        let new_file_size = file_size << 1;
+        file.set_len(new_file_size).expect("cannot expand size");
+
+        self.mmap = unsafe {
+            MmapOptions::new(new_file_size as usize)
+                .expect("cannot create memory map")
+                .with_file(file, 0)
+                .map_mut()
+                .expect("cannot build memory map")
+        };
+
+        Ok(())
+    }
+}
+
+impl<H: Hasher> Deref for MmapVec<H> {
+    type Target = [H::Hash];
+
+    fn deref(&self) -> &Self::Target {
+        bytemuck::cast_slice(self.mmap.as_slice())
+    }
+}
+
+impl<H: Hasher> DerefMut for MmapVec<H> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        bytemuck::cast_slice_mut(self.mmap.as_mut_slice())
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum DenseMMapError {
+    #[error("file size should match expected tree size")]
+    FileSizeShouldMatchTree,
+    #[error("file doesn't exist")]
+    FileDoesntExist,
+    #[error("failed to create a file")]
+    FileCreationFailed,
+    #[error("cannot write bytes to file")]
+    FileCannotWriteBytes,
+    #[error("failed to create pathbuf")]
+    FailedToCreatePathBuf,
+}
 
 // leaves are 0 indexed
 fn index_from_leaf(leaf: usize) -> usize {
@@ -508,7 +564,7 @@ fn sibling(i: usize) -> Branch<usize> {
     }
 }
 
-fn children(i: usize) -> Option<(usize, usize)> {
+fn _children(i: usize) -> Option<(usize, usize)> {
     let next_pow = i.next_power_of_two();
     if i == next_pow {
         if i == 1 {
@@ -584,7 +640,7 @@ mod tests {
         for _ in 1..storage_depth {
             let next = previous
                 .iter()
-                .flat_map(|&i| children(i))
+                .flat_map(|&i| _children(i))
                 .collect::<Vec<_>>();
             previous = next.iter().flat_map(|&(l, r)| [l, r]).collect();
             let row = previous
@@ -665,7 +721,7 @@ mod tests {
     fn test_children() {
         let mut children = Vec::new();
         for i in 1..16 {
-            children.push((i, super::children(i)));
+            children.push((i, super::_children(i)));
         }
         let expected_siblings = vec![
             (1, None),
@@ -693,7 +749,7 @@ mod tests {
         let num_leaves = 1;
         let leaves = vec![1; num_leaves];
         let empty = 0;
-        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves(1, &empty, &leaves);
+        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves((), 1, &empty, &leaves);
         debug_tree(&tree);
     }
 
@@ -703,7 +759,7 @@ mod tests {
         let num_leaves = 1;
         let leaves = vec![1; num_leaves];
         let empty = 0;
-        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves(0, &empty, &leaves);
+        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves((), 0, &empty, &leaves);
         debug_tree(&tree);
     }
 
@@ -711,7 +767,7 @@ mod tests {
     fn test_odd_leaves() {
         let num_leaves = 5;
         let leaves = vec![1; num_leaves];
-        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves(10, &0, &leaves);
+        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves((), 10, &0, &leaves);
         let expected = DynamicMerkleTree::<TestHasher> {
             depth:         10,
             num_leaves:    5,
@@ -730,7 +786,7 @@ mod tests {
         let num_leaves = 1 << 3;
         let leaves = vec![1; num_leaves];
         let empty = 0;
-        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves(10, &empty, &leaves);
+        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves((), 10, &empty, &leaves);
         let expected = DynamicMerkleTree::<TestHasher> {
             depth:         10,
             num_leaves:    8,
@@ -748,7 +804,7 @@ mod tests {
     fn test_no_leaves() {
         let leaves = vec![];
         let empty = 0;
-        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves(10, &empty, &leaves);
+        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves((), 10, &empty, &leaves);
         let expected = DynamicMerkleTree::<TestHasher> {
             depth:         10,
             num_leaves:    0,
@@ -766,7 +822,7 @@ mod tests {
     fn test_sparse_column() {
         let leaves = vec![];
         let empty = 1;
-        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves(10, &empty, &leaves);
+        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves((), 10, &empty, &leaves);
         let expected = DynamicMerkleTree::<TestHasher> {
             depth:         10,
             num_leaves:    0,
@@ -785,7 +841,7 @@ mod tests {
         let num_leaves = 1 << 3;
         let leaves = vec![0; num_leaves];
         let empty = 1;
-        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves(4, &empty, &leaves);
+        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves((), 4, &empty, &leaves);
         let expected = DynamicMerkleTree::<TestHasher> {
             depth:         4,
             num_leaves:    8,
@@ -804,9 +860,9 @@ mod tests {
         let num_leaves = 1 << 3;
         let leaves = vec![1; num_leaves];
         let empty = 0;
-        let mut tree = DynamicMerkleTree::<TestHasher>::new_with_leaves(10, &empty, &leaves);
+        let mut tree = DynamicMerkleTree::<TestHasher>::new_with_leaves((), 10, &empty, &leaves);
         debug_tree(&tree);
-        tree.push(3);
+        tree.push(3).unwrap();
         debug_tree(&tree);
     }
 }

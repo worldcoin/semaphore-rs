@@ -1,7 +1,4 @@
-use crate::{
-    merkle_tree::{Branch, Hasher, Proof},
-    util::as_bytes,
-};
+use crate::merkle_tree::{Branch, Hasher, Proof};
 use std::{
     fs::OpenOptions,
     io::Write,
@@ -246,11 +243,8 @@ impl<H: Hasher> AnyTree<H> {
         let mut result: Self = dense.into();
         let mut current_depth = prefix_depth;
         while current_depth < depth {
-            result = SparseTree::new(
-                result,
-                EmptyTree::new(current_depth, empty_value.clone()).into(),
-            )
-            .into();
+            result =
+                SparseTree::new(result, EmptyTree::new(current_depth, *empty_value).into()).into();
             current_depth += 1;
         }
         result
@@ -258,16 +252,13 @@ impl<H: Hasher> AnyTree<H> {
 
     fn new_with_dense_prefix(depth: usize, prefix_depth: usize, empty_value: &H::Hash) -> Self {
         assert!(depth >= prefix_depth);
-        let mut result: Self = EmptyTree::new(prefix_depth, empty_value.clone())
+        let mut result: Self = EmptyTree::new(prefix_depth, *empty_value)
             .alloc_dense()
             .into();
         let mut current_depth = prefix_depth;
         while current_depth < depth {
-            result = SparseTree::new(
-                result,
-                EmptyTree::new(current_depth, empty_value.clone()).into(),
-            )
-            .into();
+            result =
+                SparseTree::new(result, EmptyTree::new(current_depth, *empty_value).into()).into();
             current_depth += 1;
         }
         result
@@ -286,11 +277,8 @@ impl<H: Hasher> AnyTree<H> {
         let mut result: Self = dense.into();
         let mut current_depth = prefix_depth;
         while current_depth < depth {
-            result = SparseTree::new(
-                result,
-                EmptyTree::new(current_depth, empty_value.clone()).into(),
-            )
-            .into();
+            result =
+                SparseTree::new(result, EmptyTree::new(current_depth, *empty_value).into()).into();
             current_depth += 1;
         }
         Ok(result)
@@ -308,11 +296,8 @@ impl<H: Hasher> AnyTree<H> {
 
         let mut current_depth = prefix_depth;
         while current_depth < depth {
-            result = SparseTree::new(
-                result,
-                EmptyTree::new(current_depth, empty_leaf.clone()).into(),
-            )
-            .into();
+            result =
+                SparseTree::new(result, EmptyTree::new(current_depth, *empty_leaf).into()).into();
             current_depth += 1;
         }
 
@@ -457,7 +442,7 @@ impl<H: Hasher> EmptyTree<H> {
 
     fn write_proof(&self, index: usize, path: &mut Vec<Branch<H::Hash>>) {
         for depth in (1..=self.depth).rev() {
-            let val = self.empty_tree_values[depth - 1].clone();
+            let val = self.empty_tree_values[depth - 1];
             let branch = if get_turn_at_depth(index, depth) == Turn::Left {
                 Branch::Left(val)
             } else {
@@ -512,11 +497,11 @@ impl<H: Hasher> EmptyTree<H> {
 
     #[must_use]
     fn root(&self) -> H::Hash {
-        self.empty_tree_values[self.depth].clone()
+        self.empty_tree_values[self.depth]
     }
 
     fn get_leaf(&self) -> H::Hash {
-        self.empty_tree_values[0].clone()
+        self.empty_tree_values[0]
     }
 }
 
@@ -580,7 +565,7 @@ impl<H: Hasher> Clone for SparseTree<H> {
     fn clone(&self) -> Self {
         Self {
             depth:    self.depth,
-            root:     self.root.clone(),
+            root:     self.root,
             children: self.children.clone(),
         }
     }
@@ -626,7 +611,7 @@ impl<H: Hasher> SparseTree<H> {
     ) -> Self {
         let Some(children) = &self.children else {
             // no children – this is a leaf
-            return Self::new_leaf(value.clone());
+            return Self::new_leaf(*value);
         };
 
         let next_index = clear_turn_at_depth(index, self.depth);
@@ -652,12 +637,12 @@ impl<H: Hasher> SparseTree<H> {
     }
 
     fn root(&self) -> H::Hash {
-        self.root.clone()
+        self.root
     }
 
     fn get_leaf(&self, index: usize) -> H::Hash {
         self.children.as_ref().map_or_else(
-            || self.root.clone(),
+            || self.root,
             |children| {
                 let next_index = clear_turn_at_depth(index, self.depth);
                 if get_turn_at_depth(index, self.depth) == Turn::Left {
@@ -693,11 +678,11 @@ impl<H: Hasher> DenseTree<H> {
         let storage_size = 1 << (depth + 1);
         let mut storage = Vec::with_capacity(storage_size);
 
-        let empties = repeat(empty_value.clone()).take(leaf_count);
+        let empties = repeat(empty_value).take(leaf_count);
         storage.extend(empties);
         storage.extend_from_slice(values);
         if values.len() < leaf_count {
-            let empties = repeat(empty_value.clone()).take(leaf_count - values.len());
+            let empties = repeat(empty_value).take(leaf_count - values.len());
             storage.extend(empties);
         }
 
@@ -750,7 +735,7 @@ impl<H: Hasher> DenseTree<H> {
     fn get_leaf(&self, index: usize) -> H::Hash {
         self.with_ref(|r| {
             let leaf_index_in_dense_tree = index + (self.root_index << self.depth);
-            r.storage[leaf_index_in_dense_tree].clone()
+            r.storage[leaf_index_in_dense_tree]
         })
     }
 
@@ -771,7 +756,7 @@ impl<H: Hasher> DenseTree<H> {
     fn update_with_mutation(&self, index: usize, value: &H::Hash) {
         let mut storage = self.storage.lock().expect("lock poisoned, terminating");
         let leaf_index_in_dense_tree = index + (self.root_index << self.depth);
-        storage[leaf_index_in_dense_tree] = value.clone();
+        storage[leaf_index_in_dense_tree] = *value;
         let mut current = leaf_index_in_dense_tree / 2;
         while current > 0 {
             let left = &storage[2 * current];
