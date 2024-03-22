@@ -4,11 +4,15 @@ use std::iter::repeat;
 use rayon::prelude::*;
 
 pub trait VersionMarker {}
-#[derive(Debug)]
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Canonical;
+
 impl VersionMarker for Canonical {}
-#[derive(Debug)]
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Derived;
+
 impl VersionMarker for Derived {}
 
 /// A dynamically growable array represented merkle tree.
@@ -22,7 +26,7 @@ impl VersionMarker for Derived {}
 /// Leaves are 0 indexed
 /// 0  1  2  3  4  5  6  7
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DynamicMerkleTree<H: Hasher, V: VersionMarker = Derived> {
     depth:         usize,
     num_leaves:    usize,
@@ -545,9 +549,11 @@ fn children(i: usize) -> Option<(usize, usize)> {
 #[cfg(test)]
 mod tests {
 
+    use crate::dynamic_merkle_tree::Canonical;
+
     use super::*;
 
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, PartialEq, Eq)]
     struct TestHasher;
     impl Hasher for TestHasher {
         type Hash = usize;
@@ -669,6 +675,44 @@ mod tests {
         ];
         assert_eq!(children, expected_siblings);
         println!("Siblings: {:?}", children);
+    }
+
+    #[test]
+    fn test_min_sized_tree() {
+        let num_leaves = 1;
+        let leaves = vec![1; num_leaves];
+        let empty = 0;
+        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves(1, &empty, &leaves);
+        debug_tree(&tree);
+    }
+
+    #[should_panic]
+    #[test]
+    fn test_zero_depth_tree() {
+        let num_leaves = 1;
+        let leaves = vec![1; num_leaves];
+        let empty = 0;
+        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves(0, &empty, &leaves);
+        debug_tree(&tree);
+    }
+
+    #[test]
+    fn test_odd_leaves() {
+        let num_leaves = 5;
+        let leaves = vec![1; num_leaves];
+        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves(10, &0, &leaves);
+        let expected = DynamicMerkleTree::<TestHasher, Canonical> {
+            depth:         10,
+            num_leaves:    5,
+            root:          5,
+            empty_value:   0,
+            sparse_column: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            storage:       vec![0, 1, 2, 1, 4, 2, 1, 1, 5, 1, 1, 0, 1, 0, 0, 0],
+            _version:      Canonical,
+            _marker:       std::marker::PhantomData,
+        };
+        debug_tree(&tree);
+        assert_eq!(tree, expected);
     }
 
     #[test]
