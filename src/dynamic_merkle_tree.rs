@@ -174,15 +174,16 @@ impl<H: Hasher, Version: VersionMarker> DynamicMerkleTree<H, Version> {
     }
 
     pub fn push(&mut self, leaf: H::Hash) {
-        self.num_leaves += 1;
         let index = index_from_leaf(self.num_leaves);
         match self.storage.get_mut(index) {
             Some(val) => *val = leaf,
             None => {
                 self.reallocate();
-                self.storage[self.num_leaves + 1] = leaf;
+                self.storage[index] = leaf;
             }
         }
+        self.num_leaves += 1;
+        self.propogate_up(index);
     }
 
     pub fn set_leaf(&mut self, leaf: usize, value: H::Hash) {
@@ -198,7 +199,7 @@ impl<H: Hasher, Version: VersionMarker> DynamicMerkleTree<H, Version> {
                 Branch::Right(sibling) => (sibling, index),
             };
             let left_hash = self.storage.get(left)?;
-            let right_hash = self.storage[right];
+            let right_hash = self.storage.get(right)?;
             let parent_index = parent(index);
             self.storage[parent_index] = H::hash_node(left_hash, &right_hash);
             index = parent_index;
