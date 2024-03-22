@@ -120,7 +120,7 @@ impl<H: Hasher> MerkleTree<H> {
 
     #[must_use]
     pub fn root(&self) -> H::Hash {
-        self.nodes[0].clone()
+        self.nodes[0]
     }
 
     pub fn set(&mut self, leaf: usize, hash: H::Hash) {
