@@ -376,6 +376,25 @@ pub struct MmapVec<H: Hasher> {
     phantom:   std::marker::PhantomData<H>,
 }
 
+impl<H: Hasher> PartialEq for MmapVec<H> {
+    fn eq(&self, other: &Self) -> bool {
+        self.mmap.as_ref() == other.mmap.as_ref()
+            && self.file_path == other.file_path
+            && self.phantom == other.phantom
+    }
+}
+
+impl<H: Hasher> std::fmt::Debug for MmapVec<H> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let slice: &[H::Hash] = bytemuck::cast_slice(self.mmap.as_slice());
+        f.debug_struct("MmapVec")
+            .field("mmap", &slice)
+            .field("file_path", &self.file_path)
+            .field("phantom", &self.phantom)
+            .finish()
+    }
+}
+
 impl<H: Hasher> MmapVec<H> {
     /// Creates a new memory map backed with file with provided size
     /// and fills the entire map with initial value
@@ -861,6 +880,22 @@ mod tests {
         let leaves = vec![1; num_leaves];
         let empty = 0;
         let mut tree = DynamicMerkleTree::<TestHasher>::new_with_leaves((), 10, &empty, &leaves);
+        debug_tree(&tree);
+        tree.push(3).unwrap();
+        debug_tree(&tree);
+    }
+
+    #[test]
+    fn test_mmap() {
+        let num_leaves = 1 << 3;
+        let config = MmapTreeStorageConfig {
+            file_path: PathBuf::from("target/tmp/test.mmap"),
+        };
+        let leaves = vec![1; num_leaves];
+        let empty = 0;
+        let mut tree = DynamicMerkleTree::<TestHasher, MmapVec<_>>::new_with_leaves(
+            config, 10, &empty, &leaves,
+        );
         debug_tree(&tree);
         tree.push(3).unwrap();
         debug_tree(&tree);
