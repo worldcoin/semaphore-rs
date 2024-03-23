@@ -303,7 +303,6 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
 
     /// Returns an iterator over all leaves.
     pub fn leaves(&self) -> impl Iterator<Item = H::Hash> + '_ {
-        // TODO this could be made faster by a custom iterator
         (0..(1 << self.depth())).map(|i| self.get_leaf(i))
     }
 }
@@ -390,7 +389,7 @@ impl<H: Hasher> DynamicTreeStorage<H> for MmapVec<H> {
     type StorageConfig = MmapTreeStorageConfig;
 
     fn init(config: MmapTreeStorageConfig, vec: Vec<H::Hash>) -> Result<Self> {
-        Ok(Self::new(config.file_path, &vec)?)
+        Self::new(config.file_path, &vec)
     }
 
     fn reallocate(&mut self, empty_leaf: &H::Hash, sparse_column: &[H::Hash]) -> Result<()> {
@@ -924,7 +923,7 @@ mod tests {
                 file_path: PathBuf::from("target/tmp/test.mmap"),
             };
             let empty = 0;
-            let mut tree =
+            let tree =
                 DynamicMerkleTree::<TestHasher, MmapVec<_>>::restore(config, 10, &empty).unwrap();
             debug_tree(&tree);
         }
