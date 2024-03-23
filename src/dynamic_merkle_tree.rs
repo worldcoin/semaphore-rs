@@ -370,6 +370,7 @@ impl<H: Hasher> DynamicTreeStorage<H> for Vec<H::Hash> {
     type StorageConfig = ();
 
     fn init(_config: (), vec: Vec<H::Hash>) -> Result<Self> {
+        debug_assert!(vec.len().is_power_of_two());
         Ok(vec)
     }
 
