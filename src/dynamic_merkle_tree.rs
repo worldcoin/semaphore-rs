@@ -7,7 +7,6 @@ use std::{
     ops::{Deref, DerefMut},
     path::PathBuf,
 };
-use thiserror::Error;
 
 use mmap_rs::{MmapMut, MmapOptions};
 use rayon::prelude::*;
@@ -314,6 +313,45 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
     }
 }
 
+impl<H: Hasher> DynamicMerkleTree<H, MmapVec<H>> {
+    pub fn restore(
+        config: MmapTreeStorageConfig,
+        depth: usize,
+        empty_value: &H::Hash,
+    ) -> Result<DynamicMerkleTree<H, MmapVec<H>>> {
+        assert!(depth > 0);
+        let storage = MmapVec::restore(empty_value, config.file_path)?;
+        let sparse_column = Self::sparse_column(depth, empty_value);
+        let storage_slice: &[H::Hash] = &storage;
+        let base_len = storage_slice.len() >> 1;
+        let quarter = base_len >> 1;
+        let start = base_len + quarter;
+        let last_leaf_index = storage_slice[(start)..]
+            .iter()
+            .enumerate()
+            .rev()
+            .find_map(|(i, &val)| (val != *empty_value).then_some(i))
+            .expect("no leaves found")
+            + start;
+        println!("Last leaf index: {}", last_leaf_index);
+        println!("Base len: {}", base_len);
+        let num_leaves = last_leaf_index + 1 - base_len;
+
+        let mut tree = DynamicMerkleTree {
+            depth,
+            num_leaves,
+            root: *empty_value,
+            empty_value: *empty_value,
+            sparse_column,
+            storage,
+            _marker: std::marker::PhantomData,
+        };
+
+        tree.recompute_root();
+        Ok(tree)
+    }
+}
+
 // Trait for generic storage of the tree
 // We require the Deref target to be a slice rather than a Vec
 // so that we can have type level information that the length
@@ -410,7 +448,7 @@ impl<H: Hasher> MmapVec<H> {
     /// - file size cannot be set
     /// - file is too large, possible truncation can occur
     /// - cannot build memory map
-    pub fn new(file_path: PathBuf, storage: &[H::Hash]) -> Result<Self, DenseMMapError> {
+    pub fn new(file_path: PathBuf, storage: &[H::Hash]) -> Result<Self> {
         // Safety: potential uninitialized padding from `H::Hash` is safe to use if
         // we're casting back to the same type.
         let buf = bytemuck::cast_slice(storage);
@@ -424,12 +462,12 @@ impl<H: Hasher> MmapVec<H> {
             .open(file_path.clone())
         {
             Ok(file) => file,
-            Err(_e) => return Err(DenseMMapError::FileCreationFailed),
+            Err(_e) => bail!("File creation failed"),
         };
 
         file.set_len(buf_len as u64).expect("cannot set file size");
         if file.write_all(buf).is_err() {
-            return Err(DenseMMapError::FileCannotWriteBytes);
+            bail!("Cannot write bytes to file");
         }
 
         let mmap = unsafe {
@@ -534,20 +572,6 @@ impl<H: Hasher> DerefMut for MmapVec<H> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         bytemuck::cast_slice_mut(self.mmap.as_mut_slice())
     }
-}
-
-#[derive(Error, Debug)]
-pub enum DenseMMapError {
-    #[error("file size should match expected tree size")]
-    FileSizeShouldMatchTree,
-    #[error("file doesn't exist")]
-    FileDoesntExist,
-    #[error("failed to create a file")]
-    FileCreationFailed,
-    #[error("cannot write bytes to file")]
-    FileCannotWriteBytes,
-    #[error("failed to create pathbuf")]
-    FailedToCreatePathBuf,
 }
 
 // leaves are 0 indexed
@@ -887,17 +911,32 @@ mod tests {
 
     #[test]
     fn test_mmap() {
-        let num_leaves = 1 << 3;
-        let config = MmapTreeStorageConfig {
-            file_path: PathBuf::from("target/tmp/test.mmap"),
-        };
-        let leaves = vec![1; num_leaves];
-        let empty = 0;
-        let mut tree = DynamicMerkleTree::<TestHasher, MmapVec<_>>::new_with_leaves(
-            config, 10, &empty, &leaves,
-        );
-        debug_tree(&tree);
-        tree.push(3).unwrap();
-        debug_tree(&tree);
+        {
+            let num_leaves = 1 << 3;
+            let config = MmapTreeStorageConfig {
+                file_path: PathBuf::from("target/tmp/test.mmap"),
+            };
+            let leaves = vec![1; num_leaves];
+            let empty = 0;
+            let mut tree = DynamicMerkleTree::<TestHasher, MmapVec<_>>::new_with_leaves(
+                config, 10, &empty, &leaves,
+            );
+            debug_tree(&tree);
+            tree.push(3).unwrap();
+            debug_tree(&tree);
+        }
+
+        {
+            let num_leaves = 1 << 3;
+            let config = MmapTreeStorageConfig {
+                file_path: PathBuf::from("target/tmp/test.mmap"),
+            };
+            let empty = 0;
+            let mut tree =
+                DynamicMerkleTree::<TestHasher, MmapVec<_>>::restore(config, 10, &empty).unwrap();
+            debug_tree(&tree);
+            tree.push(3).unwrap();
+            debug_tree(&tree);
+        }
     }
 }
