@@ -155,13 +155,6 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
         storage[1]
     }
 
-    // fn reallocate(&mut self) {
-    //     let current_size = self.storage.len();
-    //     self.storage
-    //         .extend(repeat(self.empty_value).take(current_size));
-    //     Self::init_subtree(&self.sparse_column, &mut
-    // self.storage[current_size..]); }
-
     pub fn push(&mut self, leaf: H::Hash) -> Result<()> {
         let index = index_from_leaf(self.num_leaves);
         match self.storage.get_mut(index) {
@@ -174,6 +167,7 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
         }
         self.num_leaves += 1;
         self.propogate_up(index);
+        self.recompute_root();
         Ok(())
     }
 
@@ -223,6 +217,7 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
         let index = index_from_leaf(leaf);
         self.storage[index] = value;
         self.propogate_up(index);
+        self.recompute_root();
     }
 
     fn propogate_up(&mut self, mut index: usize) -> Option<()> {
@@ -333,8 +328,6 @@ impl<H: Hasher> DynamicMerkleTree<H, MmapVec<H>> {
             .find_map(|(i, &val)| (val != *empty_value).then_some(i))
             .expect("no leaves found")
             + start;
-        println!("Last leaf index: {}", last_leaf_index);
-        println!("Base len: {}", base_len);
         let num_leaves = last_leaf_index + 1 - base_len;
 
         let mut tree = DynamicMerkleTree {
@@ -927,15 +920,12 @@ mod tests {
         }
 
         {
-            let num_leaves = 1 << 3;
             let config = MmapTreeStorageConfig {
                 file_path: PathBuf::from("target/tmp/test.mmap"),
             };
             let empty = 0;
             let mut tree =
                 DynamicMerkleTree::<TestHasher, MmapVec<_>>::restore(config, 10, &empty).unwrap();
-            debug_tree(&tree);
-            tree.push(3).unwrap();
             debug_tree(&tree);
         }
     }
