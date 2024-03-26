@@ -235,14 +235,19 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
     }
 
     /// Returns the root of the tree.
-    pub fn recompute_root(&mut self) -> H::Hash {
+    fn recompute_root(&mut self) -> H::Hash {
+        let hash = self.compute_from_storage_tip(0);
+        self.root = hash;
+        hash
+    }
+
+    fn compute_from_storage_tip(&self, depth: usize) -> H::Hash {
         let storage_root = self.storage.storage_root();
         let storage_depth = self.storage.storage_depth() as usize;
         let mut hash = storage_root;
-        for i in storage_depth..self.depth {
+        for i in storage_depth..(self.depth - depth) {
             hash = H::hash_node(&hash, &self.sparse_column[i]);
         }
-        self.root = hash;
         hash
     }
 
@@ -292,6 +297,23 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
     #[must_use]
     pub fn verify(&self, value: H::Hash, proof: &Proof<H>) -> bool {
         proof.root(value) == self.root()
+    }
+
+    /// Returns the value at the given index.
+    #[must_use]
+    pub fn get_node(&self, depth: usize, offset: usize) -> H::Hash {
+        let height = self.depth - depth;
+        let index = index_height_offset(height, offset);
+        match self.storage.get(index) {
+            Some(hash) => *hash,
+            None => {
+                if offset == 0 {
+                    self.compute_from_storage_tip(depth)
+                } else {
+                    self.sparse_column[height]
+                }
+            }
+        }
     }
 
     /// Returns the value at the given index.
@@ -572,6 +594,16 @@ fn index_from_leaf(leaf: usize) -> usize {
     leaf + (leaf + 1).next_power_of_two()
 }
 
+fn index_height_offset(height: usize, offset: usize) -> usize {
+    if offset == 0 {
+        return 1 << height;
+    }
+    let leaf = offset * (1 << height);
+    let subtree_size = (leaf + 1).next_power_of_two();
+    let offset_node = leaf >> height;
+    offset_node + subtree_size
+}
+
 fn parent(i: usize) -> usize {
     if i.is_power_of_two() {
         return i << 1;
@@ -696,6 +728,34 @@ mod tests {
         let expected_leaves = vec![1, 3, 6, 7, 12, 13, 14, 15, 24, 25, 26, 27, 28, 29, 30, 31];
         assert_eq!(leaf_indeces, expected_leaves);
         println!("Leaf indeces: {:?}", leaf_indeces);
+    }
+
+    #[test]
+    fn test_index_height_offset() {
+        let expected = vec![
+            ((0, 0), 1),
+            ((0, 1), 3),
+            ((0, 2), 6),
+            ((0, 3), 7),
+            ((0, 4), 12),
+            ((0, 5), 13),
+            ((0, 6), 14),
+            ((0, 7), 15),
+            ((1, 0), 2),
+            ((1, 1), 5),
+            ((1, 2), 10),
+            ((1, 3), 11),
+            ((2, 0), 4),
+            ((2, 1), 9),
+            ((3, 0), 8),
+        ];
+        for ((height, offset), result) in expected {
+            println!(
+                "Height: {}, Offset: {}, expected: {}",
+                height, offset, result
+            );
+            assert_eq!(index_height_offset(height, offset), result);
+        }
     }
 
     #[test]
@@ -889,6 +949,36 @@ mod tests {
         };
         debug_tree(&tree);
         assert_eq!(tree, expected);
+    }
+
+    #[test]
+    fn test_get_node() {
+        let num_leaves = 3;
+        let leaves = vec![3; num_leaves];
+        let empty = 1;
+        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves((), 3, &empty, &leaves);
+        debug_tree(&tree);
+        let expected = vec![
+            ((3, 0), 3),
+            ((3, 1), 3),
+            ((3, 2), 3),
+            ((3, 3), 1),
+            ((3, 4), 1),
+            ((3, 5), 1),
+            ((3, 6), 1),
+            ((3, 7), 1),
+            ((2, 0), 6),
+            ((2, 1), 4),
+            ((2, 2), 2),
+            ((2, 3), 2),
+            ((1, 0), 10),
+            ((1, 1), 4),
+            ((0, 0), 14),
+        ];
+        for ((depth, offset), result) in expected {
+            println!("Depth: {}, Offset: {}, expected: {}", depth, offset, result);
+            assert_eq!(tree.get_node(depth, offset), result);
+        }
     }
 
     #[test]
