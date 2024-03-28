@@ -324,22 +324,29 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
     }
 
     #[must_use]
-    pub fn get_leaf_from_hash(&self, hash: H::Hash) -> usize {
+    pub fn get_leaf_from_hash(&self, hash: H::Hash) -> Option<usize> {
         let num_leaves = self.num_leaves();
-        let storage_len = self.storage.len();
+        if num_leaves == 0 {
+            return None;
+        }
 
-        let mut index = index_from_leaf(num_leaves - 1);
-        let mut subtree_base = storage_len >> 2;
+        let mut end = index_from_leaf(num_leaves - 1) + 1; // 4
+        let prev_pow = end.next_power_of_two() >> 1;
+        let mut start = prev_pow + (prev_pow >> 1);
+
         loop {
-            let end = index.next_power_of_two();
-            let start = end - (end >> 2);
-            (start..end)
-                .rev()
-                .find(|&i| self.storage[i] == hash)
-                .map(|i| {
-                    index = i;
-                    subtree_base >>= 1;
-                });
+            match (start..end).rev().find(|&i| self.storage[i] == hash) {
+                Some(index) => {
+                    return Some(leaf_from_index(index));
+                }
+                None => {
+                    if start == 1 {
+                        return None;
+                    }
+                    start /= 2;
+                    end = (start + 1).next_power_of_two();
+                }
+            }
         }
     }
 
@@ -358,17 +365,6 @@ impl<H: Hasher> DynamicMerkleTree<H, MmapVec<H>> {
         assert!(depth > 0);
         let storage = MmapVec::restore(empty_value, config.file_path)?;
         let sparse_column = Self::sparse_column(depth, empty_value);
-        let storage_slice: &[H::Hash] = &storage;
-        let base_len = storage_slice.len() >> 1;
-        let quarter = base_len >> 1;
-        let start = base_len + quarter;
-        let last_leaf_index = storage_slice[(start)..]
-            .iter()
-            .enumerate()
-            .rev()
-            .find_map(|(i, &val)| (val != *empty_value).then_some(i))
-            .expect("no leaves found")
-            + start;
 
         let mut tree = DynamicMerkleTree {
             depth,
@@ -1022,6 +1018,20 @@ mod tests {
     }
 
     #[test]
+    fn test_get_leaf_from_hash() {
+        let empty = 0;
+        let mut tree = DynamicMerkleTree::<TestHasher>::new((), 10, &empty);
+        for i in 1..=64 {
+            tree.push(i).unwrap();
+            let first = tree.get_leaf_from_hash(1).unwrap();
+            let this = tree.get_leaf_from_hash(i).unwrap();
+            assert_eq!(first, 0);
+            assert_eq!(this, i - 1);
+        }
+        assert!(tree.get_leaf_from_hash(65).is_none());
+    }
+
+    #[test]
     fn test_push() {
         let num_leaves = 1 << 3;
         let leaves = vec![1; num_leaves];
@@ -1045,10 +1055,9 @@ mod tests {
             &empty,
             &leaves,
         );
-        for i in 0..10000 {
+        for _ in 0..100000 {
             tree.push(3).unwrap();
 
-            println!("restoring {i}");
             let restored =
                 DynamicMerkleTree::<TestHasher, MmapVec<_>>::restore(config.clone(), 20, &empty)
                     .unwrap();
