@@ -273,24 +273,29 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
 
         let mut index = index_from_leaf(leaf);
         for _ in 0..storage_depth {
-            let sibling = self.storage[sibling(index).into_inner()];
-            let branch = if index & 1 == 0 {
-                // even
-                Branch::Left(sibling)
-            } else {
-                // odd
-                Branch::Right(sibling)
-            };
-            proof.push(branch);
+            match sibling(index) {
+                Branch::Left(sibling_index) => {
+                    proof.push(Branch::Left(self.storage[sibling_index]));
+                }
+                Branch::Right(sibling_index) => {
+                    proof.push(Branch::Right(self.storage[sibling_index]));
+                }
+            }
             index = parent(index);
         }
 
-        let remainder = self.sparse_column[storage_depth..]
+        let remainder = self.sparse_column[storage_depth..(self.sparse_column.len() - 1)]
             .iter()
             .map(|&val| Branch::Left(val));
         proof.extend(remainder);
 
         Proof(proof)
+    }
+
+    #[must_use]
+    pub fn proof_from_hash(&self, leaf: H::Hash) -> Option<Proof<H>> {
+        let leaf = self.get_leaf_from_hash(leaf)?;
+        Some(self.proof(leaf))
     }
 
     /// Verifies the given proof for the given value.
@@ -1029,6 +1034,56 @@ mod tests {
             assert_eq!(this, i - 1);
         }
         assert!(tree.get_leaf_from_hash(65).is_none());
+    }
+
+    #[test]
+    fn test_proof_from_hash() {
+        let leaves = vec![1, 2, 3, 4, 5, 6];
+        let empty = 1;
+        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves((), 4, &empty, &leaves);
+        debug_tree(&tree);
+        let expected = vec![
+            (1, vec![
+                Branch::Left(2),
+                Branch::Left(7),
+                Branch::Left(13),
+                Branch::Left(8),
+            ]),
+            (2, vec![
+                Branch::Right(1),
+                Branch::Left(7),
+                Branch::Left(13),
+                Branch::Left(8),
+            ]),
+            (3, vec![
+                Branch::Left(4),
+                Branch::Right(3),
+                Branch::Left(13),
+                Branch::Left(8),
+            ]),
+            (4, vec![
+                Branch::Right(3),
+                Branch::Right(3),
+                Branch::Left(13),
+                Branch::Left(8),
+            ]),
+            (5, vec![
+                Branch::Left(6),
+                Branch::Left(2),
+                Branch::Right(10),
+                Branch::Left(8),
+            ]),
+            (6, vec![
+                Branch::Right(5),
+                Branch::Left(2),
+                Branch::Right(10),
+                Branch::Left(8),
+            ]),
+        ];
+        for (leaf, expected_proof) in expected {
+            let proof = tree.proof_from_hash(leaf).unwrap();
+            assert_eq!(proof.0, expected_proof);
+        }
     }
 
     #[test]
