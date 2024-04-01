@@ -12,6 +12,17 @@ use mmap_rs::{MmapMut, MmapOptions};
 use rayon::prelude::*;
 
 /// A dynamically growable array represented merkle tree.
+/// The left most branch of the tree consists of progressively increasing powers
+/// of two. The right child of each power of two looks like a traditionally
+/// indexed binary tree offset by its parent.
+///
+/// The underlying storage is a 1-indexed dynamically growable array that is
+/// always a power of two in length. The tree is built succesively from the
+/// bottom left to the top right.
+///
+/// The zeroth index of the underlying storage is used to store the number of
+/// leaves in the tree. Because of this, the Hash used must be able to be cast
+/// as a usize. If this is not possible, the code will panic at runtime.
 ///
 /// ```markdown
 ///           8
@@ -50,7 +61,7 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
         empty_value: &H::Hash,
         leaves: &[H::Hash],
     ) -> DynamicMerkleTree<H, S> {
-        assert!(depth > 0);
+        assert!(depth > 0, "Tree depth must be greater than 0");
         let storage = Self::storage_from_leaves(config, empty_value, leaves);
         let sparse_column = Self::sparse_column(depth, empty_value);
 
@@ -742,8 +753,8 @@ mod tests {
         }
     }
 
-    fn debug_tree<S: DynamicTreeStorage<TestHasher> + std::fmt::Debug>(
-        tree: &DynamicMerkleTree<TestHasher, S>,
+    fn debug_tree<H: Hasher + std::fmt::Debug, S: DynamicTreeStorage<H> + std::fmt::Debug>(
+        tree: &DynamicMerkleTree<H, S>,
     ) {
         println!("{tree:?}");
         let storage_depth = tree.storage.len().ilog2();
@@ -884,6 +895,21 @@ mod tests {
         ];
         assert_eq!(children, expected_siblings);
         println!("Siblings: {:?}", children);
+    }
+
+    #[should_panic]
+    #[test]
+    fn test_hash_too_small() {
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        struct InvalidHasher;
+        impl Hasher for InvalidHasher {
+            type Hash = u32;
+
+            fn hash_node(left: &Self::Hash, right: &Self::Hash) -> Self::Hash {
+                left + right
+            }
+        }
+        let _ = DynamicMerkleTree::<InvalidHasher>::new_with_leaves((), 1, &0, &[]);
     }
 
     #[test]
@@ -1083,6 +1109,7 @@ mod tests {
         for (leaf, expected_proof) in expected {
             let proof = tree.proof_from_hash(leaf).unwrap();
             assert_eq!(proof.0, expected_proof);
+            assert!(tree.verify(leaf, &proof));
         }
     }
 
