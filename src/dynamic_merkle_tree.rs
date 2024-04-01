@@ -379,7 +379,7 @@ impl<H: Hasher> DynamicMerkleTree<H, MmapVec<H>> {
         empty_value: &H::Hash,
     ) -> Result<DynamicMerkleTree<H, MmapVec<H>>> {
         assert!(depth > 0);
-        let storage = MmapVec::restore(empty_value, config.file_path)?;
+        let storage = unsafe { MmapVec::restore(empty_value, config.file_path)? };
         let sparse_column = Self::sparse_column(depth, empty_value);
 
         let mut tree = DynamicMerkleTree {
@@ -405,23 +405,31 @@ pub trait DynamicTreeStorage<H: Hasher>:
 {
     type StorageConfig;
 
+    /// Reallocates the storage to be twice as large and fills the new
+    /// storage with the empty leaf value.
     fn reallocate(&mut self, empty_leaf: &H::Hash, sparse_column: &[H::Hash]) -> Result<()>;
 
+    /// Initializes the storage with the given configuration, number of leaves,
+    /// and initial values.
     fn init(config: Self::StorageConfig, num_leaves: usize, vec: Vec<H::Hash>) -> Result<Self>;
 
+    /// Returns the root hash of the growable storage, not the top level root.
     fn storage_root(&self) -> H::Hash {
         self[self.len() >> 1]
     }
 
+    /// Returns the depth of growable storage, not the top level root.
     fn storage_depth(&self) -> u32 {
         (self.len() >> 1).ilog2()
     }
 
+    /// Sets the number of leaves.
     fn set_num_leaves(&mut self, amount: usize) {
         let leaf_counter: &mut [usize] = bytemuck::cast_slice_mut(&mut self[0..1]);
         leaf_counter[0] = amount;
     }
 
+    /// Increments the number of leaves.
     fn increment_num_leaves(&mut self, amount: usize) {
         let leaf_counter: &mut [usize] = bytemuck::cast_slice_mut(&mut self[0..1]);
         leaf_counter[0] += amount;
@@ -454,7 +462,7 @@ impl<H: Hasher> DynamicTreeStorage<H> for MmapVec<H> {
     type StorageConfig = MmapTreeStorageConfig;
 
     fn init(config: MmapTreeStorageConfig, num_leaves: usize, vec: Vec<H::Hash>) -> Result<Self> {
-        let mut res = Self::new(config.file_path, &vec)?;
+        let mut res = unsafe { Self::new(config.file_path, &vec) }?;
         res.set_num_leaves(num_leaves);
         Ok(res)
     }
@@ -467,6 +475,7 @@ impl<H: Hasher> DynamicTreeStorage<H> for MmapVec<H> {
     }
 }
 
+/// Memory mapped vector for dynamic merkle tree storage
 pub struct MmapVec<H: Hasher> {
     mmap:      MmapMut,
     file_path: PathBuf,
@@ -496,6 +505,11 @@ impl<H: Hasher> MmapVec<H> {
     /// Creates a new memory map backed with file with provided size
     /// and fills the entire map with initial value
     ///
+    /// # Safety
+    ///
+    /// The caller must ensure that only one memory map is assigned to a
+    /// particular file
+    ///
     /// # Errors
     ///
     /// - returns Err if file creation has failed
@@ -507,7 +521,7 @@ impl<H: Hasher> MmapVec<H> {
     /// - file size cannot be set
     /// - file is too large, possible truncation can occur
     /// - cannot build memory map
-    pub fn new(file_path: PathBuf, storage: &[H::Hash]) -> Result<Self> {
+    pub unsafe fn new(file_path: PathBuf, storage: &[H::Hash]) -> Result<Self> {
         // Safety: potential uninitialized padding from `H::Hash` is safe to use if
         // we're casting back to the same type.
         let buf = bytemuck::cast_slice(storage);
@@ -547,6 +561,11 @@ impl<H: Hasher> MmapVec<H> {
     /// Given the file path and tree depth,
     /// it attempts to restore the memory map
     ///
+    /// # Safety
+    ///
+    /// The caller must ensure that only one memory map is assigned to a
+    /// particular file
+    ///
     /// # Errors
     ///
     /// - returns Err if file doesn't exist
@@ -557,7 +576,7 @@ impl<H: Hasher> MmapVec<H> {
     /// - cannot get file metadata to check for file length
     /// - truncated file size when attempting to build memory map
     /// - cannot build memory map
-    pub fn restore(empty_leaf: &H::Hash, file_path: PathBuf) -> Result<Self> {
+    pub unsafe fn restore(empty_leaf: &H::Hash, file_path: PathBuf) -> Result<Self> {
         let file = match OpenOptions::new()
             .read(true)
             .write(true)
