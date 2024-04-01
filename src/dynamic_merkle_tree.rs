@@ -78,16 +78,28 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
         tree
     }
 
-    /// Index 0 represents the bottow layer
+    /// Returns the depth of the tree.
     #[must_use]
-    fn sparse_column(depth: usize, empty_value: &H::Hash) -> Vec<H::Hash> {
-        (0..depth + 1)
-            .scan(*empty_value, |state, _| {
-                let val = *state;
-                *state = H::hash_node(&val, &val);
-                Some(val)
-            })
-            .collect()
+    pub const fn depth(&self) -> usize {
+        self.depth
+    }
+
+    /// Returns the root of the tree.
+    #[must_use]
+    pub const fn root(&self) -> H::Hash {
+        self.root
+    }
+
+    #[must_use]
+    pub fn num_leaves(&self) -> usize {
+        self.storage.num_leaves()
+    }
+
+    pub fn set_leaf(&mut self, leaf: usize, value: H::Hash) {
+        let index = index_from_leaf(leaf);
+        self.storage[index] = value;
+        self.propogate_up(index);
+        self.recompute_root();
     }
 
     pub fn push(&mut self, leaf: H::Hash) -> Result<()> {
@@ -104,102 +116,6 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
         self.propogate_up(index);
         self.recompute_root();
         Ok(())
-    }
-
-    pub fn num_leaves(&self) -> usize {
-        self.storage.num_leaves()
-    }
-
-    // pub fn extend_from_slice(&mut self, leaves: &[H::Hash]) {
-    //     let mut storage_len = self.storage.len();
-    //     let leaf_capacity = storage_len >> 1;
-    //     if self.num_leaves + leaves.len() > leaf_capacity {
-    //         self.reallocate();
-    //         storage_len = self.storage.len();
-    //     }
-    //
-    //     let base_len = storage_len >> 1;
-    //     let depth = base_len.ilog2();
-    //
-    //     let mut parents = vec![];
-    //     leaves.par_iter().enumerate().for_each(|(i, &val)| {
-    //         let leaf_index = self.num_leaves + i;
-    //         let index = index_from_leaf(leaf_index);
-    //         self.storage[index] = val;
-    //         parents.push(index);
-    //     });
-
-    // leaves.iter().enumerate().for_each(|(i, &val)| {
-    //     storage[base_len + i] = val;
-    // });
-    //
-    // // We iterate over mutable layers of the tree
-    // for current_depth in (1..=depth).rev() {
-    //     let (top, child_layer) = storage.split_at_mut(1 <<
-    // current_depth);     let parent_layer = &mut top[(1 <<
-    // (current_depth - 1))..];
-    //
-    //     parent_layer
-    //         .par_iter_mut()
-    //         .enumerate()
-    //         .for_each(|(i, value)| {
-    //             let left = &child_layer[2 * i];
-    //             let right = &child_layer[2 * i + 1];
-    //             *value = H::hash_node(left, right);
-    //         });
-    // }
-    //
-    // storage[1]
-    // }
-
-    pub fn set_leaf(&mut self, leaf: usize, value: H::Hash) {
-        let index = index_from_leaf(leaf);
-        self.storage[index] = value;
-        self.propogate_up(index);
-        self.recompute_root();
-    }
-
-    fn propogate_up(&mut self, mut index: usize) -> Option<()> {
-        loop {
-            let (left, right) = match sibling(index) {
-                Branch::Left(sibling) => (index, sibling),
-                Branch::Right(sibling) => (sibling, index),
-            };
-            let left_hash = self.storage.get(left)?;
-            let right_hash = self.storage.get(right)?;
-            let parent_index = parent(index);
-            self.storage[parent_index] = H::hash_node(left_hash, right_hash);
-            index = parent_index;
-        }
-    }
-
-    /// Returns the root of the tree.
-    fn recompute_root(&mut self) -> H::Hash {
-        let hash = self.compute_from_storage_tip(0);
-        self.root = hash;
-        hash
-    }
-
-    fn compute_from_storage_tip(&self, depth: usize) -> H::Hash {
-        let storage_root = self.storage.storage_root();
-        let storage_depth = self.storage.storage_depth() as usize;
-        let mut hash = storage_root;
-        for i in storage_depth..(self.depth - depth) {
-            hash = H::hash_node(&hash, &self.sparse_column[i]);
-        }
-        hash
-    }
-
-    /// Returns the depth of the tree.
-    #[must_use]
-    pub const fn depth(&self) -> usize {
-        self.depth
-    }
-
-    /// Returns the root of the tree.
-    #[must_use]
-    pub const fn root(&self) -> H::Hash {
-        self.root
     }
 
     /// Returns the Merkle proof for the given leaf.
@@ -297,6 +213,91 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
     pub fn leaves(&self) -> impl Iterator<Item = H::Hash> + '_ {
         (0..(1 << self.depth())).map(|i| self.get_leaf(i))
     }
+
+    /// Index 0 represents the bottow layer
+    #[must_use]
+    fn sparse_column(depth: usize, empty_value: &H::Hash) -> Vec<H::Hash> {
+        (0..depth + 1)
+            .scan(*empty_value, |state, _| {
+                let val = *state;
+                *state = H::hash_node(&val, &val);
+                Some(val)
+            })
+            .collect()
+    }
+
+    fn propogate_up(&mut self, mut index: usize) -> Option<()> {
+        loop {
+            let (left, right) = match sibling(index) {
+                Branch::Left(sibling) => (index, sibling),
+                Branch::Right(sibling) => (sibling, index),
+            };
+            let left_hash = self.storage.get(left)?;
+            let right_hash = self.storage.get(right)?;
+            let parent_index = parent(index);
+            self.storage[parent_index] = H::hash_node(left_hash, right_hash);
+            index = parent_index;
+        }
+    }
+
+    /// Returns the root of the tree.
+    fn recompute_root(&mut self) -> H::Hash {
+        let hash = self.compute_from_storage_tip(0);
+        self.root = hash;
+        hash
+    }
+
+    fn compute_from_storage_tip(&self, depth: usize) -> H::Hash {
+        let storage_root = self.storage.storage_root();
+        let storage_depth = self.storage.storage_depth();
+        let mut hash = storage_root;
+        for i in storage_depth..(self.depth - depth) {
+            hash = H::hash_node(&hash, &self.sparse_column[i]);
+        }
+        hash
+    }
+
+    // pub fn extend_from_slice(&mut self, leaves: &[H::Hash]) {
+    //     let mut storage_len = self.storage.len();
+    //     let leaf_capacity = storage_len >> 1;
+    //     if self.num_leaves + leaves.len() > leaf_capacity {
+    //         self.reallocate();
+    //         storage_len = self.storage.len();
+    //     }
+    //
+    //     let base_len = storage_len >> 1;
+    //     let depth = base_len.ilog2();
+    //
+    //     let mut parents = vec![];
+    //     leaves.par_iter().enumerate().for_each(|(i, &val)| {
+    //         let leaf_index = self.num_leaves + i;
+    //         let index = index_from_leaf(leaf_index);
+    //         self.storage[index] = val;
+    //         parents.push(index);
+    //     });
+
+    // leaves.iter().enumerate().for_each(|(i, &val)| {
+    //     storage[base_len + i] = val;
+    // });
+    //
+    // // We iterate over mutable layers of the tree
+    // for current_depth in (1..=depth).rev() {
+    //     let (top, child_layer) = storage.split_at_mut(1 <<
+    // current_depth);     let parent_layer = &mut top[(1 <<
+    // (current_depth - 1))..];
+    //
+    //     parent_layer
+    //         .par_iter_mut()
+    //         .enumerate()
+    //         .for_each(|(i, value)| {
+    //             let left = &child_layer[2 * i];
+    //             let right = &child_layer[2 * i + 1];
+    //             *value = H::hash_node(left, right);
+    //         });
+    // }
+    //
+    // storage[1]
+    // }
 }
 
 impl<H: Hasher> DynamicMerkleTree<H, MmapVec<H>> {
@@ -384,8 +385,8 @@ pub trait DynamicTreeStorage<H: Hasher>:
     }
 
     /// Returns the depth of growable storage, not the top level root.
-    fn storage_depth(&self) -> u32 {
-        (self.len() >> 1).ilog2()
+    fn storage_depth(&self) -> usize {
+        subtree_depth(self)
     }
 
     /// Sets the number of leaves.
@@ -614,7 +615,7 @@ impl<H: Hasher> MmapVec<H> {
     /// - cannot get file metadata to check for file length
     /// - truncated file size when attempting to build memory map
     /// - cannot build memory map
-    pub unsafe fn restore(empty_leaf: &H::Hash, file_path: PathBuf) -> Result<Self> {
+    pub unsafe fn restore(empty_value: &H::Hash, file_path: PathBuf) -> Result<Self> {
         let file = match OpenOptions::new()
             .read(true)
             .write(true)
@@ -625,7 +626,7 @@ impl<H: Hasher> MmapVec<H> {
         };
 
         let file_size = file.metadata().expect("cannot get file metadata").len();
-        let size_of_empty_leaf = std::mem::size_of_val(empty_leaf);
+        let size_of_empty_leaf = std::mem::size_of_val(empty_value);
         if !(file_size / size_of_empty_leaf as u64).is_power_of_two() {
             bail!("File size should be a power of 2");
         }
@@ -645,7 +646,7 @@ impl<H: Hasher> MmapVec<H> {
         })
     }
 
-    pub fn reallocate(&mut self, empty_leaf: &H::Hash) -> Result<()> {
+    pub fn reallocate(&mut self, empty_value: &H::Hash) -> Result<()> {
         let file = match OpenOptions::new()
             .read(true)
             .write(true)
@@ -656,7 +657,7 @@ impl<H: Hasher> MmapVec<H> {
         };
 
         let file_size = file.metadata().expect("cannot get file metadata").len();
-        let size_of_empty_leaf = std::mem::size_of_val(empty_leaf);
+        let size_of_empty_leaf = std::mem::size_of_val(empty_value);
         if !(file_size / size_of_empty_leaf as u64).is_power_of_two() {
             bail!("File size should be a power of 2");
         }
@@ -689,13 +690,6 @@ impl<H: Hasher> DerefMut for MmapVec<H> {
         bytemuck::cast_slice_mut(self.mmap.as_mut_slice())
     }
 }
-
-// pub fn increment(storage: &[H::Hash]) -> Result<Self> {
-//     // Safety: potential uninitialized padding from `H::Hash` is safe to use
-// if     // we're casting back to the same type.
-//     let buf = bytemuck::cast_slice(storage);
-//     let buf_len = buf.len();
-// }
 
 // leaves are 0 indexed
 fn index_from_leaf(leaf: usize) -> usize {
@@ -770,20 +764,52 @@ fn _children(i: usize) -> Option<(usize, usize)> {
     Some((prev_pow + offset_left, prev_pow + offset_right))
 }
 
+/// Assumed that slice len is a power of 2
+#[inline]
+fn subtree_depth<H>(storage_slice: &[H]) -> usize {
+    let len = storage_slice.len();
+
+    debug_assert!(len.is_power_of_two());
+    debug_assert!(len > 1);
+
+    (len >> 1).ilog2() as usize
+}
+
+/// Assumed that slice len is a power of 2
+#[inline]
+fn subtree_depth_width<H>(storage_slice: &[H]) -> (usize, usize) {
+    let len = storage_slice.len();
+
+    debug_assert!(len.is_power_of_two());
+    debug_assert!(len > 1);
+
+    let width = len >> 1;
+    let depth = width.ilog2() as usize;
+
+    (depth, width)
+}
+
 /// Assumes that storage is already initialized with empty values
-/// This is much faster than init_subtree_with_leaves
+///
+/// O(log(n)) time complexity
+///
+/// Subtrees are 1 indexed and directly attached to the left most branch
+/// of the main tree.
+///
+/// storage.len() must be a power of 2 and greater than or equal to 2
+/// storage is 1 indexed
+///
 /// ```markdown
 ///           8    (subtree)
 ///      4      [     9     ]
 ///   2     5   [  10    11 ]
 /// 1  3  6  7  [12 13 14 15]
-fn init_subtree<H: Hasher>(sparse_column: &[H::Hash], storage: &mut [H::Hash]) -> H::Hash {
-    let base_len = storage.len() >> 1;
-    let depth = base_len.ilog2() as usize;
+fn init_subtree<H: Hasher>(sparse_column: &[H::Hash], storage_slice: &mut [H::Hash]) -> H::Hash {
+    let depth = subtree_depth(storage_slice);
 
-    // We iterate over mutable layers of the tree
+    // Iterate over mutable layers of the tree
     for current_depth in (1..=depth).rev() {
-        let (top, _) = storage.split_at_mut(1 << current_depth);
+        let (top, _) = storage_slice.split_at_mut(1 << current_depth);
         let parent_layer = &mut top[(1 << (current_depth - 1))..];
         let parent_hash = sparse_column[depth - current_depth];
 
@@ -792,14 +818,23 @@ fn init_subtree<H: Hasher>(sparse_column: &[H::Hash], storage: &mut [H::Hash]) -
         });
     }
 
-    storage[1]
+    storage_slice[1]
 }
 
+/// TODO: This function is slower than necessary if the entire base of the
+/// subtree is not filled with leaves.
+///
+/// Initialize a subtree with the given leaves in parallel.
+///
+/// O(n) time complexity
+///
 /// Subtrees are 1 indexed and directly attached to the left most branch
 /// of the main tree.
+///
 /// This function assumes that storage is already initialized with empty
 /// values and is the correct length for the subtree.
 /// If 'leaves' is not long enough, the remaining leaves will be left empty
+///
 /// storage.len() must be a power of 2 and greater than or equal to 2
 /// storage is 1 indexed
 ///
@@ -809,19 +844,13 @@ fn init_subtree<H: Hasher>(sparse_column: &[H::Hash], storage: &mut [H::Hash]) -
 ///   2     5   [  10    11 ]
 /// 1  3  6  7  [12 13 14 15]
 fn init_subtree_with_leaves<H: Hasher>(storage: &mut [H::Hash], leaves: &[H::Hash]) -> H::Hash {
-    let len = storage.len();
-
-    debug_assert!(len.is_power_of_two());
-    debug_assert!(len > 1);
-
-    let base_len = storage.len() >> 1;
-    let depth = base_len.ilog2();
+    let (depth, width) = subtree_depth_width(storage);
 
     leaves.iter().enumerate().for_each(|(i, &val)| {
-        storage[base_len + i] = val;
+        storage[width + i] = val;
     });
 
-    // We iterate over mutable layers of the tree
+    // Iterate over mutable layers of the tree
     for current_depth in (1..=depth).rev() {
         let (top, child_layer) = storage.split_at_mut(1 << current_depth);
         let parent_layer = &mut top[(1 << (current_depth - 1))..];
