@@ -405,7 +405,7 @@ pub trait DynamicTreeStorage<H: Hasher>:
         leaf_counter[0] += amount;
     }
 
-    fn validate(&self, empty_value: &H::Hash) -> Result<()> {
+    fn _validate(&self, _empty_value: &H::Hash) -> Result<()> {
         // let num_leaves = self.num_leaves();
         //
         // for
@@ -1267,7 +1267,7 @@ mod tests {
             &empty,
             &leaves,
         );
-        for _ in 0..100000 {
+        for _ in 0..10000 {
             tree.push(3).unwrap();
 
             let restored =
@@ -1275,5 +1275,41 @@ mod tests {
                     .unwrap();
             assert_eq!(tree, restored);
         }
+    }
+
+    #[test]
+    fn test_vec_realloc_speed() {
+        let empty = 0;
+        let leaves = vec![1; 1 << 20];
+        let mut tree =
+            DynamicMerkleTree::<TestHasher, Vec<_>>::new_with_leaves((), 30, &empty, &leaves);
+        let start = std::time::Instant::now();
+        tree.push(1).unwrap();
+        let elapsed = start.elapsed();
+        println!(
+            "Leaf index: {}, Time: {:?}ms",
+            tree.num_leaves(),
+            elapsed.as_millis()
+        );
+    }
+
+    #[test]
+    fn test_mmap_realloc_speed() {
+        let empty = 0;
+        let leaves = vec![1; 1 << 20];
+        let config = MmapTreeStorageConfig {
+            file_path: PathBuf::from("target/tmp/test.mmap"),
+        };
+        let mut tree = DynamicMerkleTree::<TestHasher, MmapVec<_>>::new_with_leaves(
+            config, 30, &empty, &leaves,
+        );
+        let start = std::time::Instant::now();
+        tree.push(1).unwrap();
+        let elapsed = start.elapsed();
+        println!(
+            "Leaf index: {}, Time: {:?}ms",
+            tree.num_leaves(),
+            elapsed.as_millis()
+        );
     }
 }

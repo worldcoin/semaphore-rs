@@ -1,0 +1,7 @@
+# RUST
+**/target/
+**/debug/
+**/*.rs.bk
+tarpaulin-report.html
+.vscode/
+Cargo.lock
