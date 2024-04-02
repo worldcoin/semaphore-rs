@@ -21,9 +21,7 @@ impl Hasher for TestHasher {
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    let config = MmapTreeStorageConfig {
-        file_path: "target/tmp/abort.mmap".into(),
-    };
+    let config = unsafe { MmapTreeStorageConfig::new("target/tmp/abort.mmap".into()) };
 
     // initialize
     if args.len() == 1 {
@@ -46,8 +44,9 @@ fn main() {
     }
 
     println!("restoring");
-    let mut tree =
-        DynamicMerkleTree::<TestHasher, MmapVec<TestHasher>>::restore(config, 30, &1).unwrap();
+    let mut tree = unsafe {
+        DynamicMerkleTree::<TestHasher, MmapVec<TestHasher>>::restore(config, 30, &1).unwrap()
+    };
 
     std::thread::spawn(move || loop {
         println!("here");
