@@ -32,7 +32,6 @@ use rayon::prelude::*;
 ///
 /// Leaves are 0 indexed
 /// 0  1  2  3  4  5  6  7
-#[repr(C)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DynamicMerkleTree<H: Hasher, S: DynamicTreeStorage<H> = Vec<<H as Hasher>::Hash>> {
     depth:         usize,
@@ -335,12 +334,7 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
 
 impl<H: Hasher> DynamicMerkleTree<H, MmapVec<H>> {
     /// Restores the tree from a preexisting memory map.
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that only one objecti is assigned to a
-    /// particular memory mapped file.
-    pub unsafe fn restore(
+    pub fn restore(
         config: MmapTreeStorageConfig,
         depth: usize,
         empty_value: &H::Hash,
@@ -374,7 +368,7 @@ pub trait DynamicTreeStorage<H: Hasher>:
 
     /// Reallocates the storage to be twice as large and fills the new
     /// storage with the empty leaf value.
-    fn reallocate(&mut self, empty_leaf: &H::Hash, sparse_column: &[H::Hash]) -> Result<()>;
+    fn reallocate(&mut self, empty_value: &H::Hash, sparse_column: &[H::Hash]) -> Result<()>;
 
     /// Initializes the storage with the given configuration, number of leaves,
     /// and initial values.
@@ -560,9 +554,9 @@ impl<H: Hasher> DynamicTreeStorage<H> for MmapVec<H> {
         Ok(res)
     }
 
-    fn reallocate(&mut self, empty_leaf: &H::Hash, sparse_column: &[H::Hash]) -> Result<()> {
+    fn reallocate(&mut self, empty_value: &H::Hash, sparse_column: &[H::Hash]) -> Result<()> {
         let current_size = self.len();
-        self.reallocate(empty_leaf)?;
+        self.reallocate(empty_value)?;
         init_subtree::<H>(sparse_column, &mut self[current_size..]);
         Ok(())
     }
@@ -596,7 +590,7 @@ impl<H: Hasher> std::fmt::Debug for MmapVec<H> {
 
 impl<H: Hasher> MmapVec<H> {
     /// Creates a new memory map backed with file with provided size
-    /// and fills the entire map with initial value
+    /// and fills the entire map with initial values
     ///
     /// # Safety
     ///
@@ -680,8 +674,8 @@ impl<H: Hasher> MmapVec<H> {
         };
 
         let file_size = file.metadata().expect("cannot get file metadata").len();
-        let size_of_empty_leaf = std::mem::size_of_val(empty_value);
-        if !(file_size / size_of_empty_leaf as u64).is_power_of_two() {
+        let size_of_empty_value = std::mem::size_of_val(empty_value);
+        if !(file_size / size_of_empty_value as u64).is_power_of_two() {
             bail!("File size should be a power of 2");
         }
 
@@ -711,8 +705,8 @@ impl<H: Hasher> MmapVec<H> {
         };
 
         let file_size = file.metadata().expect("cannot get file metadata").len();
-        let size_of_empty_leaf = std::mem::size_of_val(empty_value);
-        if !(file_size / size_of_empty_leaf as u64).is_power_of_two() {
+        let size_of_empty_value = std::mem::size_of_val(empty_value);
+        if !(file_size / size_of_empty_value as u64).is_power_of_two() {
             bail!("File size should be a power of 2");
         }
 
