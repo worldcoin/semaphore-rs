@@ -90,12 +90,23 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
         self.root
     }
 
+    /// Returns the the total number of leaves that have been inserted into the
+    /// tree. It's important to note that this is not the same as total
+    /// capacity of leaves. Leaves that have manually been set to empty
+    /// values are not considered.
     #[must_use]
     pub fn num_leaves(&self) -> usize {
         self.storage.num_leaves()
     }
 
+    /// Sets the value at the given index.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the leaf index is not less than the current
+    /// number of leaves.
     pub fn set_leaf(&mut self, leaf: usize, value: H::Hash) {
+        assert!(leaf < self.num_leaves(), "Leaf index out of bounds");
         let index = index_from_leaf(leaf);
         self.storage[index] = value;
         self.propogate_up(index);
@@ -119,11 +130,16 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
     }
 
     /// Returns the Merkle proof for the given leaf.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the leaf index is not less than the current
+    /// number of leaves.
     #[must_use]
     pub fn proof(&self, leaf: usize) -> Proof<H> {
+        assert!(leaf < self.num_leaves(), "Leaf index out of bounds");
         let mut proof = Vec::with_capacity(self.depth);
-        let storage_base = self.storage.len() >> 1;
-        let storage_depth = storage_base.ilog2() as usize;
+        let storage_depth = subtree_depth(&self.storage);
 
         let mut index = index_from_leaf(leaf);
         for _ in 0..storage_depth {
@@ -146,6 +162,9 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
         Proof(proof)
     }
 
+    /// Returns the Merkle proof for the given leaf hash.
+    /// Leaves are scanned from right to left.
+    /// This is a slow operation and `proof` should be used when possible.
     #[must_use]
     pub fn proof_from_hash(&self, leaf: H::Hash) -> Option<Proof<H>> {
         let leaf = self.get_leaf_from_hash(leaf)?;
@@ -158,7 +177,11 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
         proof.root(value) == self.root()
     }
 
-    /// Returns the value at the given index.
+    /// Returns the node hash at the given index.
+    ///
+    /// # Panics
+    ///
+    /// Panics if either the depth or offset is out of bounds.
     #[must_use]
     pub fn get_node(&self, depth: usize, offset: usize) -> H::Hash {
         let height = self.depth - depth;
@@ -175,13 +198,14 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
         }
     }
 
-    /// Returns the value at the given index.
+    /// Returns the hash at the given leaf index.
     #[must_use]
     pub fn get_leaf(&self, leaf: usize) -> H::Hash {
         let index = index_from_leaf(leaf);
         self.storage.get(index).copied().unwrap_or(self.empty_value)
     }
 
+    /// Returns the leaf index for the given leaf hash.
     #[must_use]
     pub fn get_leaf_from_hash(&self, hash: H::Hash) -> Option<usize> {
         let num_leaves = self.num_leaves();
@@ -209,12 +233,17 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
         }
     }
 
-    /// Returns an iterator over all leaves.
+    /// Returns an iterator over all leaf hashes.
+    ///
+    /// TODO: This can be made more efficient by iterating over sub slices
     pub fn leaves(&self) -> impl Iterator<Item = H::Hash> + '_ {
         (0..(1 << self.depth())).map(|i| self.get_leaf(i))
     }
 
-    /// Index 0 represents the bottow layer
+    /// Returns the `sparse_column` for the given depth and empty_value.
+    /// This columns represents empy values sequentially hashed together up to
+    /// the top of the tree.
+    /// Index 0 represents the bottom layer of the tree.
     #[must_use]
     fn sparse_column(depth: usize, empty_value: &H::Hash) -> Vec<H::Hash> {
         (0..depth + 1)
@@ -226,6 +255,7 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
             .collect()
     }
 
+    /// Propogates new hashes up the top of the storage subtree.
     fn propogate_up(&mut self, mut index: usize) -> Option<()> {
         loop {
             let (left, right) = match sibling(index) {
@@ -241,12 +271,15 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
     }
 
     /// Returns the root of the tree.
+    /// Hashes are recomputed from the storage tip.
     fn recompute_root(&mut self) -> H::Hash {
         let hash = self.compute_from_storage_tip(0);
         self.root = hash;
         hash
     }
 
+    /// Recomputes hashess from the storage tip up to the given depth.
+    /// The hash returned is the hash of the left most branch of the tree.
     fn compute_from_storage_tip(&self, depth: usize) -> H::Hash {
         let storage_root = self.storage.storage_root();
         let storage_depth = self.storage.storage_depth();
@@ -301,7 +334,13 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
 }
 
 impl<H: Hasher> DynamicMerkleTree<H, MmapVec<H>> {
-    pub fn restore(
+    /// Restores the tree from a preexisting memory map.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that only one objecti is assigned to a
+    /// particular memory mapped file.
+    pub unsafe fn restore(
         config: MmapTreeStorageConfig,
         depth: usize,
         empty_value: &H::Hash,
@@ -488,9 +527,24 @@ impl<H: Hasher> DynamicTreeStorage<H> for Vec<H::Hash> {
     }
 }
 
-#[derive(Debug, Clone)]
+/// We maintain safety by restricting the creation of configs
+/// so that the caller must explicity agree to the unsafe building of
+/// memory maps.
+#[derive(Debug)]
 pub struct MmapTreeStorageConfig {
-    pub file_path: PathBuf,
+    file_path: PathBuf,
+}
+
+impl MmapTreeStorageConfig {
+    /// Creates a new memory map configuration with the given file path.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that only one object is assigned to a
+    /// particular memory mapped file.
+    pub unsafe fn new(file_path: PathBuf) -> Self {
+        Self { file_path }
+    }
 }
 
 impl<H: Hasher> DynamicTreeStorage<H> for MmapVec<H> {
@@ -1256,13 +1310,10 @@ mod tests {
 
     #[test]
     fn test_mmap() {
-        let config = MmapTreeStorageConfig {
-            file_path: PathBuf::from("target/tmp/test.mmap"),
-        };
         let leaves = vec![3; 20];
         let empty = 1;
         let mut tree = DynamicMerkleTree::<TestHasher, MmapVec<_>>::new_with_leaves(
-            config.clone(),
+            unsafe { MmapTreeStorageConfig::new(PathBuf::from("target/tmp/test.mmap")) },
             20,
             &empty,
             &leaves,
@@ -1270,9 +1321,14 @@ mod tests {
         for _ in 0..10000 {
             tree.push(3).unwrap();
 
-            let restored =
-                DynamicMerkleTree::<TestHasher, MmapVec<_>>::restore(config.clone(), 20, &empty)
-                    .unwrap();
+            let restored = unsafe {
+                DynamicMerkleTree::<TestHasher, MmapVec<_>>::restore(
+                    MmapTreeStorageConfig::new(PathBuf::from("target/tmp/test.mmap")),
+                    20,
+                    &empty,
+                )
+                .unwrap()
+            };
             assert_eq!(tree, restored);
         }
     }

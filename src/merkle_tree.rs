@@ -161,8 +161,8 @@ impl<H: Hasher> MerkleTree<H> {
         while let Some(parent) = parent(index) {
             // Add proof for node at index to parent
             path.push(match index & 1 {
-                1 => Branch::Left(self.nodes[index + 1].clone()),
-                0 => Branch::Right(self.nodes[index - 1].clone()),
+                1 => Branch::Left(self.nodes[index + 1]),
+                0 => Branch::Right(self.nodes[index - 1]),
                 _ => unreachable!(),
             });
             index = parent;
