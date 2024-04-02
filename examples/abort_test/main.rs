@@ -1,6 +1,5 @@
 use std::{
     env,
-    io::Read,
     process::{abort, Stdio},
 };
 
@@ -44,9 +43,8 @@ fn main() {
     }
 
     println!("restoring");
-    let mut tree = unsafe {
-        DynamicMerkleTree::<TestHasher, MmapVec<TestHasher>>::restore(config, 30, &1).unwrap()
-    };
+    let mut tree =
+        DynamicMerkleTree::<TestHasher, MmapVec<TestHasher>>::restore(config, 30, &1).unwrap();
 
     std::thread::spawn(move || loop {
         println!("here");
