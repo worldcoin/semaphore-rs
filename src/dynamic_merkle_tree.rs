@@ -1,5 +1,8 @@
 use crate::merkle_tree::{Branch, Hasher, Proof};
 use color_eyre::eyre::{bail, Result};
+use itertools::Itertools;
+use mmap_rs::{MmapMut, MmapOptions};
+use rayon::prelude::*;
 use std::{
     fs::OpenOptions,
     io::Write,
@@ -7,9 +10,6 @@ use std::{
     ops::{Deref, DerefMut},
     path::PathBuf,
 };
-
-use mmap_rs::{MmapMut, MmapOptions};
-use rayon::prelude::*;
 
 /// A dynamically growable array represented merkle tree.
 /// The left most branch of the tree consists of progressively increasing powers
@@ -108,7 +108,7 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
         assert!(leaf < self.num_leaves(), "Leaf index out of bounds");
         let index = index_from_leaf(leaf);
         self.storage[index] = value;
-        self.propogate_up(index);
+        self.storage.propogate_up(index);
         self.recompute_root();
     }
 
@@ -123,7 +123,7 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
             }
         }
         self.storage.increment_num_leaves(1);
-        self.propogate_up(index);
+        self.storage.propogate_up(index);
         self.recompute_root();
         Ok(())
     }
@@ -233,10 +233,8 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
     }
 
     /// Returns an iterator over all leaf hashes.
-    ///
-    /// TODO: This can be made more efficient by iterating over sub slices
     pub fn leaves(&self) -> impl Iterator<Item = H::Hash> + '_ {
-        (0..(1 << self.depth())).map(|i| self.get_leaf(i))
+        self.storage.leaves()
     }
 
     /// Returns the `sparse_column` for the given depth and empty_value.
@@ -252,21 +250,6 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
                 Some(val)
             })
             .collect()
-    }
-
-    /// Propogates new hashes up the top of the storage subtree.
-    fn propogate_up(&mut self, mut index: usize) -> Option<()> {
-        loop {
-            let (left, right) = match sibling(index) {
-                Branch::Left(sibling) => (index, sibling),
-                Branch::Right(sibling) => (sibling, index),
-            };
-            let left_hash = self.storage.get(left)?;
-            let right_hash = self.storage.get(right)?;
-            let parent_index = parent(index);
-            self.storage[parent_index] = H::hash_node(left_hash, right_hash);
-            index = parent_index;
-        }
     }
 
     /// Returns the root of the tree.
@@ -287,6 +270,12 @@ impl<H: Hasher, S: DynamicTreeStorage<H>> DynamicMerkleTree<H, S> {
             hash = H::hash_node(&hash, &self.sparse_column[i]);
         }
         hash
+    }
+
+    /// Validates all elements of the storage, ensuring that they
+    /// correspond to a valid tree.
+    pub fn validate(&self) -> Result<()> {
+        self.storage.validate(&self.empty_value)
     }
 
     // pub fn extend_from_slice(&mut self, leaves: &[H::Hash]) {
@@ -362,7 +351,7 @@ impl<H: Hasher> DynamicMerkleTree<H, MmapVec<H>> {
 // so that we can have type level information that the length
 // is always exactly a power of 2
 pub trait DynamicTreeStorage<H: Hasher>:
-    Deref<Target = [H::Hash]> + DerefMut<Target = [H::Hash]> + Sized
+    Deref<Target = [H::Hash]> + DerefMut<Target = [H::Hash]> + Send + Sync + Sized
 {
     type StorageConfig;
 
@@ -407,9 +396,39 @@ pub trait DynamicTreeStorage<H: Hasher>:
         Self::new_from_vec(config, num_leaves, storage).unwrap()
     }
 
-    /// Returns an iterator over all leaves.
+    /// Returns an iterator over all leaves including those that have noe been
+    /// set.
     fn leaves(&self) -> impl Iterator<Item = H::Hash> + '_ {
-        (0..(self.len() >> 1)).map(move |i| self[index_from_leaf(i)])
+        self.row_indices(0).map(move |i| self[i])
+    }
+
+    fn row_indices(&self, height: usize) -> impl Iterator<Item = usize> + Send + '_ {
+        let first = 1 << height;
+        let storage_len = self.len();
+        let mut iters = vec![];
+
+        if first >= storage_len {
+            return iters.into_iter().flatten();
+        }
+
+        iters.push(first..(first + 1));
+
+        let mut next = (first << 1) + 1;
+
+        for i in 0.. {
+            if next >= storage_len {
+                break;
+            }
+            let slice_len = 1 << i;
+            iters.push(next..(next + slice_len));
+            next *= 2;
+        }
+
+        iters.into_iter().flatten()
+    }
+
+    fn row(&self, height: usize) -> impl Iterator<Item = H::Hash> + Send + '_ {
+        self.row_indices(height).map(move |i| self[i])
     }
 
     /// Returns the root hash of the growable storage, not the top level root.
@@ -438,69 +457,65 @@ pub trait DynamicTreeStorage<H: Hasher>:
         leaf_counter[0] += amount;
     }
 
-    fn _validate(&self, _empty_value: &H::Hash) -> Result<()> {
-        // let num_leaves = self.num_leaves();
-        //
-        // for
-        // let base_len = self.len() >> 1;
-        // let depth = base_len.ilog2();
-        // let storage_root = self.storage_root();
-        // let storage_depth = self.storage_depth() as usize;
-        //
-        // if num_leaves == 0 {
-        //     return storage_root == *empty_value;
-        // }
-        //
-        // let mut end = index_from_leaf(num_leaves - 1) + 1; // 4
-        // let prev_pow = end.next_power_of_two() >> 1;
-        // let mut start = prev_pow + (prev_pow >> 1);
-        //
-        // loop {
-        //     match (start..end).rev().find(|&i| self[i] == storage_root) {
-        //         Some(index) => {
-        //             let leaf = leaf_from_index(index);
-        //             if leaf >= num_leaves {
-        //                 return false;
-        //             }
-        //             let leaf_hash = self[index];
-        //             if leaf_hash != H::hash_node(&leaf_hash, &leaf_hash) {
-        //                 return false;
-        //             }
-        //             break;
-        //         }
-        //         None => {
-        //             if start == 1 {
-        //                 return false;
-        //             }
-        //             start /= 2;
-        //             end = (start + 1).next_power_of_two();
-        //         }
-        //     }
-        // }
-        //
-        // for i in 0..num_leaves {
-        //     let index = index_from_leaf(i);
-        //     if self[index] != H::hash_node(&self[index], &self[index]) {
-        //         return false;
-        //     }
-        // }
-        //
-        // for i in num_leaves..base_len {
-        //     let index = index_from_leaf(i);
-        //     if self[index] != *empty_value {
-        //         return false;
-        //     }
-        // }
-        //
-        // for i in 0..storage_depth {
-        //     let hash = self.compute_from_storage_tip(i);
-        //     if hash != self.storage_root() {
-        //         return false;
-        //     }
-        // }
-        //
-        // true
-        todo!();
+    /// Propogates new hashes up the top of the subtree.
+    fn propogate_up(&mut self, mut index: usize) -> Option<()> {
+        loop {
+            let (left, right) = match sibling(index) {
+                Branch::Left(sibling) => (index, sibling),
+                Branch::Right(sibling) => (sibling, index),
+            };
+            let left_hash = self.get(left)?;
+            let right_hash = self.get(right)?;
+            let parent_index = parent(index);
+            self[parent_index] = H::hash_node(left_hash, right_hash);
+            index = parent_index;
+        }
+    }
+
+    /// Validates all elements of the storage, ensuring that they
+    /// correspond to a valid tree.
+    fn validate(&self, empty_value: &H::Hash) -> Result<()> {
+        let len = self.len();
+
+        if !len.is_power_of_two() {
+            bail!("Storage length must be a power of 2");
+        }
+        if len < 2 {
+            bail!("Storage length must be greater than 1");
+        }
+
+        let width = len >> 1;
+        let depth = width.ilog2() as usize;
+
+        let num_leaves = self.num_leaves();
+        let start = index_from_leaf(num_leaves);
+
+        if start < len {
+            for hash in self[start..].iter() {
+                if hash != empty_value {
+                    bail!("Storage contains non-empty values past the last leaf");
+                }
+            }
+        }
+
+        for height in 0..=depth {
+            let row = self.row(height);
+            let parents = self.row(height + 1);
+            let row_couple = row.tuples();
+
+            parents
+                .zip(row_couple)
+                .par_bridge()
+                .try_for_each(|(parent, (left, right))| {
+                    let expected = H::hash_node(&left, &right);
+                    if parent != expected {
+                        bail!("Invalid hash");
+                    }
+                    Ok(())
+                })?;
+        }
+
+        Ok(())
     }
 }
 
@@ -721,6 +736,11 @@ impl<H: Hasher> MmapVec<H> {
                 .expect("cannot build memory map")
         };
 
+        let len = self.len();
+        self[(len >> 1)..].par_iter_mut().for_each(|val| {
+            *val = *empty_value;
+        });
+
         Ok(())
     }
 }
@@ -855,14 +875,12 @@ fn subtree_depth_width<H>(storage_slice: &[H]) -> (usize, usize) {
 fn init_subtree<H: Hasher>(sparse_column: &[H::Hash], storage_slice: &mut [H::Hash]) -> H::Hash {
     let depth = subtree_depth(storage_slice);
 
-    // Iterate over mutable layers of the tree
-    for current_depth in (1..=depth).rev() {
-        let (top, _) = storage_slice.split_at_mut(1 << current_depth);
-        let parent_layer = &mut top[(1 << (current_depth - 1))..];
-        let parent_hash = sparse_column[depth - current_depth];
-
-        parent_layer.par_iter_mut().for_each(|value| {
-            *value = parent_hash;
+    for current_depth in 0..depth {
+        let start = 1 << current_depth;
+        let row = &mut storage_slice[start..(start << 1)];
+        let hash = sparse_column[depth - current_depth];
+        row.par_iter_mut().for_each(|value| {
+            *value = hash;
         });
     }
 
@@ -1096,6 +1114,7 @@ mod tests {
         let leaves = vec![1; num_leaves];
         let empty = 0;
         let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves((), 1, &empty, &leaves);
+        tree.validate().unwrap();
         debug_tree(&tree);
     }
 
@@ -1123,6 +1142,7 @@ mod tests {
             _marker:       std::marker::PhantomData,
         };
         debug_tree(&tree);
+        tree.validate().unwrap();
         assert_eq!(tree, expected);
     }
 
@@ -1141,6 +1161,7 @@ mod tests {
             _marker:       std::marker::PhantomData,
         };
         debug_tree(&tree);
+        tree.validate().unwrap();
         assert_eq!(tree, expected);
     }
 
@@ -1158,6 +1179,7 @@ mod tests {
             _marker:       std::marker::PhantomData,
         };
         debug_tree(&tree);
+        tree.validate().unwrap();
         assert_eq!(tree, expected);
     }
 
@@ -1175,6 +1197,7 @@ mod tests {
             _marker:       std::marker::PhantomData,
         };
         debug_tree(&tree);
+        tree.validate().unwrap();
         assert_eq!(tree, expected);
     }
 
@@ -1193,6 +1216,7 @@ mod tests {
             _marker:       std::marker::PhantomData,
         };
         debug_tree(&tree);
+        tree.validate().unwrap();
         assert_eq!(tree, expected);
     }
 
@@ -1203,6 +1227,7 @@ mod tests {
         let empty = 1;
         let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves((), 3, &empty, &leaves);
         debug_tree(&tree);
+        tree.validate().unwrap();
         let expected = vec![
             ((3, 0), 3),
             ((3, 1), 3),
@@ -1230,8 +1255,10 @@ mod tests {
     fn test_get_leaf_from_hash() {
         let empty = 0;
         let mut tree = DynamicMerkleTree::<TestHasher>::new((), 10, &empty);
+        tree.validate().unwrap();
         for i in 1..=64 {
             tree.push(i).unwrap();
+            tree.validate().unwrap();
             let first = tree.get_leaf_from_hash(1).unwrap();
             let this = tree.get_leaf_from_hash(i).unwrap();
             assert_eq!(first, 0);
@@ -1241,11 +1268,63 @@ mod tests {
     }
 
     #[test]
+    fn test_row_indices() {
+        let num_leaves = 12;
+        let leaves = vec![3; num_leaves];
+        let empty = 1;
+        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves((), 3, &empty, &leaves);
+        tree.validate().unwrap();
+        debug_tree(&tree);
+        let expected = vec![
+            (0, vec![
+                1usize, 3, 6, 7, 12, 13, 14, 15, 24, 25, 26, 27, 28, 29, 30, 31,
+            ]),
+            (1, vec![2, 5, 10, 11, 20, 21, 22, 23]),
+            (2, vec![4, 9, 18, 19]),
+            (3, vec![8, 17]),
+            (4, vec![16]),
+        ];
+        for (height, result) in expected {
+            println!("Height: {}, expected: {:?}", height, result);
+            assert_eq!(
+                <Vec<usize> as DynamicTreeStorage<TestHasher>>::row_indices(&tree.storage, height)
+                    .collect::<Vec<usize>>(),
+                result
+            );
+        }
+    }
+
+    #[test]
+    fn test_row() {
+        let leaves = vec![1, 2, 3, 4, 5, 6];
+        let empty = 0;
+        let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves((), 20, &empty, &leaves);
+        tree.validate().unwrap();
+        debug_tree(&tree);
+        let expected = vec![
+            (0, vec![1, 2, 3, 4, 5, 6, 0, 0]),
+            (1, vec![3, 7, 11, 0]),
+            (2, vec![10, 11]),
+            (3, vec![21]),
+        ];
+        for (height, result) in expected {
+            println!("Height: {}, expected: {:?}", height, result);
+            assert_eq!(
+                <Vec<usize> as DynamicTreeStorage<TestHasher>>::row(&tree.storage, height)
+                    .collect::<Vec<usize>>(),
+                result
+            );
+            // assert_eq!(tree.storage.row_indices(height).collect(), result);
+        }
+    }
+
+    #[test]
     fn test_proof_from_hash() {
         let leaves = vec![1, 2, 3, 4, 5, 6];
         let empty = 1;
         let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves((), 4, &empty, &leaves);
         debug_tree(&tree);
+        tree.validate().unwrap();
         let expected = vec![
             (1, vec![
                 Branch::Left(2),
@@ -1298,13 +1377,16 @@ mod tests {
         let empty = 0;
         let mut tree = DynamicMerkleTree::<TestHasher>::new_with_leaves((), 22, &empty, &leaves);
         debug_tree(&tree);
+        tree.validate().unwrap();
         tree.push(3).unwrap();
         debug_tree(&tree);
+        tree.validate().unwrap();
     }
 
     #[test]
+
     fn test_mmap() {
-        let leaves = vec![3; 20];
+        let leaves = vec![3; 3];
         let empty = 1;
         let mut tree = DynamicMerkleTree::<TestHasher, MmapVec<_>>::new_with_leaves(
             unsafe { MmapTreeStorageConfig::new(PathBuf::from("target/tmp/test.mmap")) },
@@ -1312,8 +1394,12 @@ mod tests {
             &empty,
             &leaves,
         );
-        for _ in 0..10000 {
+        debug_tree(&tree);
+        tree.validate().unwrap();
+
+        for _ in 0..100 {
             tree.push(3).unwrap();
+            tree.validate().unwrap();
 
             let restored = unsafe {
                 DynamicMerkleTree::<TestHasher, MmapVec<_>>::restore(
@@ -1323,6 +1409,7 @@ mod tests {
                 )
                 .unwrap()
             };
+            restored.validate().unwrap();
             assert_eq!(tree, restored);
         }
     }

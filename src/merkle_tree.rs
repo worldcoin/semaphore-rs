@@ -13,7 +13,7 @@ use std::{
 };
 
 /// Hash types, values and algorithms for a Merkle tree
-pub trait Hasher {
+pub trait Hasher: Send + Sync {
     /// Type of the leaf and node hashes
     type Hash: Clone + Eq + Serialize + Debug + Pod + Send + Sync;
 
