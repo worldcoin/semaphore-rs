@@ -491,11 +491,12 @@ pub trait DynamicTreeStorage<H: Hasher>:
         let start = index_from_leaf(num_leaves);
 
         if start < len {
-            for hash in self[start..].iter() {
+            self[start..].par_iter().try_for_each(|hash| {
                 if hash != empty_value {
                     bail!("Storage contains non-empty values past the last leaf");
                 }
-            }
+                Ok(())
+            })?;
         }
 
         for height in 0..=depth {
@@ -912,9 +913,12 @@ fn init_subtree<H: Hasher>(sparse_column: &[H::Hash], storage_slice: &mut [H::Ha
 fn init_subtree_with_leaves<H: Hasher>(storage: &mut [H::Hash], leaves: &[H::Hash]) -> H::Hash {
     let (depth, width) = subtree_depth_width(storage);
 
-    leaves.iter().enumerate().for_each(|(i, &val)| {
-        storage[width + i] = val;
-    });
+    storage[width..(width + leaves.len())]
+        .par_iter_mut()
+        .zip(leaves.par_iter())
+        .for_each(|(val, leaf)| {
+            *val = *leaf;
+        });
 
     // Iterate over mutable layers of the tree
     for current_depth in (1..=depth).rev() {
