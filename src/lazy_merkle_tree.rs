@@ -767,7 +767,7 @@ impl<H: Hasher> DenseTree<H> {
     }
 
     fn root(&self) -> H::Hash {
-        self.storage.lock().unwrap()[self.root_index].clone()
+        self.storage.lock().unwrap()[self.root_index]
     }
 }
 
@@ -796,7 +796,7 @@ impl<H: Hasher> From<DenseTreeRef<'_, H>> for AnyTree<H> {
 
 impl<'a, H: Hasher> DenseTreeRef<'a, H> {
     fn root(&self) -> H::Hash {
-        self.storage[self.root_index].clone()
+        self.storage[self.root_index]
     }
 
     const fn left(&self) -> DenseTreeRef<H> {
@@ -833,7 +833,7 @@ impl<'a, H: Hasher> DenseTreeRef<'a, H> {
 
     fn update(&self, index: usize, hash: &H::Hash) -> SparseTree<H> {
         if self.depth == 0 {
-            return SparseTree::new_leaf(hash.clone());
+            return SparseTree::new_leaf(*hash);
         }
         let next_index = clear_turn_at_depth(index, self.depth);
         if get_turn_at_depth(index, self.depth) == Turn::Left {
@@ -962,7 +962,7 @@ impl<H: Hasher> DenseMMapTree<H> {
     fn get_leaf(&self, index: usize) -> H::Hash {
         self.with_ref(|r| {
             let leaf_index_in_dense_tree = index + (self.root_index << self.depth);
-            r.storage[leaf_index_in_dense_tree].clone()
+            r.storage[leaf_index_in_dense_tree]
         })
     }
 
@@ -983,7 +983,7 @@ impl<H: Hasher> DenseMMapTree<H> {
     fn update_with_mutation(&self, index: usize, value: &H::Hash) {
         let mut storage = self.storage.lock().expect("lock poisoned, terminating");
         let leaf_index_in_dense_tree = index + (self.root_index << self.depth);
-        storage[leaf_index_in_dense_tree] = value.clone();
+        storage[leaf_index_in_dense_tree] = *value;
         let mut current = leaf_index_in_dense_tree / 2;
         while current > 0 {
             let left = &storage[2 * current];
@@ -994,7 +994,7 @@ impl<H: Hasher> DenseMMapTree<H> {
     }
 
     fn root(&self) -> H::Hash {
-        self.storage.lock().expect("lock poisoned")[self.root_index].clone()
+        self.storage.lock().expect("lock poisoned")[self.root_index]
     }
 }
 
@@ -1023,7 +1023,7 @@ impl<'a, H: Hasher> From<DenseTreeMMapRef<'a, H>> for AnyTree<H> {
 
 impl<'a, H: Hasher> DenseTreeMMapRef<'a, H> {
     fn root(&self) -> H::Hash {
-        self.storage[self.root_index].clone()
+        self.storage[self.root_index]
     }
 
     const fn left(&self) -> DenseTreeMMapRef<H> {
@@ -1060,7 +1060,7 @@ impl<'a, H: Hasher> DenseTreeMMapRef<'a, H> {
 
     fn update(&self, index: usize, hash: &H::Hash) -> SparseTree<H> {
         if self.depth == 0 {
-            return SparseTree::new_leaf(hash.clone());
+            return SparseTree::new_leaf(*hash);
         }
         let next_index = clear_turn_at_depth(index, self.depth);
         if get_turn_at_depth(index, self.depth) == Turn::Left {
@@ -1504,225 +1504,5 @@ mod tests {
 
         // remove mmap file at the end
         std::fs::remove_file("./testfile").unwrap();
-    }
-}
-
-#[cfg(feature = "bench")]
-pub mod bench {
-    use crate::{poseidon_tree::PoseidonHash, Field};
-
-    #[allow(clippy::wildcard_imports)]
-    use super::*;
-    use criterion::{BenchmarkId, Criterion};
-
-    struct TreeValues<H: Hasher> {
-        depth:          usize,
-        prefix_depth:   usize,
-        empty_value:    H::Hash,
-        initial_values: Vec<H::Hash>,
-    }
-
-    pub fn group(criterion: &mut Criterion) {
-        bench_create_dense_tree(criterion);
-        bench_create_dense_mmap_tree(criterion);
-        bench_restore_dense_mmap_tree(criterion);
-        bench_dense_tree_reads(criterion);
-        bench_dense_mmap_tree_reads(criterion);
-        bench_dense_tree_writes(criterion);
-        bench_dense_mmap_tree_writes(criterion);
-    }
-
-    fn bench_create_dense_tree(criterion: &mut Criterion) {
-        let tree_values = vec![
-            create_values_for_tree(4),
-            create_values_for_tree(10),
-            create_values_for_tree(14),
-        ];
-
-        let mut group = criterion.benchmark_group("bench_create_dense_tree");
-
-        for value in tree_values.iter() {
-            group.bench_with_input(BenchmarkId::from_parameter(format!("create_dense_tree_depth_{}", value.depth)), value, |bencher: &mut criterion::Bencher, value| {
-                bencher.iter(|| {
-                    let _tree = LazyMerkleTree::<PoseidonHash, Canonical>::new_with_dense_prefix_with_initial_values(value.depth, value.prefix_depth, &value.empty_value, &value.initial_values);
-                    let _root = _tree.root();
-                });
-            });
-        }
-        group.finish();
-    }
-
-    fn bench_create_dense_mmap_tree(criterion: &mut Criterion) {
-        let tree_values = vec![
-            create_values_for_tree(4),
-            create_values_for_tree(10),
-            create_values_for_tree(14),
-        ];
-
-        let mut group = criterion.benchmark_group("bench_create_dense_mmap_tree");
-
-        for value in tree_values.iter() {
-            group.bench_with_input(BenchmarkId::from_parameter(format!("create_dense_mmap_tree_depth_{}", value.depth)), value, |bencher: &mut criterion::Bencher, value| {
-                bencher.iter(|| {
-                    let _tree = LazyMerkleTree::<PoseidonHash, Canonical>::new_mmapped_with_dense_prefix_with_init_values(value.depth, value.prefix_depth, &value.empty_value, &value.initial_values, "./testfile").unwrap();
-                    let _root = _tree.root();
-                });
-            });
-        }
-        group.finish();
-        // remove created mmap file
-        std::fs::remove_file("./testfile").unwrap();
-    }
-
-    fn bench_restore_dense_mmap_tree(criterion: &mut Criterion) {
-        let tree_values = vec![
-            create_values_for_tree(4),
-            create_values_for_tree(10),
-            create_values_for_tree(14),
-        ];
-
-        // create 3 trees with different sizes, that are immediately dropped, but mmap
-        // file should be saved
-        (0..3).zip(&tree_values).for_each(|(id, value)| {
-            let _tree = LazyMerkleTree::<PoseidonHash, Canonical>::new_mmapped_with_dense_prefix_with_init_values(value.depth, value.prefix_depth, &value.empty_value, &value.initial_values, &format!("./testfile{}", id)).unwrap();
-            let _root = _tree.root();
-        });
-
-        let mut group = criterion.benchmark_group("bench_restore_dense_mmap_tree");
-
-        (0..3).zip(tree_values).for_each(|(id, value)| {
-            group.bench_with_input(
-                BenchmarkId::from_parameter(format!(
-                    "restore_dense_mmap_tree_depth_{}",
-                    value.depth
-                )),
-                &(id, value),
-                |bencher: &mut criterion::Bencher, (id, value)| {
-                    bencher.iter(|| {
-                        let _tree =
-                            LazyMerkleTree::<PoseidonHash, Canonical>::attempt_dense_mmap_restore(
-                                value.depth,
-                                value.depth,
-                                &value.empty_value,
-                                &format!("./testfile{}", id),
-                            )
-                            .unwrap();
-                        let _root = _tree.root();
-                    });
-                },
-            );
-        });
-        group.finish();
-        // remove created mmap files
-        std::fs::remove_file("./testfile0").unwrap();
-        std::fs::remove_file("./testfile1").unwrap();
-        std::fs::remove_file("./testfile2").unwrap();
-    }
-
-    #[allow(unused)]
-    fn bench_dense_tree_reads(criterion: &mut Criterion) {
-        let tree_value = create_values_for_tree(14);
-
-        let tree = LazyMerkleTree::<PoseidonHash>::new_with_dense_prefix_with_initial_values(
-            tree_value.depth,
-            tree_value.prefix_depth,
-            &tree_value.empty_value,
-            &tree_value.initial_values,
-        );
-
-        criterion.bench_function("dense tree reads", |b| {
-            b.iter(|| {
-                // read all leaves, and compare to ones in tree value
-                ((1 << (tree_value.depth - 1))..(1 << tree_value.depth)).for_each(|index| {
-                    let _proof = tree.proof(index);
-                })
-            })
-        });
-    }
-
-    #[allow(unused)]
-    fn bench_dense_mmap_tree_reads(criterion: &mut Criterion) {
-        let tree_value = create_values_for_tree(14);
-
-        let tree = LazyMerkleTree::<PoseidonHash>::new_mmapped_with_dense_prefix_with_init_values(
-            tree_value.depth,
-            tree_value.prefix_depth,
-            &tree_value.empty_value,
-            &tree_value.initial_values,
-            "./testfile",
-        )
-        .unwrap();
-
-        criterion.bench_function("dense mmap tree reads", |b| {
-            b.iter(|| {
-                // read all leaves, and compare to ones in tree value
-                ((1 << (tree.depth() - 1))..(1 << tree.depth())).for_each(|index| {
-                    let _proof = tree.proof(index);
-                })
-            })
-        });
-        // remove mmap file
-        std::fs::remove_file("./testfile");
-    }
-
-    #[allow(unused)]
-    fn bench_dense_tree_writes(criterion: &mut Criterion) {
-        let tree_value = create_values_for_tree(14);
-
-        let mut tree = LazyMerkleTree::<PoseidonHash>::new_with_dense_prefix_with_initial_values(
-            tree_value.depth,
-            tree_value.prefix_depth,
-            &tree_value.empty_value,
-            &tree_value.initial_values,
-        );
-
-        let value = Field::from(123_456);
-
-        criterion.bench_function("dense tree writes", |b| {
-            let tree = tree.tree.clone();
-            b.iter(|| {
-                let _new_tree = tree.update_with_mutation_condition(9000, &value, true);
-            });
-        });
-    }
-
-    #[allow(unused)]
-    fn bench_dense_mmap_tree_writes(criterion: &mut Criterion) {
-        let tree_value = create_values_for_tree(14);
-
-        let mut tree =
-            LazyMerkleTree::<PoseidonHash>::new_mmapped_with_dense_prefix_with_init_values(
-                tree_value.depth,
-                tree_value.prefix_depth,
-                &tree_value.empty_value,
-                &tree_value.initial_values,
-                "./testfile",
-            )
-            .unwrap();
-
-        let value = Field::from(123_456);
-
-        criterion.bench_function("dense mmap tree writes", |b| {
-            let tree = tree.tree.clone();
-            b.iter(|| {
-                let _new_tree = tree.update_with_mutation_condition(9000, &value, true);
-            });
-        });
-        // remove mmap file
-        std::fs::remove_file("./testfile");
-    }
-
-    fn create_values_for_tree(depth: usize) -> TreeValues<PoseidonHash> {
-        let prefix_depth = depth;
-        let empty_value = Field::from(0);
-
-        let initial_values: Vec<ruint::Uint<256, 4>> = (0..(1 << depth)).map(Field::from).collect();
-
-        TreeValues {
-            depth,
-            prefix_depth,
-            empty_value,
-            initial_values,
-        }
     }
 }
