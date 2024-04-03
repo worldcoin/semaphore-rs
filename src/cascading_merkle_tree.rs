@@ -489,8 +489,6 @@ pub trait CascadingTreeStorage<H: Hasher>:
 
         let num_leaves = self.num_leaves();
         let start = index_from_leaf(num_leaves);
-        // print stuff
-        println!("num_leaves: {}, start: {}", num_leaves, start);
 
         if start < len {
             self[start..].par_iter().try_for_each(|hash| {
@@ -575,8 +573,6 @@ impl<H: Hasher> CascadingTreeStorage<H> for MmapVec<H> {
     fn reallocate(&mut self, empty_value: &H::Hash, sparse_column: &[H::Hash]) -> Result<()> {
         let current_size = self.len();
         self.reallocate(empty_value)?;
-        println!("reallocating");
-        println!("{:?}", self);
         init_subtree::<H>(sparse_column, &mut self[current_size..]);
         Ok(())
     }
