@@ -1,7 +1,4 @@
-use std::{
-    env,
-    process::{abort, Stdio},
-};
+use std::{env, process::Stdio};
 
 use color_eyre::Result;
 use semaphore::{
@@ -36,27 +33,23 @@ fn main() -> Result<()> {
             let output = std::process::Command::new("target/debug/examples/abort_test")
                 .arg("child")
                 .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
                 .output()?;
-            let string = String::from_utf8(output.stdout)?;
-            println!("{}", string);
+            let stdout = String::from_utf8(output.stdout)?;
+            println!("stdout:\n{}", stdout);
+            let stderr = String::from_utf8(output.stderr)?;
+            println!("stderr:\n{}", stderr);
         }
         return Ok(());
     }
 
     println!("restoring");
     let mut tree = CascadingMerkleTree::<TestHasher, MmapVec<TestHasher>>::restore(config, 30, &1)?;
+    tree.push(2).unwrap();
 
     println!("tree length: {}", tree.num_leaves());
 
     println!("validating");
-    match tree.validate() {
-        Ok(()) => println!("tree is valid"),
-        Err(e) => {
-            println!("tree is invalid: {:?}", e);
-            return Ok(());
-        }
-    }
+    tree.validate()?;
 
     println!("spawning");
     std::thread::spawn(move || loop {
@@ -65,6 +58,6 @@ fn main() -> Result<()> {
     std::thread::sleep(std::time::Duration::from_millis(1));
 
     println!("aborting");
-    // panic!();
-    abort();
+    panic!();
+    // abort();
 }

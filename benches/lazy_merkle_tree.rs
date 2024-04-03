@@ -62,7 +62,7 @@ fn bench_create_dense_mmap_tree(criterion: &mut Criterion) {
     }
     group.finish();
     // remove created mmap file
-    std::fs::remove_file("./testfile").unwrap();
+    let _ = std::fs::remove_file("./testfile");
 }
 
 fn bench_restore_dense_mmap_tree(criterion: &mut Criterion) {
@@ -102,9 +102,9 @@ fn bench_restore_dense_mmap_tree(criterion: &mut Criterion) {
     });
     group.finish();
     // remove created mmap files
-    std::fs::remove_file("./testfile0").unwrap();
-    std::fs::remove_file("./testfile1").unwrap();
-    std::fs::remove_file("./testfile2").unwrap();
+    let _ = std::fs::remove_file("./testfile0");
+    let _ = std::fs::remove_file("./testfile1");
+    let _ = std::fs::remove_file("./testfile2");
 }
 
 #[allow(unused)]
@@ -150,7 +150,7 @@ fn bench_dense_mmap_tree_reads(criterion: &mut Criterion) {
         })
     });
     // remove mmap file
-    std::fs::remove_file("./testfile");
+    let _ = std::fs::remove_file("./testfile");
 }
 
 fn bench_dense_tree_writes(criterion: &mut Criterion) {
@@ -200,7 +200,7 @@ fn bench_dense_mmap_tree_writes(criterion: &mut Criterion) {
         );
     });
     // remove mmap file
-    std::fs::remove_file("./testfile").unwrap();
+    let _ = std::fs::remove_file("./testfile");
 }
 
 fn create_values_for_tree(depth: usize) -> TreeValues<PoseidonHash> {
