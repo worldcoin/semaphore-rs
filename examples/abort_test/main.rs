@@ -3,9 +3,11 @@ use std::{
     process::{abort, Stdio},
 };
 
-use semaphore::dynamic_merkle_tree::{MmapTreeStorageConfig, MmapVec};
-
-use semaphore::{dynamic_merkle_tree::DynamicMerkleTree, merkle_tree::Hasher};
+use color_eyre::Result;
+use semaphore::{
+    cascading_merkle_tree::{CascadingMerkleTree, MmapTreeStorageConfig, MmapVec},
+    merkle_tree::Hasher,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct TestHasher;
@@ -17,39 +19,50 @@ impl Hasher for TestHasher {
     }
 }
 
-fn main() {
+fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
 
     let config = unsafe { MmapTreeStorageConfig::new("target/tmp/abort.mmap".into()) };
 
     // initialize
     if args.len() == 1 {
-        println!("initializing");
+        println!("initializing\n");
         let leaves = vec![1; 1_000_000];
-        let _ = DynamicMerkleTree::<TestHasher, MmapVec<TestHasher>>::new_with_leaves(
+        let _ = CascadingMerkleTree::<TestHasher, MmapVec<TestHasher>>::new_with_leaves(
             config, 30, &1, &leaves,
         );
-        for i in 0..1 {
+        for i in 0..2 {
             println!("running interation {}", i);
             let output = std::process::Command::new("target/debug/examples/abort_test")
                 .arg("child")
                 .stdout(Stdio::piped())
-                .output()
-                .unwrap();
-            let string = String::from_utf8(output.stdout).unwrap();
+                .stderr(Stdio::piped())
+                .output()?;
+            let string = String::from_utf8(output.stdout)?;
             println!("{}", string);
         }
-        return;
+        return Ok(());
     }
 
     println!("restoring");
-    let mut tree =
-        DynamicMerkleTree::<TestHasher, MmapVec<TestHasher>>::restore(config, 30, &1).unwrap();
+    let mut tree = CascadingMerkleTree::<TestHasher, MmapVec<TestHasher>>::restore(config, 30, &1)?;
 
+    println!("validating");
+    match tree.validate() {
+        Ok(()) => println!("tree is valid"),
+        Err(e) => {
+            println!("tree is invalid: {:?}", e);
+            return Ok(());
+        }
+    }
+
+    println!("spawning");
     std::thread::spawn(move || loop {
-        println!("here");
-        tree.push(1).unwrap();
+        println!("pushing");
+        tree.push(2).unwrap();
     });
-    std::thread::sleep(std::time::Duration::from_millis(10000));
+    std::thread::sleep(std::time::Duration::from_millis(100));
+
+    println!("aboring");
     abort();
 }
