@@ -31,7 +31,7 @@ fn main() -> Result<()> {
         let _ = CascadingMerkleTree::<TestHasher, MmapVec<TestHasher>>::new_with_leaves(
             config, 30, &1, &leaves,
         );
-        for i in 0..2 {
+        for i in 0..100 {
             println!("running interation {}", i);
             let output = std::process::Command::new("target/debug/examples/abort_test")
                 .arg("child")
@@ -47,6 +47,8 @@ fn main() -> Result<()> {
     println!("restoring");
     let mut tree = CascadingMerkleTree::<TestHasher, MmapVec<TestHasher>>::restore(config, 30, &1)?;
 
+    println!("tree length: {}", tree.num_leaves());
+
     println!("validating");
     match tree.validate() {
         Ok(()) => println!("tree is valid"),
@@ -58,11 +60,11 @@ fn main() -> Result<()> {
 
     println!("spawning");
     std::thread::spawn(move || loop {
-        println!("pushing");
         tree.push(2).unwrap();
     });
-    std::thread::sleep(std::time::Duration::from_millis(100));
+    std::thread::sleep(std::time::Duration::from_millis(1));
 
-    println!("aboring");
+    println!("aborting");
+    // panic!();
     abort();
 }
