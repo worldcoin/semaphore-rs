@@ -1,4 +1,4 @@
-use semaphore::{dynamic_merkle_tree::DynamicMerkleTree, merkle_tree::Hasher};
+use semaphore::{cascading_merkle_tree::CascadingMerkleTree, merkle_tree::Hasher};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct TestHasher;
@@ -12,5 +12,5 @@ impl Hasher for TestHasher {
 
 #[test]
 fn test_abort() {
-    let tree = DynamicMerkleTree::<TestHasher>::new_with_leaves((), 4, &4, &[]);
+    let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves((), 4, &4, &[]);
 }

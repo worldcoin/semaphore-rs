@@ -3,8 +3,8 @@
 // TODO: ark-circom and ethers-core pull in a lot of dependencies, some duplicate.
 #![allow(clippy::multiple_crate_versions)]
 
+pub mod cascading_merkle_tree;
 mod circuit;
-pub mod dynamic_merkle_tree;
 mod field;
 pub mod hash;
 pub mod identity;
