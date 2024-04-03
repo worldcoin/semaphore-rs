@@ -7,6 +7,7 @@ use semaphore::cascading_merkle_tree::*;
 criterion_main!(cascading_merkle_tree);
 criterion_group!(
     cascading_merkle_tree,
+    bench_cascading_validate,
     bench_cascading_create_dense_tree,
     bench_cascading_create_dense_mmap_tree,
     bench_cascading_restore_dense_mmap_tree,
@@ -14,12 +15,67 @@ criterion_group!(
     bench_cascading_dense_mmap_tree_reads,
     bench_cascading_dense_tree_writes,
     bench_cascading_dense_mmap_tree_writes,
+    bench_cascading_proof_from_hash
 );
 
 struct TreeValues<H: Hasher> {
     depth:          usize,
     empty_value:    H::Hash,
     initial_values: Vec<H::Hash>,
+}
+
+fn bench_cascading_proof_from_hash(criterion: &mut Criterion) {
+    let tree_value = create_values_for_tree(14);
+
+    criterion.bench_function("dense mmap tree writes", |b| {
+        let leaf = Field::from(234123412341usize);
+        b.iter_batched_ref(
+            || {
+                let mut tree = CascadingMerkleTree::<PoseidonHash>::new_with_leaves(
+                    (),
+                    tree_value.depth,
+                    &tree_value.empty_value,
+                    &tree_value.initial_values,
+                );
+                tree.set_leaf(1 << 13, leaf);
+                tree
+            },
+            |tree| {
+                let _ = tree.proof_from_hash(leaf);
+            },
+            BatchSize::SmallInput,
+        );
+    });
+}
+
+fn bench_cascading_validate(criterion: &mut Criterion) {
+    let tree_values = [
+        create_values_for_tree(4),
+        create_values_for_tree(10),
+        create_values_for_tree(14),
+    ];
+
+    let mut group = criterion.benchmark_group("bench_cascading_validate");
+
+    for value in tree_values.iter() {
+        let tree = CascadingMerkleTree::<PoseidonHash>::new_with_leaves(
+            (),
+            value.depth,
+            &value.empty_value,
+            &value.initial_values,
+        );
+
+        group.bench_with_input(
+            BenchmarkId::from_parameter(format!("validate_{}", value.depth)),
+            value,
+            |bencher: &mut criterion::Bencher, _| {
+                bencher.iter(|| {
+                    tree.validate().unwrap();
+                });
+            },
+        );
+    }
+    group.finish();
 }
 
 fn bench_cascading_create_dense_tree(criterion: &mut Criterion) {
@@ -81,7 +137,7 @@ fn bench_cascading_create_dense_mmap_tree(criterion: &mut Criterion) {
     }
     group.finish();
     // remove created mmap file
-    std::fs::remove_file("./testfile").unwrap();
+    let _ = std::fs::remove_file("./testfile");
 }
 
 fn bench_cascading_restore_dense_mmap_tree(criterion: &mut Criterion) {
@@ -128,9 +184,9 @@ fn bench_cascading_restore_dense_mmap_tree(criterion: &mut Criterion) {
     });
     group.finish();
     // remove created mmap files
-    std::fs::remove_file("./testfile0").unwrap();
-    std::fs::remove_file("./testfile1").unwrap();
-    std::fs::remove_file("./testfile2").unwrap();
+    let _ = std::fs::remove_file("./testfile0");
+    let _ = std::fs::remove_file("./testfile1");
+    let _ = std::fs::remove_file("./testfile2");
 }
 
 #[allow(unused)]
@@ -175,7 +231,7 @@ fn bench_cascading_dense_mmap_tree_reads(criterion: &mut Criterion) {
         })
     });
     // remove mmap file
-    std::fs::remove_file("./testfile");
+    let _ = std::fs::remove_file("./testfile");
 }
 
 fn bench_cascading_dense_tree_writes(criterion: &mut Criterion) {
@@ -224,7 +280,7 @@ fn bench_cascading_dense_mmap_tree_writes(criterion: &mut Criterion) {
         );
     });
     // remove mmap file
-    std::fs::remove_file("./testfile").unwrap();
+    let _ = std::fs::remove_file("./testfile");
 }
 
 fn create_values_for_tree(depth: usize) -> TreeValues<PoseidonHash> {
