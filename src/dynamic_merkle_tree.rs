@@ -649,7 +649,7 @@ impl<H: Hasher> MmapVec<H> {
         let mmap = unsafe {
             MmapOptions::new(usize::try_from(buf_len as u64).expect("file size truncated"))
                 .expect("cannot create memory map")
-                .with_file(file, 0)
+                .with_file(&file, 0)
                 .map_mut()
                 .expect("cannot build memory map")
         };
@@ -698,7 +698,7 @@ impl<H: Hasher> MmapVec<H> {
         let mmap = unsafe {
             MmapOptions::new(file_size as usize)
                 .expect("cannot create memory map")
-                .with_file(file, 0)
+                .with_file(&file, 0)
                 .map_mut()
                 .expect("cannot build memory map")
         };
@@ -732,7 +732,7 @@ impl<H: Hasher> MmapVec<H> {
         self.mmap = unsafe {
             MmapOptions::new(new_file_size as usize)
                 .expect("cannot create memory map")
-                .with_file(file, 0)
+                .with_file(&file, 0)
                 .map_mut()
                 .expect("cannot build memory map")
         };
