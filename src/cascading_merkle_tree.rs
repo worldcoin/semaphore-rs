@@ -942,6 +942,8 @@ fn init_subtree_with_leaves<H: Hasher>(storage: &mut [H::Hash], leaves: &[H::Has
 #[cfg(test)]
 mod tests {
 
+    use serial_test::serial;
+
     use super::*;
 
     #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1379,7 +1381,6 @@ mod tests {
     }
 
     #[test]
-
     fn test_push() {
         let num_leaves = 1 << 3;
         let leaves = vec![1; num_leaves];
@@ -1393,11 +1394,12 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_mmap() {
         let leaves = vec![3; 3];
         let empty = 1;
         let mut tree = CascadingMerkleTree::<TestHasher, MmapVec<_>>::new_with_leaves(
-            unsafe { MmapTreeStorageConfig::new(PathBuf::from("target/tmp/test.mmap")) },
+            unsafe { MmapTreeStorageConfig::new(PathBuf::from("target/test.mmap")) },
             20,
             &empty,
             &leaves,
@@ -1410,16 +1412,16 @@ mod tests {
             debug_tree(&tree);
             tree.validate().unwrap();
 
-            // let restored = unsafe {
-            //     CascadingMerkleTree::<TestHasher, MmapVec<_>>::restore(
-            //         MmapTreeStorageConfig::new(PathBuf::from("target/tmp/
-            // test.mmap")),         20,
-            //         &empty,
-            //     )
-            //     .unwrap()
-            // };
-            // // restored.validate().unwrap();
-            // assert_eq!(tree, restored);
+            let restored = unsafe {
+                CascadingMerkleTree::<TestHasher, MmapVec<_>>::restore(
+                    MmapTreeStorageConfig::new(PathBuf::from("target/test.mmap")),
+                    20,
+                    &empty,
+                )
+                .unwrap()
+            };
+            restored.validate().unwrap();
+            assert_eq!(tree, restored);
         }
     }
 
@@ -1440,11 +1442,12 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_mmap_realloc_speed() {
         let empty = 0;
         let leaves = vec![1; 1 << 20];
         let config = MmapTreeStorageConfig {
-            file_path: PathBuf::from("target/tmp/test.mmap"),
+            file_path: PathBuf::from("target/test.mmap"),
         };
         let mut tree = CascadingMerkleTree::<TestHasher, MmapVec<_>>::new_with_leaves(
             config, 30, &empty, &leaves,
