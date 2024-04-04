@@ -21,7 +21,7 @@ semaphore = { git = "https://github.com/worldcoin/semaphore-rs" }
 
 Example as in `src/lib.rs`, run with `cargo test`.
 
-```rust
+```rust,no_run
 use semaphore::{get_supported_depths, hash_to_field, Field, identity::Identity,
                 poseidon_tree::LazyPoseidonTree, protocol::*};
 use num_bigint::BigInt;
