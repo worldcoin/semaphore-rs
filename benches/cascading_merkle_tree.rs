@@ -27,7 +27,7 @@ struct TreeValues<H: Hasher> {
 fn bench_cascading_proof_from_hash(criterion: &mut Criterion) {
     let tree_value = create_values_for_tree(14);
 
-    criterion.bench_function("dense mmap tree writes", |b| {
+    criterion.bench_function("bench_cascading_proof_from_hash", |b| {
         let leaf = Field::from(234123412341usize);
         b.iter_batched_ref(
             || {
