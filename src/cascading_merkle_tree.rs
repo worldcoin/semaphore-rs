@@ -32,6 +32,7 @@ use std::{
 ///
 /// Leaves are 0 indexed
 /// 0  1  2  3  4  5  6  7
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CascadingMerkleTree<H: Hasher, S: CascadingTreeStorage<H> = Vec<<H as Hasher>::Hash>> {
     depth:         usize,
@@ -108,7 +109,7 @@ impl<H: Hasher, S: CascadingTreeStorage<H>> CascadingMerkleTree<H, S> {
         assert!(leaf < self.num_leaves(), "Leaf index out of bounds");
         let index = index_from_leaf(leaf);
         self.storage[index] = value;
-        self.storage.propogate_up(index);
+        self.storage.propagate_up(index);
         self.recompute_root();
     }
 
@@ -123,7 +124,7 @@ impl<H: Hasher, S: CascadingTreeStorage<H>> CascadingMerkleTree<H, S> {
             }
         }
         self.storage.increment_num_leaves(1);
-        self.storage.propogate_up(index);
+        self.storage.propagate_up(index);
         self.recompute_root();
         Ok(())
     }
@@ -458,7 +459,7 @@ pub trait CascadingTreeStorage<H: Hasher>:
     }
 
     /// Propogates new hashes up the top of the subtree.
-    fn propogate_up(&mut self, mut index: usize) -> Option<()> {
+    fn propagate_up(&mut self, mut index: usize) -> Option<()> {
         loop {
             let (left, right) = match sibling(index) {
                 Branch::Left(sibling) => (index, sibling),
@@ -488,10 +489,10 @@ pub trait CascadingTreeStorage<H: Hasher>:
         let depth = width.ilog2() as usize;
 
         let num_leaves = self.num_leaves();
-        let start = index_from_leaf(num_leaves);
+        let first_empty = index_from_leaf(num_leaves);
 
-        if start < len {
-            self[start..].par_iter().try_for_each(|hash| {
+        if first_empty < len {
+            self[first_empty..].par_iter().try_for_each(|hash| {
                 if hash != empty_value {
                     bail!("Storage contains non-empty values past the last leaf");
                 }
@@ -871,6 +872,7 @@ fn subtree_depth_width<H>(storage_slice: &[H]) -> (usize, usize) {
 ///      4      [     9     ]
 ///   2     5   [  10    11 ]
 /// 1  3  6  7  [12 13 14 15]
+/// ```
 fn init_subtree<H: Hasher>(sparse_column: &[H::Hash], storage_slice: &mut [H::Hash]) -> H::Hash {
     let depth = subtree_depth(storage_slice);
 
@@ -908,6 +910,7 @@ fn init_subtree<H: Hasher>(sparse_column: &[H::Hash], storage_slice: &mut [H::Ha
 ///      4      [     9     ]
 ///   2     5   [  10    11 ]
 /// 1  3  6  7  [12 13 14 15]
+///  ```
 fn init_subtree_with_leaves<H: Hasher>(storage: &mut [H::Hash], leaves: &[H::Hash]) -> H::Hash {
     let (depth, width) = subtree_depth_width(storage);
 
