@@ -46,7 +46,7 @@ where
 
         let mut s = Self::new(file)?;
 
-        s.set_meta_len(0);
+        s.set_storage_len(0);
 
         Ok(s)
     }
@@ -88,7 +88,7 @@ where
     }
 
     pub fn push(&mut self, v: T) {
-        let len = self.meta_len();
+        let len = self.storage_len();
         let capacity = self.capacity;
 
         if len == capacity {
@@ -103,7 +103,7 @@ where
             std::ptr::write(typed_ptr, v);
         }
 
-        self.set_meta_len(len + 1);
+        self.set_storage_len(len + 1);
     }
 
     pub fn resize(&mut self, new_capacity: usize) {
@@ -136,13 +136,13 @@ where
 
 // Private API (also doesn't need Pod)
 impl<T> MmapVec<T> {
-    fn set_meta_len(&mut self, new_len: usize) {
+    fn set_storage_len(&mut self, new_len: usize) {
         unsafe {
             std::ptr::write(self.mmap.as_mut_ptr() as *mut usize, new_len);
         }
     }
 
-    fn meta_len(&self) -> usize {
+    fn storage_len(&self) -> usize {
         unsafe { *(self.mmap.as_ptr() as *const usize) }
     }
 }
@@ -154,7 +154,7 @@ where
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
-        let byte_slice_len = self.meta_len() * std::mem::size_of::<T>();
+        let byte_slice_len = self.storage_len() * std::mem::size_of::<T>();
         bytemuck::cast_slice(&self.mmap.as_slice()[META_SIZE..META_SIZE + byte_slice_len])
     }
 }
@@ -164,7 +164,7 @@ where
     T: Pod,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        let byte_slice_len = self.meta_len() * std::mem::size_of::<T>();
+        let byte_slice_len = self.storage_len() * std::mem::size_of::<T>();
         bytemuck::cast_slice_mut(
             &mut self.mmap.as_mut_slice()[META_SIZE..META_SIZE + byte_slice_len],
         )
