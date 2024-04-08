@@ -16,10 +16,7 @@ pub struct MmapVec<T> {
 }
 
 // Public API
-impl<T> MmapVec<T>
-where
-    T: Pod,
-{
+impl<T> MmapVec<T> {
     pub unsafe fn open_create(
         file_path: impl AsRef<Path>,
         initial_capacity: usize,
@@ -132,10 +129,7 @@ where
 
         self.capacity = new_capacity;
     }
-}
 
-// Private API (also doesn't need Pod)
-impl<T> MmapVec<T> {
     fn set_storage_len(&mut self, new_len: usize) {
         unsafe {
             std::ptr::write(self.mmap.as_mut_ptr() as *mut usize, new_len);
