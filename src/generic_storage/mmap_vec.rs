@@ -137,19 +137,13 @@ where
 // Private API (also doesn't need Pod)
 impl<T> MmapVec<T> {
     fn set_meta_len(&mut self, new_len: usize) {
-        let offset = 0;
         unsafe {
-            let typed_ptr = self.mmap.as_mut_ptr().add(offset) as *mut usize;
-            std::ptr::write(typed_ptr, new_len);
+            std::ptr::write(self.mmap.as_mut_ptr() as *mut usize, new_len);
         }
     }
 
     fn meta_len(&self) -> usize {
-        let offset = 0;
-        unsafe {
-            let typed_ptr = self.mmap.as_ptr().add(offset) as *const usize;
-            *typed_ptr
-        }
+        unsafe { *(self.mmap.as_ptr() as *const usize) }
     }
 }
 
