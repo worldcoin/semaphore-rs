@@ -58,6 +58,10 @@ impl<T> MmapVec<T> {
     }
 
     pub unsafe fn new(file: File) -> color_eyre::Result<Self> {
+        if std::mem::size_of::<T>() == 0 {
+            bail!("Zero-sized types are not supported");
+        }
+
         let byte_len = file.metadata().expect("cannot get file metadata").len() as usize;
 
         if byte_len < META_SIZE {
@@ -196,5 +200,34 @@ mod tests {
         assert_eq!(restored[1], 2);
         assert_eq!(restored[2], 42);
         assert_eq!(restored[3], 4);
+    }
+
+    #[test]
+    fn test_mmap_vec_zst() {
+        let f = tempfile::tempfile().unwrap();
+        let mut storage: MmapVec<()> =
+            unsafe { MmapVec::create(f.try_clone().unwrap(), 2).unwrap() };
+
+        storage.push(());
+        storage.push(());
+        storage.push(());
+        storage.push(());
+
+        assert_eq!(storage.len(), 4);
+
+        assert_eq!(storage[0], ());
+        assert_eq!(storage[1], ());
+        assert_eq!(storage[2], ());
+        assert_eq!(storage[3], ());
+
+        drop(storage);
+        let restored: MmapVec<()> = unsafe { MmapVec::new(f).unwrap() };
+
+        assert_eq!(restored.len(), 4);
+
+        assert_eq!(restored[0], ());
+        assert_eq!(restored[1], ());
+        assert_eq!(restored[2], ());
+        assert_eq!(restored[3], ());
     }
 }

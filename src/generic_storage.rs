@@ -2,6 +2,8 @@ use std::ops::{Deref, DerefMut};
 
 mod mmap_vec;
 
+pub use mmap_vec::MmapVec;
+
 pub trait GenericStorage<T>: Deref<Target = [T]> + DerefMut<Target = [T]> + Send + Sync {
     fn push(&mut self, value: T);
 }
