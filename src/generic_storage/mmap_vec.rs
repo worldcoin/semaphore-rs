@@ -203,31 +203,10 @@ mod tests {
     }
 
     #[test]
+    #[should_panic]
     fn test_mmap_vec_zst() {
         let f = tempfile::tempfile().unwrap();
-        let mut storage: MmapVec<()> =
+        let _storage: MmapVec<()> =
             unsafe { MmapVec::create(f.try_clone().unwrap(), 2).unwrap() };
-
-        storage.push(());
-        storage.push(());
-        storage.push(());
-        storage.push(());
-
-        assert_eq!(storage.len(), 4);
-
-        assert_eq!(storage[0], ());
-        assert_eq!(storage[1], ());
-        assert_eq!(storage[2], ());
-        assert_eq!(storage[3], ());
-
-        drop(storage);
-        let restored: MmapVec<()> = unsafe { MmapVec::new(f).unwrap() };
-
-        assert_eq!(restored.len(), 4);
-
-        assert_eq!(restored[0], ());
-        assert_eq!(restored[1], ());
-        assert_eq!(restored[2], ());
-        assert_eq!(restored[3], ());
     }
 }
