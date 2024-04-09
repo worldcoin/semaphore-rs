@@ -62,10 +62,13 @@ impl<T> MmapVec<T> {
             bail!("Zero-sized types are not supported");
         }
 
-        let byte_len = file.metadata().expect("cannot get file metadata").len() as usize;
+        let mut byte_len = file.metadata().expect("cannot get file metadata").len() as usize;
 
         if byte_len < META_SIZE {
-            bail!("File is too small to contain metadata");
+            file.set_len(META_SIZE as u64)
+                .expect("Failed to resize underlying file");
+
+            byte_len = META_SIZE;
         }
 
         let capacity = byte_len.saturating_sub(META_SIZE) / std::mem::size_of::<T>();
@@ -93,7 +96,11 @@ impl<T> MmapVec<T> {
         let capacity = self.capacity;
 
         if len == capacity {
-            self.resize(capacity * 2);
+            if capacity == 0 {
+                self.resize(1);
+            } else {
+                self.resize(capacity * 2);
+            }
         }
 
         let offset = META_SIZE + len * std::mem::size_of::<T>();
@@ -169,6 +176,26 @@ where
     }
 }
 
+impl<T> PartialEq for MmapVec<T> {
+    fn eq(&self, other: &Self) -> bool {
+        // self.mmap.as_ref() == other.mmap.as_ref()
+        //     && self.file == other.file
+        //     && self.phantom == other.phantom
+        unimplemented!()
+    }
+}
+
+impl<T> std::fmt::Debug for MmapVec<T>
+where
+    T: Pod + std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let slice: &[T] = bytemuck::cast_slice(self.mmap.as_slice());
+
+        f.debug_struct("MmapVec").field("mmap", &slice).finish()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -206,7 +233,6 @@ mod tests {
     #[should_panic]
     fn test_mmap_vec_zst() {
         let f = tempfile::tempfile().unwrap();
-        let _storage: MmapVec<()> =
-            unsafe { MmapVec::create(f.try_clone().unwrap(), 2).unwrap() };
+        let _storage: MmapVec<()> = unsafe { MmapVec::create(f.try_clone().unwrap(), 2).unwrap() };
     }
 }
