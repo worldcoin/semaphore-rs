@@ -28,7 +28,7 @@ mod tests {
     #[test]
     fn test_generic_storage() {
         // Box to ensure we're using the trait methods
-        let mut storage: Box<dyn GenericStorage<u32>> = Box::new(Vec::<u32>::new());
+        let mut storage: Box<dyn GenericStorage<u32>> = Box::<Vec<u32>>::default();
 
         storage.push(1);
         storage.push(2);

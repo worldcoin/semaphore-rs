@@ -1,14 +1,7 @@
-use std::{
-    fs::OpenOptions,
-    io::Write,
-    iter::repeat,
-    ops::{Deref, DerefMut},
-    path::PathBuf,
-};
+use std::ops::{Deref, DerefMut};
 
 use color_eyre::eyre::{bail, Result};
 use itertools::Itertools;
-use mmap_rs::{MmapMut, MmapOptions};
 use rayon::prelude::*;
 
 use crate::{

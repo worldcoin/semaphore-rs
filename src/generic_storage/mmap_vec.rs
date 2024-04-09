@@ -130,7 +130,7 @@ impl<T> MmapVec<T> {
         // then at this point there are no other mappings to this file.
         // Therefore, it is safe to remap it.
         self.mmap = unsafe {
-            MmapOptions::new(new_file_len as usize)
+            MmapOptions::new(new_file_len)
                 .expect("cannot create memory map")
                 .with_file(
                     self.file.try_clone().expect("Failed to clone file handle"),
