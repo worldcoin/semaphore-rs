@@ -93,6 +93,10 @@ impl<T> MmapVec<T> {
         Ok(s)
     }
 
+    pub fn clear(&mut self) {
+        self.set_storage_len(0);
+    }
+
     pub fn push(&mut self, v: T) {
         let len = self.storage_len();
         let capacity = self.capacity;

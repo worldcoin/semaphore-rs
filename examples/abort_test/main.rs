@@ -26,7 +26,7 @@ fn main() -> Result<()> {
     if args.len() == 1 {
         println!("initializing\n");
         let leaves = vec![1; 1_000_000];
-        let _ = CascadingMerkleTree::<TestHasher, _>::with_leaves(mmap_vec, 30, &1, &leaves);
+        let _ = CascadingMerkleTree::<TestHasher, _>::init(mmap_vec, 30, &1, &leaves);
         for i in 0..100 {
             println!("running interation {}", i);
             let output = std::process::Command::new("target/debug/examples/abort_test")
@@ -46,7 +46,7 @@ fn main() -> Result<()> {
     let mmap_vec: MmapVec<<TestHasher as Hasher>::Hash> = unsafe { MmapVec::new(tempfile)? };
 
     println!("restoring");
-    let mut tree = CascadingMerkleTree::<TestHasher, _>::new(mmap_vec, 30, &1);
+    let mut tree = CascadingMerkleTree::<TestHasher, _>::new(mmap_vec, 30, &1)?;
     tree.push(2).unwrap();
 
     println!("tree length: {}", tree.num_leaves());
