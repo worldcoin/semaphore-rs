@@ -9,53 +9,46 @@ use crate::{
     merkle_tree::{Branch, Hasher},
 };
 
-pub fn new_with_leaves<S, H>(gs: &mut S, empty_value: &H::Hash, leaves: &[H::Hash])
-where
-    H: Hasher,
-    S: GenericStorage<H::Hash>,
-{
-    println!("A");
-    let num_leaves = leaves.len();
-    let base_len = num_leaves.next_power_of_two();
-    let storage_size = base_len << 1;
-    let mut storage = vec![*empty_value; storage_size];
-    let depth = base_len.ilog2();
-
-    println!("B");
-
-    // We iterate over subsequently larger subtrees
-    let mut last_sub_root = *leaves.first().unwrap_or(empty_value);
-    println!("C");
-    storage[1] = last_sub_root;
-    println!("D");
-    for height in 1..(depth + 1) {
-        let left_index = 1 << height;
-        let storage_slice = &mut storage[left_index..(left_index << 1)];
-        let leaf_start = left_index >> 1;
-        let leaf_end = left_index.min(num_leaves);
-        let leaf_slice = &leaves[leaf_start..leaf_end];
-        let root = init_subtree_with_leaves::<H>(storage_slice, leaf_slice);
-        let hash = H::hash_node(&last_sub_root, &root);
-        storage[left_index] = hash;
-        last_sub_root = hash;
-    }
-
-    println!("E");
-
-    for leaf in storage {
-        gs.push(leaf);
-    }
-    println!("F");
-
-    <S as StorageOps<H>>::set_num_leaves(gs, num_leaves);
-    println!("G");
-}
-
 pub trait StorageOps<H>:
-    Deref<Target = [H::Hash]> + DerefMut<Target = [H::Hash]> + Send + Sync + Sized
+    GenericStorage<H::Hash>
+    + Deref<Target = [H::Hash]>
+    + DerefMut<Target = [H::Hash]>
+    + Send
+    + Sync
+    + Sized
 where
     H: Hasher,
 {
+    fn populate_with_leaves(&mut self, empty_value: &H::Hash, leaves: &[H::Hash]) {
+        let num_leaves = leaves.len();
+        let base_len = num_leaves.next_power_of_two();
+        let storage_size = base_len << 1;
+        let mut storage = vec![*empty_value; storage_size];
+        let depth = base_len.ilog2();
+
+        // We iterate over subsequently larger subtrees
+        let mut last_sub_root = *leaves.first().unwrap_or(empty_value);
+        storage[1] = last_sub_root;
+        for height in 1..(depth + 1) {
+            let left_index = 1 << height;
+            let storage_slice = &mut storage[left_index..(left_index << 1)];
+            let leaf_start = left_index >> 1;
+            let leaf_end = left_index.min(num_leaves);
+            let leaf_slice = &leaves[leaf_start..leaf_end];
+            let root = init_subtree_with_leaves::<H>(storage_slice, leaf_slice);
+            let hash = H::hash_node(&last_sub_root, &root);
+            storage[left_index] = hash;
+            last_sub_root = hash;
+        }
+
+        self.clear();
+        for leaf in storage {
+            self.push(leaf);
+        }
+
+        self.set_num_leaves(num_leaves);
+    }
+
     /// Returns an iterator over all leaves including those that have noe been
     /// set.
     fn leaves(&self) -> impl Iterator<Item = H::Hash> + '_ {

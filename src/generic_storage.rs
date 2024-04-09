@@ -7,17 +7,27 @@ pub use mmap_vec::MmapVec;
 
 pub trait GenericStorage<T>: Deref<Target = [T]> + DerefMut<Target = [T]> + Send + Sync {
     fn push(&mut self, value: T);
+
+    fn clear(&mut self);
 }
 
 impl<T: Send + Sync> GenericStorage<T> for Vec<T> {
     fn push(&mut self, value: T) {
         self.push(value);
     }
+
+    fn clear(&mut self) {
+        self.clear();
+    }
 }
 
 impl<T: Send + Sync + Pod> GenericStorage<T> for MmapVec<T> {
     fn push(&mut self, value: T) {
-        MmapVec::push(self, value);
+        self.push(value);
+    }
+
+    fn clear(&mut self) {
+        self.clear();
     }
 }
 
