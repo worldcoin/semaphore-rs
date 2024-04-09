@@ -19,7 +19,6 @@ impl<T: Send + Sync + Pod> GenericStorage<T> for MmapVec<T> {
     fn push(&mut self, value: T) {
         MmapVec::push(self, value);
     }
-
 }
 
 #[cfg(test)]

@@ -1,16 +1,20 @@
-use std::fs::OpenOptions;
-use std::io::Write;
-use std::iter::repeat;
-use std::ops::{Deref, DerefMut};
-use std::path::PathBuf;
+use std::{
+    fs::OpenOptions,
+    io::Write,
+    iter::repeat,
+    ops::{Deref, DerefMut},
+    path::PathBuf,
+};
 
 use color_eyre::eyre::{bail, Result};
 use itertools::Itertools;
 use mmap_rs::{MmapMut, MmapOptions};
 use rayon::prelude::*;
 
-use crate::generic_storage::GenericStorage;
-use crate::merkle_tree::{Branch, Hasher, Proof};
+use crate::{
+    generic_storage::GenericStorage,
+    merkle_tree::{Branch, Hasher, Proof},
+};
 
 mod storage_ops;
 
