@@ -1,15 +1,20 @@
-use crate::merkle_tree::{Branch, Hasher, Proof};
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::iter::repeat;
+use std::ops::{Deref, DerefMut};
+use std::path::PathBuf;
+
 use color_eyre::eyre::{bail, Result};
 use itertools::Itertools;
 use mmap_rs::{MmapMut, MmapOptions};
 use rayon::prelude::*;
-use std::{
-    fs::OpenOptions,
-    io::Write,
-    iter::repeat,
-    ops::{Deref, DerefMut},
-    path::PathBuf,
-};
+
+use crate::generic_storage::GenericStorage;
+use crate::merkle_tree::{Branch, Hasher, Proof};
+
+mod storage_ops;
+
+use self::storage_ops::StorageOps;
 
 /// A dynamically growable array represented merkle tree.
 /// The left most branch of the tree consists of progressively increasing powers
@@ -34,7 +39,10 @@ use std::{
 /// 0  1  2  3  4  5  6  7
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CascadingMerkleTree<H: Hasher, S: CascadingTreeStorage<H> = Vec<<H as Hasher>::Hash>> {
+pub struct CascadingMerkleTree<H, S = Vec<<H as Hasher>::Hash>>
+where
+    H: Hasher,
+{
     depth:         usize,
     root:          H::Hash,
     empty_value:   H::Hash,
@@ -43,26 +51,40 @@ pub struct CascadingMerkleTree<H: Hasher, S: CascadingTreeStorage<H> = Vec<<H as
     _marker:       std::marker::PhantomData<H>,
 }
 
-impl<H: Hasher, S: CascadingTreeStorage<H>> CascadingMerkleTree<H, S> {
+impl<H, S> CascadingMerkleTree<H, S>
+where
+    H: Hasher,
+    S: GenericStorage<H::Hash> + StorageOps<H>,
+{
     #[must_use]
-    pub fn new(
-        config: S::StorageConfig,
-        depth: usize,
-        empty_value: &H::Hash,
-    ) -> CascadingMerkleTree<H, S> {
-        Self::new_with_leaves(config, depth, empty_value, &[])
+    pub fn new(storage: S, depth: usize, empty_value: &H::Hash) -> CascadingMerkleTree<H, S> {
+        assert!(depth > 0, "Tree depth must be greater than 0");
+        let sparse_column = Self::sparse_column(depth, empty_value);
+
+        let mut tree = CascadingMerkleTree {
+            depth,
+            root: *empty_value,
+            empty_value: *empty_value,
+            sparse_column,
+            storage,
+            _marker: std::marker::PhantomData,
+        };
+
+        tree.recompute_root();
+
+        tree
     }
 
-    /// initial leaves populated from the given slice.
     #[must_use]
-    pub fn new_with_leaves(
-        config: S::StorageConfig,
+    pub fn with_leaves(
+        mut storage: S,
         depth: usize,
         empty_value: &H::Hash,
         leaves: &[H::Hash],
     ) -> CascadingMerkleTree<H, S> {
         assert!(depth > 0, "Tree depth must be greater than 0");
-        let storage = S::new_from_leaves(config, empty_value, leaves);
+        storage_ops::new_with_leaves::<S, H>(&mut storage, empty_value, leaves);
+
         let sparse_column = Self::sparse_column(depth, empty_value);
 
         let mut tree = CascadingMerkleTree {
@@ -114,15 +136,23 @@ impl<H: Hasher, S: CascadingTreeStorage<H>> CascadingMerkleTree<H, S> {
     }
 
     pub fn push(&mut self, leaf: H::Hash) -> Result<()> {
+        println!("push({leaf:?})");
         let index = index_from_leaf(self.num_leaves());
-        match self.storage.get_mut(index) {
-            Some(val) => *val = leaf,
-            None => {
-                self.storage
-                    .reallocate(&self.empty_value, &self.sparse_column)?;
-                self.storage[index] = leaf;
+
+        println!("index = {index}");
+        // If the index is out of bounds, we need to reallocate the storage
+        // we must always have 2^n leaves for any n
+        if index >= self.storage.len() {
+            let next_power_of_two = (self.storage.len() + 1).next_power_of_two();
+            let diff = next_power_of_two - self.storage.len();
+
+            for _ in 0..diff {
+                self.storage.push(self.empty_value);
             }
         }
+
+        self.storage[index] = leaf;
+
         self.storage.increment_num_leaves(1);
         self.storage.propagate_up(index);
         self.recompute_root();
@@ -139,7 +169,7 @@ impl<H: Hasher, S: CascadingTreeStorage<H>> CascadingMerkleTree<H, S> {
     pub fn proof(&self, leaf: usize) -> Proof<H> {
         assert!(leaf < self.num_leaves(), "Leaf index out of bounds");
         let mut proof = Vec::with_capacity(self.depth);
-        let storage_depth = subtree_depth(&self.storage);
+        let storage_depth = storage_ops::subtree_depth(&self.storage);
 
         let mut index = index_from_leaf(leaf);
         for _ in 0..storage_depth {
@@ -322,31 +352,6 @@ impl<H: Hasher, S: CascadingTreeStorage<H>> CascadingMerkleTree<H, S> {
     // }
 }
 
-impl<H: Hasher> CascadingMerkleTree<H, MmapVec<H>> {
-    /// Restores the tree from a preexisting memory map.
-    pub fn restore(
-        config: MmapTreeStorageConfig,
-        depth: usize,
-        empty_value: &H::Hash,
-    ) -> Result<CascadingMerkleTree<H, MmapVec<H>>> {
-        assert!(depth > 0);
-        let storage = unsafe { MmapVec::restore(empty_value, config.file_path)? };
-        let sparse_column = Self::sparse_column(depth, empty_value);
-
-        let mut tree = CascadingMerkleTree {
-            depth,
-            root: *empty_value,
-            empty_value: *empty_value,
-            sparse_column,
-            storage,
-            _marker: std::marker::PhantomData,
-        };
-
-        tree.recompute_root();
-        Ok(tree)
-    }
-}
-
 // Trait for generic storage of the tree
 // We require the Deref target to be a slice rather than a Vec
 // so that we can have type level information that the length
@@ -388,7 +393,7 @@ pub trait CascadingTreeStorage<H: Hasher>:
             let leaf_start = left_index >> 1;
             let leaf_end = left_index.min(num_leaves);
             let leaf_slice = &leaves[leaf_start..leaf_end];
-            let root = init_subtree_with_leaves::<H>(storage_slice, leaf_slice);
+            let root = storage_ops::init_subtree_with_leaves::<H>(storage_slice, leaf_slice);
             let hash = H::hash_node(&last_sub_root, &root);
             storage[left_index] = hash;
             last_sub_root = hash;
@@ -439,7 +444,7 @@ pub trait CascadingTreeStorage<H: Hasher>:
 
     /// Returns the depth of growable storage, not the top level root.
     fn storage_depth(&self) -> usize {
-        subtree_depth(self)
+        storage_ops::subtree_depth(self)
     }
 
     /// Sets the number of leaves.
@@ -521,244 +526,6 @@ pub trait CascadingTreeStorage<H: Hasher>:
     }
 }
 
-impl<H: Hasher> CascadingTreeStorage<H> for Vec<H::Hash> {
-    type StorageConfig = ();
-
-    fn new_from_vec(_config: (), num_leaves: usize, mut vec: Self) -> Result<Self> {
-        debug_assert!(vec.len().is_power_of_two());
-        <Self as CascadingTreeStorage<H>>::set_num_leaves(&mut vec, num_leaves);
-        Ok(vec)
-    }
-
-    fn reallocate(&mut self, empty_value: &H::Hash, sparse_column: &[H::Hash]) -> Result<()> {
-        let current_size = self.len();
-        self.extend(repeat(*empty_value).take(current_size));
-        init_subtree::<H>(sparse_column, &mut self[current_size..]);
-        Ok(())
-    }
-}
-
-/// We maintain safety by restricting the creation of configs
-/// so that the caller must explicity agree to the unsafe building of
-/// memory maps.
-#[derive(Debug)]
-pub struct MmapTreeStorageConfig {
-    file_path: PathBuf,
-}
-
-impl MmapTreeStorageConfig {
-    /// Creates a new memory map configuration with the given file path.
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that only one object is assigned to a
-    /// particular memory mapped file.
-    pub unsafe fn new(file_path: PathBuf) -> Self {
-        Self { file_path }
-    }
-}
-
-impl<H: Hasher> CascadingTreeStorage<H> for MmapVec<H> {
-    type StorageConfig = MmapTreeStorageConfig;
-
-    fn new_from_vec(
-        config: MmapTreeStorageConfig,
-        num_leaves: usize,
-        vec: Vec<H::Hash>,
-    ) -> Result<Self> {
-        let mut res = unsafe { Self::new(config.file_path, &vec) }?;
-        res.set_num_leaves(num_leaves);
-        Ok(res)
-    }
-
-    fn reallocate(&mut self, empty_value: &H::Hash, sparse_column: &[H::Hash]) -> Result<()> {
-        let current_size = self.len();
-        self.reallocate(empty_value)?;
-        init_subtree::<H>(sparse_column, &mut self[current_size..]);
-        Ok(())
-    }
-}
-
-/// Memory mapped vector for dynamic merkle tree storage
-pub struct MmapVec<H: Hasher> {
-    mmap:      MmapMut,
-    file_path: PathBuf,
-    phantom:   std::marker::PhantomData<H>,
-}
-
-impl<H: Hasher> PartialEq for MmapVec<H> {
-    fn eq(&self, other: &Self) -> bool {
-        self.mmap.as_ref() == other.mmap.as_ref()
-            && self.file_path == other.file_path
-            && self.phantom == other.phantom
-    }
-}
-
-impl<H: Hasher> std::fmt::Debug for MmapVec<H> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let slice: &[H::Hash] = bytemuck::cast_slice(self.mmap.as_slice());
-        f.debug_struct("MmapVec")
-            .field("mmap", &slice)
-            .field("file_path", &self.file_path)
-            .field("phantom", &self.phantom)
-            .finish()
-    }
-}
-
-impl<H: Hasher> MmapVec<H> {
-    /// Creates a new memory map backed with file with provided size
-    /// and fills the entire map with initial values
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that only one memory map is assigned to a
-    /// particular file
-    ///
-    /// # Errors
-    ///
-    /// - returns Err if file creation has failed
-    /// - returns Err if bytes couldn't be written to file
-    ///
-    /// # Panics
-    ///
-    /// - empty hash value serialization failed
-    /// - file size cannot be set
-    /// - file is too large, possible truncation can occur
-    /// - cannot build memory map
-    pub unsafe fn new(file_path: PathBuf, storage: &[H::Hash]) -> Result<Self> {
-        // Safety: potential uninitialized padding from `H::Hash` is safe to use if
-        // we're casting back to the same type.
-        let buf = bytemuck::cast_slice(storage);
-        let buf_len = buf.len();
-
-        let mut file = match OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(file_path.clone())
-        {
-            Ok(file) => file,
-            Err(_e) => bail!("File creation failed"),
-        };
-
-        file.set_len(buf_len as u64).expect("cannot set file size");
-        if file.write_all(buf).is_err() {
-            bail!("Cannot write bytes to file");
-        }
-
-        let mmap = unsafe {
-            MmapOptions::new(usize::try_from(buf_len as u64).expect("file size truncated"))
-                .expect("cannot create memory map")
-                .with_file(file, 0)
-                .map_mut()
-                .expect("cannot build memory map")
-        };
-
-        Ok(Self {
-            mmap,
-            file_path,
-            phantom: std::marker::PhantomData,
-        })
-    }
-
-    /// Given the file path and tree depth,
-    /// it attempts to restore the memory map
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that only one memory map is assigned to a
-    /// particular file
-    ///
-    /// # Errors
-    ///
-    /// - returns Err if file doesn't exist
-    /// - returns Err if file size doesn't match the expected tree size
-    ///
-    /// # Panics
-    ///
-    /// - cannot get file metadata to check for file length
-    /// - truncated file size when attempting to build memory map
-    /// - cannot build memory map
-    pub unsafe fn restore(empty_value: &H::Hash, file_path: PathBuf) -> Result<Self> {
-        let file = match OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(file_path.clone())
-        {
-            Ok(file) => file,
-            Err(_e) => bail!("File doesn't exist"),
-        };
-
-        let file_size = file.metadata().expect("cannot get file metadata").len();
-        let size_of_empty_value = std::mem::size_of_val(empty_value);
-        if !(file_size / size_of_empty_value as u64).is_power_of_two() {
-            bail!("File size should be a power of 2");
-        }
-
-        let mmap = unsafe {
-            MmapOptions::new(file_size as usize)?
-                .with_file(file, 0)
-                .map_mut()?
-        };
-
-        Ok(Self {
-            mmap,
-            file_path,
-            phantom: std::marker::PhantomData,
-        })
-    }
-
-    pub fn reallocate(&mut self, empty_value: &H::Hash) -> Result<()> {
-        let file = match OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(self.file_path.clone())
-        {
-            Ok(file) => file,
-            Err(_e) => bail!("File doesn't exist"),
-        };
-
-        let file_size = file.metadata().expect("cannot get file metadata").len();
-        let size_of_empty_value = std::mem::size_of_val(empty_value);
-        if !(file_size / size_of_empty_value as u64).is_power_of_two() {
-            bail!("File size should be a power of 2");
-        }
-
-        let new_file_size = file_size << 1;
-        file.set_len(new_file_size).expect("cannot expand size");
-
-        self.mmap = unsafe {
-            MmapOptions::new(new_file_size as usize)
-                .expect("cannot create memory map")
-                .with_file(file, 0)
-                .map_mut()
-                .expect("cannot build memory map")
-        };
-
-        let len = self.len();
-        self[(len >> 1)..].par_iter_mut().for_each(|val| {
-            *val = *empty_value;
-        });
-
-        Ok(())
-    }
-}
-
-impl<H: Hasher> Deref for MmapVec<H> {
-    type Target = [H::Hash];
-
-    fn deref(&self) -> &Self::Target {
-        bytemuck::cast_slice(self.mmap.as_slice())
-    }
-}
-
-impl<H: Hasher> DerefMut for MmapVec<H> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        bytemuck::cast_slice_mut(self.mmap.as_mut_slice())
-    }
-}
-
 // leaves are 0 indexed
 fn index_from_leaf(leaf: usize) -> usize {
     leaf + (leaf + 1).next_power_of_two()
@@ -832,119 +599,13 @@ fn _children(i: usize) -> Option<(usize, usize)> {
     Some((prev_pow + offset_left, prev_pow + offset_right))
 }
 
-/// Assumed that slice len is a power of 2
-#[inline]
-fn subtree_depth<H>(storage_slice: &[H]) -> usize {
-    let len = storage_slice.len();
-
-    debug_assert!(len.is_power_of_two());
-    debug_assert!(len > 1);
-
-    (len >> 1).ilog2() as usize
-}
-
-/// Assumed that slice len is a power of 2
-#[inline]
-fn subtree_depth_width<H>(storage_slice: &[H]) -> (usize, usize) {
-    let len = storage_slice.len();
-
-    debug_assert!(len.is_power_of_two());
-    debug_assert!(len > 1);
-
-    let width = len >> 1;
-    let depth = width.ilog2() as usize;
-
-    (depth, width)
-}
-
-/// Assumes that storage is already initialized with empty values
-///
-/// O(log(n)) time complexity
-///
-/// Subtrees are 1 indexed and directly attached to the left most branch
-/// of the main tree.
-///
-/// storage.len() must be a power of 2 and greater than or equal to 2
-/// storage is 1 indexed
-///
-/// ```markdown
-///           8    (subtree)
-///      4      [     9     ]
-///   2     5   [  10    11 ]
-/// 1  3  6  7  [12 13 14 15]
-/// ```
-fn init_subtree<H: Hasher>(sparse_column: &[H::Hash], storage_slice: &mut [H::Hash]) -> H::Hash {
-    let depth = subtree_depth(storage_slice);
-
-    for current_depth in 0..depth {
-        let start = 1 << current_depth;
-        let row = &mut storage_slice[start..(start << 1)];
-        let hash = sparse_column[depth - current_depth];
-        row.par_iter_mut().for_each(|value| {
-            *value = hash;
-        });
-    }
-
-    storage_slice[1]
-}
-
-/// TODO: This function is slower than necessary if the entire base of the
-/// subtree is not filled with leaves.
-///
-/// Initialize a subtree with the given leaves in parallel.
-///
-/// O(n) time complexity
-///
-/// Subtrees are 1 indexed and directly attached to the left most branch
-/// of the main tree.
-///
-/// This function assumes that storage is already initialized with empty
-/// values and is the correct length for the subtree.
-/// If 'leaves' is not long enough, the remaining leaves will be left empty
-///
-/// storage.len() must be a power of 2 and greater than or equal to 2
-/// storage is 1 indexed
-///
-/// ```markdown
-///           8    (subtree)
-///      4      [     9     ]
-///   2     5   [  10    11 ]
-/// 1  3  6  7  [12 13 14 15]
-///  ```
-fn init_subtree_with_leaves<H: Hasher>(storage: &mut [H::Hash], leaves: &[H::Hash]) -> H::Hash {
-    let (depth, width) = subtree_depth_width(storage);
-
-    storage[width..(width + leaves.len())]
-        .par_iter_mut()
-        .zip(leaves.par_iter())
-        .for_each(|(val, leaf)| {
-            *val = *leaf;
-        });
-
-    // Iterate over mutable layers of the tree
-    for current_depth in (1..=depth).rev() {
-        let (top, child_layer) = storage.split_at_mut(1 << current_depth);
-        let parent_layer = &mut top[(1 << (current_depth - 1))..];
-
-        parent_layer
-            .par_iter_mut()
-            .enumerate()
-            .for_each(|(i, value)| {
-                let left = &child_layer[2 * i];
-                let right = &child_layer[2 * i + 1];
-                *value = H::hash_node(left, right);
-            });
-    }
-
-    storage[1]
-}
-
 #[cfg(test)]
 mod tests {
 
     use serial_test::serial;
 
     use super::*;
+    use crate::generic_storage::MmapVec;
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     struct TestHasher;
@@ -956,9 +617,11 @@ mod tests {
         }
     }
 
-    fn debug_tree<H: Hasher + std::fmt::Debug, S: CascadingTreeStorage<H> + std::fmt::Debug>(
-        tree: &CascadingMerkleTree<H, S>,
-    ) {
+    fn debug_tree<H, S>(tree: &CascadingMerkleTree<H, S>)
+    where
+        H: Hasher + std::fmt::Debug,
+        S: GenericStorage<H::Hash> + std::fmt::Debug,
+    {
         println!("{tree:?}");
         let storage_depth = tree.storage.len().ilog2();
         let storage_len = tree.storage.len();
@@ -1112,7 +775,8 @@ mod tests {
                 left + right
             }
         }
-        let _ = CascadingMerkleTree::<InvalidHasher>::new_with_leaves((), 1, &0, &[]);
+
+        let _ = CascadingMerkleTree::<InvalidHasher>::with_leaves(vec![], 1, &0, &[]);
     }
 
     #[test]
@@ -1120,7 +784,7 @@ mod tests {
         let num_leaves = 1;
         let leaves = vec![1; num_leaves];
         let empty = 0;
-        let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves((), 1, &empty, &leaves);
+        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(vec![], 1, &empty, &leaves);
         tree.validate().unwrap();
         debug_tree(&tree);
     }
@@ -1131,7 +795,7 @@ mod tests {
         let num_leaves = 1;
         let leaves = vec![1; num_leaves];
         let empty = 0;
-        let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves((), 0, &empty, &leaves);
+        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(vec![], 0, &empty, &leaves);
         debug_tree(&tree);
     }
 
@@ -1139,7 +803,7 @@ mod tests {
     fn test_odd_leaves() {
         let num_leaves = 5;
         let leaves = vec![1; num_leaves];
-        let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves((), 10, &0, &leaves);
+        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(vec![], 10, &0, &leaves);
         let expected = CascadingMerkleTree::<TestHasher> {
             depth:         10,
             root:          5,
@@ -1158,7 +822,7 @@ mod tests {
         let num_leaves = 1 << 3;
         let leaves = vec![1; num_leaves];
         let empty = 0;
-        let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves((), 10, &empty, &leaves);
+        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(vec![], 10, &empty, &leaves);
         let expected = CascadingMerkleTree::<TestHasher> {
             depth:         10,
             root:          8,
@@ -1176,7 +840,7 @@ mod tests {
     fn test_no_leaves() {
         let leaves = vec![];
         let empty = 0;
-        let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves((), 10, &empty, &leaves);
+        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(vec![], 10, &empty, &leaves);
         let expected = CascadingMerkleTree::<TestHasher> {
             depth:         10,
             root:          0,
@@ -1194,7 +858,7 @@ mod tests {
     fn test_sparse_column() {
         let leaves = vec![];
         let empty = 1;
-        let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves((), 10, &empty, &leaves);
+        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(vec![], 10, &empty, &leaves);
         let expected = CascadingMerkleTree::<TestHasher> {
             depth:         10,
             root:          1024,
@@ -1213,7 +877,7 @@ mod tests {
         let num_leaves = 1 << 3;
         let leaves = vec![0; num_leaves];
         let empty = 1;
-        let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves((), 4, &empty, &leaves);
+        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(vec![], 4, &empty, &leaves);
         let expected = CascadingMerkleTree::<TestHasher> {
             depth:         4,
             root:          8,
@@ -1232,7 +896,7 @@ mod tests {
         let num_leaves = 3;
         let leaves = vec![3; num_leaves];
         let empty = 1;
-        let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves((), 3, &empty, &leaves);
+        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(vec![], 3, &empty, &leaves);
         debug_tree(&tree);
         tree.validate().unwrap();
         let expected = vec![
@@ -1261,7 +925,7 @@ mod tests {
     #[test]
     fn test_get_leaf_from_hash() {
         let empty = 0;
-        let mut tree = CascadingMerkleTree::<TestHasher>::new((), 10, &empty);
+        let mut tree = CascadingMerkleTree::<TestHasher>::with_leaves(vec![], 10, &empty, &[]);
         tree.validate().unwrap();
         for i in 1..=64 {
             tree.push(i).unwrap();
@@ -1279,7 +943,7 @@ mod tests {
         let num_leaves = 12;
         let leaves = vec![3; num_leaves];
         let empty = 1;
-        let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves((), 3, &empty, &leaves);
+        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(vec![], 3, &empty, &leaves);
         tree.validate().unwrap();
         debug_tree(&tree);
         let expected = vec![
@@ -1294,11 +958,8 @@ mod tests {
         for (height, result) in expected {
             println!("Height: {}, expected: {:?}", height, result);
             assert_eq!(
-                <Vec<usize> as CascadingTreeStorage<TestHasher>>::row_indices(
-                    &tree.storage,
-                    height
-                )
-                .collect::<Vec<usize>>(),
+                <Vec<usize> as StorageOps<TestHasher>>::row_indices(&tree.storage, height)
+                    .collect::<Vec<usize>>(),
                 result
             );
         }
@@ -1308,7 +969,7 @@ mod tests {
     fn test_row() {
         let leaves = vec![1, 2, 3, 4, 5, 6];
         let empty = 0;
-        let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves((), 20, &empty, &leaves);
+        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(vec![], 20, &empty, &leaves);
         tree.validate().unwrap();
         debug_tree(&tree);
         let expected = vec![
@@ -1320,7 +981,7 @@ mod tests {
         for (height, result) in expected {
             println!("Height: {}, expected: {:?}", height, result);
             assert_eq!(
-                <Vec<usize> as CascadingTreeStorage<TestHasher>>::row(&tree.storage, height)
+                <Vec<usize> as StorageOps<TestHasher>>::row(&tree.storage, height)
                     .collect::<Vec<usize>>(),
                 result
             );
@@ -1332,7 +993,7 @@ mod tests {
     fn test_proof_from_hash() {
         let leaves = vec![1, 2, 3, 4, 5, 6];
         let empty = 1;
-        let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves((), 4, &empty, &leaves);
+        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(vec![], 4, &empty, &leaves);
         debug_tree(&tree);
         tree.validate().unwrap();
         let expected = vec![
@@ -1385,7 +1046,7 @@ mod tests {
         let num_leaves = 1 << 3;
         let leaves = vec![1; num_leaves];
         let empty = 0;
-        let mut tree = CascadingMerkleTree::<TestHasher>::new_with_leaves((), 22, &empty, &leaves);
+        let mut tree = CascadingMerkleTree::<TestHasher>::with_leaves(vec![], 22, &empty, &leaves);
         debug_tree(&tree);
         tree.validate().unwrap();
         tree.push(3).unwrap();
@@ -1393,44 +1054,49 @@ mod tests {
         tree.validate().unwrap();
     }
 
-    #[test]
-    #[serial]
-    fn test_mmap() {
-        let leaves = vec![3; 3];
-        let empty = 1;
-        let mut tree = CascadingMerkleTree::<TestHasher, MmapVec<_>>::new_with_leaves(
-            unsafe { MmapTreeStorageConfig::new(PathBuf::from("target/test.mmap")) },
-            20,
-            &empty,
-            &leaves,
-        );
-        debug_tree(&tree);
-        tree.validate().unwrap();
+    // TODO: This test is breaking safety guarantees
+    // #[test]
+    // #[serial]
+    // fn test_mmap() {
+    //     let leaves = vec![3; 3];
+    //     let empty = 1;
+    //     let tempfile = tempfile::tempfile().unwrap();
+    //     let mmap_vec: MmapVec<_> = unsafe { MmapVec::new(tempfile).unwrap() };
 
-        for _ in 0..100 {
-            tree.push(3).unwrap();
-            debug_tree(&tree);
-            tree.validate().unwrap();
+    //     let mut tree = CascadingMerkleTree::<TestHasher,
+    // MmapVec<_>>::with_leaves(         mmap_vec,
+    //         20,
+    //         &empty,
+    //         &leaves,
+    //     );
+    //     debug_tree(&tree);
+    //     tree.validate().unwrap();
 
-            let restored = unsafe {
-                CascadingMerkleTree::<TestHasher, MmapVec<_>>::restore(
-                    MmapTreeStorageConfig::new(PathBuf::from("target/test.mmap")),
-                    20,
-                    &empty,
-                )
-                .unwrap()
-            };
-            restored.validate().unwrap();
-            assert_eq!(tree, restored);
-        }
-    }
+    //     for _ in 0..100 {
+    //         tree.push(3).unwrap();
+    //         debug_tree(&tree);
+    //         tree.validate().unwrap();
+
+    //         let restored = unsafe {
+    //             CascadingMerkleTree::<TestHasher, MmapVec<_>>::restore(
+    //
+    // MmapTreeStorageConfig::new(PathBuf::from("target/test.mmap")),
+    //                 20,
+    //                 &empty,
+    //             )
+    //             .unwrap()
+    //         };
+    //         restored.validate().unwrap();
+    //         assert_eq!(tree, restored);
+    //     }
+    // }
 
     #[test]
     fn test_vec_realloc_speed() {
         let empty = 0;
         let leaves = vec![1; 1 << 20];
         let mut tree =
-            CascadingMerkleTree::<TestHasher, Vec<_>>::new_with_leaves((), 30, &empty, &leaves);
+            CascadingMerkleTree::<TestHasher, Vec<_>>::with_leaves(vec![], 30, &empty, &leaves);
         let start = std::time::Instant::now();
         tree.push(1).unwrap();
         let elapsed = start.elapsed();
@@ -1446,12 +1112,18 @@ mod tests {
     fn test_mmap_realloc_speed() {
         let empty = 0;
         let leaves = vec![1; 1 << 20];
-        let config = MmapTreeStorageConfig {
-            file_path: PathBuf::from("target/test.mmap"),
-        };
-        let mut tree = CascadingMerkleTree::<TestHasher, MmapVec<_>>::new_with_leaves(
-            config, 30, &empty, &leaves,
+
+        println!("Create tempfile");
+        let tempfile = tempfile::tempfile().unwrap();
+        println!("Init mmap");
+        let mmap_vec: MmapVec<_> = unsafe { MmapVec::new(tempfile).unwrap() };
+
+        println!("Init tree");
+        let mut tree = CascadingMerkleTree::<TestHasher, MmapVec<_>>::with_leaves(
+            mmap_vec, 30, &empty, &leaves,
         );
+
+        println!("test push");
         let start = std::time::Instant::now();
         tree.push(1).unwrap();
         let elapsed = start.elapsed();

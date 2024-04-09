@@ -2,6 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 mod mmap_vec;
 
+use bytemuck::Pod;
 pub use mmap_vec::MmapVec;
 
 pub trait GenericStorage<T>: Deref<Target = [T]> + DerefMut<Target = [T]> + Send + Sync {
@@ -12,6 +13,13 @@ impl<T: Send + Sync> GenericStorage<T> for Vec<T> {
     fn push(&mut self, value: T) {
         self.push(value);
     }
+}
+
+impl<T: Send + Sync + Pod> GenericStorage<T> for MmapVec<T> {
+    fn push(&mut self, value: T) {
+        MmapVec::push(self, value);
+    }
+
 }
 
 #[cfg(test)]
