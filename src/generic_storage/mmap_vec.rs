@@ -1,6 +1,8 @@
-use std::fs::{File, OpenOptions};
-use std::ops::{Deref, DerefMut};
-use std::path::Path;
+use std::{
+    fs::{File, OpenOptions},
+    ops::{Deref, DerefMut},
+    path::Path,
+};
 
 use bytemuck::Pod;
 use color_eyre::eyre::bail;

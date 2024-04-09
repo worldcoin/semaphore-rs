@@ -1,18 +1,19 @@
 use std::ops::{Deref, DerefMut};
 
-use color_eyre::eyre::bail;
-use color_eyre::Result;
+use color_eyre::{eyre::bail, Result};
 use itertools::Itertools;
 use rayon::prelude::*;
 
-use crate::generic_storage::GenericStorage;
-use crate::merkle_tree::{Branch, Hasher};
+use crate::{
+    generic_storage::GenericStorage,
+    merkle_tree::{Branch, Hasher},
+};
 
 pub fn new_with_leaves<S, H>(gs: &mut S, empty_value: &H::Hash, leaves: &[H::Hash])
 where
     H: Hasher,
     S: GenericStorage<H::Hash>,
-    {
+{
     println!("A");
     let num_leaves = leaves.len();
     let base_len = num_leaves.next_power_of_two();
@@ -300,8 +301,7 @@ fn subtree_depth_width<H>(storage_slice: &[H]) -> (usize, usize) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::generic_storage::MmapVec;
-    use crate::poseidon_tree::PoseidonHash;
+    use crate::{generic_storage::MmapVec, poseidon_tree::PoseidonHash};
 
     fn test_is_storage_ops<S>(_s: &S)
     where
