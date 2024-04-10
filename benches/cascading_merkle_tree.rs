@@ -1,10 +1,9 @@
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 #[allow(clippy::wildcard_imports)]
 use semaphore::cascading_merkle_tree::*;
-use semaphore::generic_storage::MmapVec;
-use semaphore::merkle_tree::Hasher;
-use semaphore::poseidon_tree::PoseidonHash;
-use semaphore::Field;
+use semaphore::{
+    generic_storage::MmapVec, merkle_tree::Hasher, poseidon_tree::PoseidonHash, Field,
+};
 
 criterion_main!(cascading_merkle_tree);
 criterion_group!(
@@ -126,12 +125,13 @@ fn bench_cascading_create_dense_mmap_tree(criterion: &mut Criterion) {
                 bencher.iter(|| {
                     let storage: MmapVec<<PoseidonHash as Hasher>::Hash> =
                         unsafe { MmapVec::open_create("./testfile").unwrap() };
-                    let _tree: CascadingMerkleTree<PoseidonHash, _> = CascadingMerkleTree::from_storage_with_leaves(
-                        storage,
-                        value.depth,
-                        &value.empty_value,
-                        &value.initial_values,
-                    );
+                    let _tree: CascadingMerkleTree<PoseidonHash, _> =
+                        CascadingMerkleTree::from_storage_with_leaves(
+                            storage,
+                            value.depth,
+                            &value.empty_value,
+                            &value.initial_values,
+                        );
                     let _root = _tree.root();
                 });
             },
@@ -153,12 +153,13 @@ fn bench_cascading_restore_dense_mmap_tree(criterion: &mut Criterion) {
     // file should be saved
     (0..3).zip(&tree_values).for_each(|(id, value)| {
         let storage: MmapVec<_> = unsafe { MmapVec::open_create("./testfile").unwrap() };
-        let _tree: CascadingMerkleTree<PoseidonHash, _> = CascadingMerkleTree::from_storage_with_leaves(
-            storage,
-            value.depth,
-            &value.empty_value,
-            &value.initial_values,
-        );
+        let _tree: CascadingMerkleTree<PoseidonHash, _> =
+            CascadingMerkleTree::from_storage_with_leaves(
+                storage,
+                value.depth,
+                &value.empty_value,
+                &value.initial_values,
+            );
         let _root = _tree.root();
     });
 
@@ -173,7 +174,8 @@ fn bench_cascading_restore_dense_mmap_tree(criterion: &mut Criterion) {
                     let storage =
                         unsafe { MmapVec::open_create(format!("./testfile{}", id)).unwrap() };
                     let _tree: CascadingMerkleTree<PoseidonHash, _> =
-                        CascadingMerkleTree::from_storage(storage, value.depth, &value.empty_value).unwrap();
+                        CascadingMerkleTree::from_storage(storage, value.depth, &value.empty_value)
+                            .unwrap();
                     let _root = _tree.root();
                 });
             },
