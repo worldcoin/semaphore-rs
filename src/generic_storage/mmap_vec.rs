@@ -1,8 +1,6 @@
-use std::{
-    fs::{File, OpenOptions},
-    ops::{Deref, DerefMut},
-    path::Path,
-};
+use std::fs::{File, OpenOptions};
+use std::ops::{Deref, DerefMut};
+use std::path::Path;
 
 use bytemuck::Pod;
 use color_eyre::eyre::bail;
@@ -19,10 +17,7 @@ pub struct MmapVec<T> {
 
 // Public API
 impl<T> MmapVec<T> {
-    pub unsafe fn open_create(
-        file_path: impl AsRef<Path>,
-        initial_capacity: usize,
-    ) -> color_eyre::Result<Self> {
+    pub unsafe fn open_create(file_path: impl AsRef<Path>) -> color_eyre::Result<Self> {
         let file = match OpenOptions::new()
             .read(true)
             .write(true)
@@ -34,11 +29,11 @@ impl<T> MmapVec<T> {
             Err(_e) => bail!("File creation failed"),
         };
 
-        Self::create(file, initial_capacity)
+        Self::create(file)
     }
 
-    pub unsafe fn create(file: File, initial_capacity: usize) -> color_eyre::Result<Self> {
-        let initial_byte_len = META_SIZE + initial_capacity * std::mem::size_of::<T>();
+    pub unsafe fn create(file: File) -> color_eyre::Result<Self> {
+        let initial_byte_len = META_SIZE;
 
         file.set_len(initial_byte_len as u64)
             .expect("Failed to resize underlying file");
@@ -182,15 +177,6 @@ where
     }
 }
 
-impl<T> PartialEq for MmapVec<T> {
-    fn eq(&self, other: &Self) -> bool {
-        // self.mmap.as_ref() == other.mmap.as_ref()
-        //     && self.file == other.file
-        //     && self.phantom == other.phantom
-        unimplemented!()
-    }
-}
-
 impl<T> std::fmt::Debug for MmapVec<T>
 where
     T: Pod + std::fmt::Debug,
@@ -209,8 +195,9 @@ mod tests {
     #[test]
     fn test_mmap_vec() {
         let f = tempfile::tempfile().unwrap();
-        let mut storage: MmapVec<u32> =
-            unsafe { MmapVec::create(f.try_clone().unwrap(), 2).unwrap() };
+        let mut storage: MmapVec<u32> = unsafe { MmapVec::create(f.try_clone().unwrap()).unwrap() };
+
+        storage.resize(2);
 
         storage.push(u32::MAX);
         storage.push(2);
@@ -239,6 +226,6 @@ mod tests {
     #[should_panic]
     fn test_mmap_vec_zst() {
         let f = tempfile::tempfile().unwrap();
-        let _storage: MmapVec<()> = unsafe { MmapVec::create(f.try_clone().unwrap(), 2).unwrap() };
+        let _storage: MmapVec<()> = unsafe { MmapVec::create(f.try_clone().unwrap()).unwrap() };
     }
 }
