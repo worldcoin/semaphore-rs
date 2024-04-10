@@ -4,10 +4,7 @@ use color_eyre::eyre::{bail, ensure, Result};
 use itertools::Itertools;
 use rayon::prelude::*;
 
-use crate::{
-    generic_storage::GenericStorage,
-    merkle_tree::{Branch, Hasher, Proof},
-};
+use crate::merkle_tree::{Branch, Hasher, Proof};
 
 mod storage_ops;
 
@@ -64,7 +61,7 @@ where
 impl<H, S> CascadingMerkleTree<H, S>
 where
     H: Hasher,
-    S: GenericStorage<H::Hash> + StorageOps<H>,
+    S: StorageOps<H>,
 {
     /// Use to open a previously initialized tree
     pub fn from_storage(
@@ -622,7 +619,7 @@ mod tests {
     use serial_test::serial;
 
     use super::*;
-    use crate::generic_storage::MmapVec;
+    use crate::generic_storage::{GenericStorage, MmapVec};
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     struct TestHasher;
