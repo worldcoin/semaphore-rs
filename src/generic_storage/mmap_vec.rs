@@ -117,7 +117,17 @@ impl<T> MmapVec<T> {
 
         let offset = META_SIZE + len * std::mem::size_of::<T>();
 
-        // TODO: Ensure that we're not breaking alignment safety requirements
+        // # Safety
+        // In order for this operation to be safe we must ensure the following:
+        // 1. Memory pointed to is valid for writes
+        // 2. Memory is properly aligned
+        //
+        // The memory is valid for writes since we've created the memory map and we're
+        // ensuring we're always writing below capacity (which is derived from
+        // file size). There exists no aliased access to this memory so long as
+        // safety requirements of constructing this type are upheld.
+        // Memory is properly aligned since we always write at offsets equal to size of
+        // T
         unsafe {
             let typed_ptr = self.mmap.as_mut().unwrap().as_mut_ptr().add(offset) as *mut T;
             std::ptr::write(typed_ptr, v);
