@@ -4,8 +4,10 @@ use color_eyre::eyre::{bail, ensure, Result};
 use itertools::Itertools;
 use rayon::prelude::*;
 
-use crate::generic_storage::GenericStorage;
-use crate::merkle_tree::{Branch, Hasher, Proof};
+use crate::{
+    generic_storage::GenericStorage,
+    merkle_tree::{Branch, Hasher, Proof},
+};
 
 mod storage_ops;
 
