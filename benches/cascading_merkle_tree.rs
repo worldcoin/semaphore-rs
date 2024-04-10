@@ -33,7 +33,7 @@ fn bench_cascading_proof_from_hash(criterion: &mut Criterion) {
         let leaf = Field::from(234123412341usize);
         b.iter_batched_ref(
             || {
-                let mut tree = CascadingMerkleTree::<PoseidonHash>::init(
+                let mut tree = CascadingMerkleTree::<PoseidonHash>::from_storage_with_leaves(
                     vec![],
                     tree_value.depth,
                     &tree_value.empty_value,
@@ -60,7 +60,7 @@ fn bench_cascading_validate(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("bench_cascading_validate");
 
     for value in tree_values.iter() {
-        let tree = CascadingMerkleTree::<PoseidonHash>::init(
+        let tree = CascadingMerkleTree::<PoseidonHash>::from_storage_with_leaves(
             vec![],
             value.depth,
             &value.empty_value,
@@ -95,7 +95,7 @@ fn bench_cascading_create_dense_tree(criterion: &mut Criterion) {
             value,
             |bencher: &mut criterion::Bencher, value| {
                 bencher.iter(|| {
-                    let _tree = CascadingMerkleTree::<PoseidonHash>::init(
+                    let _tree = CascadingMerkleTree::<PoseidonHash>::from_storage_with_leaves(
                         vec![],
                         value.depth,
                         &value.empty_value,
@@ -126,7 +126,7 @@ fn bench_cascading_create_dense_mmap_tree(criterion: &mut Criterion) {
                 bencher.iter(|| {
                     let storage: MmapVec<<PoseidonHash as Hasher>::Hash> =
                         unsafe { MmapVec::open_create("./testfile").unwrap() };
-                    let _tree: CascadingMerkleTree<PoseidonHash, _> = CascadingMerkleTree::init(
+                    let _tree: CascadingMerkleTree<PoseidonHash, _> = CascadingMerkleTree::from_storage_with_leaves(
                         storage,
                         value.depth,
                         &value.empty_value,
@@ -153,7 +153,7 @@ fn bench_cascading_restore_dense_mmap_tree(criterion: &mut Criterion) {
     // file should be saved
     (0..3).zip(&tree_values).for_each(|(id, value)| {
         let storage: MmapVec<_> = unsafe { MmapVec::open_create("./testfile").unwrap() };
-        let _tree: CascadingMerkleTree<PoseidonHash, _> = CascadingMerkleTree::init(
+        let _tree: CascadingMerkleTree<PoseidonHash, _> = CascadingMerkleTree::from_storage_with_leaves(
             storage,
             value.depth,
             &value.empty_value,
@@ -173,7 +173,7 @@ fn bench_cascading_restore_dense_mmap_tree(criterion: &mut Criterion) {
                     let storage =
                         unsafe { MmapVec::open_create(format!("./testfile{}", id)).unwrap() };
                     let _tree: CascadingMerkleTree<PoseidonHash, _> =
-                        CascadingMerkleTree::new(storage, value.depth, &value.empty_value).unwrap();
+                        CascadingMerkleTree::from_storage(storage, value.depth, &value.empty_value).unwrap();
                     let _root = _tree.root();
                 });
             },
@@ -190,7 +190,7 @@ fn bench_cascading_restore_dense_mmap_tree(criterion: &mut Criterion) {
 fn bench_cascading_dense_tree_reads(criterion: &mut Criterion) {
     let tree_value = create_values_for_tree(14);
 
-    let tree = CascadingMerkleTree::<PoseidonHash>::init(
+    let tree = CascadingMerkleTree::<PoseidonHash>::from_storage_with_leaves(
         vec![],
         tree_value.depth,
         &tree_value.empty_value,
@@ -212,7 +212,7 @@ fn bench_cascading_dense_mmap_tree_reads(criterion: &mut Criterion) {
     let tree_value = create_values_for_tree(14);
 
     let storage = unsafe { MmapVec::open_create("./testfile").unwrap() };
-    let tree = CascadingMerkleTree::<PoseidonHash, _>::init(
+    let tree = CascadingMerkleTree::<PoseidonHash, _>::from_storage_with_leaves(
         storage,
         tree_value.depth,
         &tree_value.empty_value,
@@ -239,7 +239,7 @@ fn bench_cascading_dense_tree_writes(criterion: &mut Criterion) {
     criterion.bench_function("dense tree writes", |b| {
         b.iter_batched_ref(
             || {
-                CascadingMerkleTree::<PoseidonHash>::init(
+                CascadingMerkleTree::<PoseidonHash>::from_storage_with_leaves(
                     vec![],
                     tree_value.depth,
                     &tree_value.empty_value,
@@ -263,7 +263,7 @@ fn bench_cascading_dense_mmap_tree_writes(criterion: &mut Criterion) {
         b.iter_batched_ref(
             || {
                 let storage = unsafe { MmapVec::open_create("./testfile").unwrap() };
-                CascadingMerkleTree::<PoseidonHash, _>::init(
+                CascadingMerkleTree::<PoseidonHash, _>::from_storage_with_leaves(
                     storage,
                     tree_value.depth,
                     &tree_value.empty_value,
