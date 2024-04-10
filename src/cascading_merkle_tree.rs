@@ -793,7 +793,7 @@ mod tests {
             }
         }
 
-        let _ = CascadingMerkleTree::<InvalidHasher>::from_storage_with_leaves(vec![], 1, &0, &[]);
+        let _ = CascadingMerkleTree::<InvalidHasher>::with_leaves(1, &0, &[]);
     }
 
     #[test]
@@ -801,8 +801,7 @@ mod tests {
         let num_leaves = 1;
         let leaves = vec![1; num_leaves];
         let empty = 0;
-        let tree =
-            CascadingMerkleTree::<TestHasher>::from_storage_with_leaves(vec![], 1, &empty, &leaves);
+        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(1, &empty, &leaves);
         tree.validate().unwrap();
         debug_tree(&tree);
     }
@@ -813,8 +812,7 @@ mod tests {
         let num_leaves = 1;
         let leaves = vec![1; num_leaves];
         let empty = 0;
-        let tree =
-            CascadingMerkleTree::<TestHasher>::from_storage_with_leaves(vec![], 0, &empty, &leaves);
+        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(0, &empty, &leaves);
         debug_tree(&tree);
     }
 
@@ -822,8 +820,7 @@ mod tests {
     fn test_odd_leaves() {
         let num_leaves = 5;
         let leaves = vec![1; num_leaves];
-        let tree =
-            CascadingMerkleTree::<TestHasher>::from_storage_with_leaves(vec![], 10, &0, &leaves);
+        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(10, &0, &leaves);
         let expected = CascadingMerkleTree::<TestHasher> {
             depth:         10,
             root:          5,
@@ -912,8 +909,7 @@ mod tests {
         let num_leaves = 1 << 3;
         let leaves = vec![0; num_leaves];
         let empty = 1;
-        let tree =
-            CascadingMerkleTree::<TestHasher>::from_storage_with_leaves(vec![], 4, &empty, &leaves);
+        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(4, &empty, &leaves);
         let expected = CascadingMerkleTree::<TestHasher> {
             depth:         4,
             root:          8,
@@ -932,8 +928,7 @@ mod tests {
         let num_leaves = 3;
         let leaves = vec![3; num_leaves];
         let empty = 1;
-        let tree =
-            CascadingMerkleTree::<TestHasher>::from_storage_with_leaves(vec![], 3, &empty, &leaves);
+        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(3, &empty, &leaves);
         debug_tree(&tree);
         tree.validate().unwrap();
         let expected = vec![
@@ -962,8 +957,7 @@ mod tests {
     #[test]
     fn test_get_leaf_from_hash() {
         let empty = 0;
-        let mut tree =
-            CascadingMerkleTree::<TestHasher>::from_storage_with_leaves(vec![], 10, &empty, &[]);
+        let mut tree = CascadingMerkleTree::<TestHasher>::with_leaves(10, &empty, &[]);
         tree.validate().unwrap();
         for i in 1..=64 {
             tree.push(i).unwrap();
@@ -981,8 +975,7 @@ mod tests {
         let num_leaves = 12;
         let leaves = vec![3; num_leaves];
         let empty = 1;
-        let tree =
-            CascadingMerkleTree::<TestHasher>::from_storage_with_leaves(vec![], 3, &empty, &leaves);
+        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(3, &empty, &leaves);
         tree.validate().unwrap();
         debug_tree(&tree);
         let expected = vec![
@@ -1037,8 +1030,7 @@ mod tests {
     fn test_proof_from_hash() {
         let leaves = vec![1, 2, 3, 4, 5, 6];
         let empty = 1;
-        let tree =
-            CascadingMerkleTree::<TestHasher>::from_storage_with_leaves(vec![], 4, &empty, &leaves);
+        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(4, &empty, &leaves);
         debug_tree(&tree);
         tree.validate().unwrap();
         let expected = vec![
