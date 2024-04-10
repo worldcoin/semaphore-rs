@@ -1,8 +1,6 @@
-use std::{
-    fs::{File, OpenOptions},
-    ops::{Deref, DerefMut},
-    path::Path,
-};
+use std::fs::{File, OpenOptions};
+use std::ops::{Deref, DerefMut};
+use std::path::Path;
 
 use bytemuck::Pod;
 use color_eyre::eyre::bail;
@@ -11,7 +9,9 @@ use mmap_rs::{MmapMut, MmapOptions};
 const META_SIZE: usize = std::mem::size_of::<usize>();
 
 pub struct MmapVec<T> {
-    mmap:     MmapMut,
+    // This must be Option to properly uphold aliasing access safety guarantees
+    // Look at the `resize` method for more details
+    mmap:     Option<MmapMut>,
     file:     File,
     capacity: usize,
     phantom:  std::marker::PhantomData<T>,
@@ -75,13 +75,13 @@ impl<T> MmapVec<T> {
         let mmap = unsafe {
             MmapOptions::new(byte_len)
                 .expect("cannot create memory map")
-                .with_file(file.try_clone().expect("Failed to clone file handle"), 0)
+                .with_file(&file, 0)
                 .map_mut()
                 .expect("cannot build memory map")
         };
 
         let s = Self {
-            mmap,
+            mmap: Some(mmap),
             file,
             capacity,
             phantom: std::marker::PhantomData,
@@ -110,7 +110,7 @@ impl<T> MmapVec<T> {
 
         // TODO: Ensure that we're not breaking alignment safety requirements
         unsafe {
-            let typed_ptr = self.mmap.as_mut_ptr().add(offset) as *mut T;
+            let typed_ptr = self.mmap.as_mut().unwrap().as_mut_ptr().add(offset) as *mut T;
             std::ptr::write(typed_ptr, v);
         }
 
@@ -125,33 +125,40 @@ impl<T> MmapVec<T> {
             .expect("Failed to resize underlying file");
 
         // # Safety
-        // Provided that this struct has been initialized while
-        // upholding the safety guarantees during creation.
+        // MmapMut requires that no other instance of MmapMut exists that has access
+        // to the same file.
         //
-        // then at this point there are no other mappings to this file.
-        // Therefore, it is safe to remap it.
-        self.mmap = unsafe {
-            MmapOptions::new(new_file_len)
-                .expect("cannot create memory map")
-                .with_file(
-                    self.file.try_clone().expect("Failed to clone file handle"),
-                    0,
-                )
-                .map_mut()
-                .expect("cannot build memory map")
-        };
+        // In order to uphold that we must first drop the current MmapMut instance.
+        //
+        // MmapMut also requires that the caller must ensure that no other process
+        // has access to the same file at the same time.
+        // This requirement is upheld at the instantiation of MmapVec and must hold true
+        // for its entire lifetime. Therefore it must be upheld here as well.
+        unsafe {
+            self.mmap = None;
+            self.mmap = Some(
+                MmapOptions::new(new_file_len)
+                    .expect("cannot create memory map")
+                    .with_file(&self.file, 0)
+                    .map_mut()
+                    .expect("cannot build memory map"),
+            );
+        }
 
         self.capacity = new_capacity;
     }
 
     fn set_storage_len(&mut self, new_len: usize) {
         unsafe {
-            std::ptr::write(self.mmap.as_mut_ptr() as *mut usize, new_len);
+            std::ptr::write(
+                self.mmap.as_mut().unwrap().as_mut_ptr() as *mut usize,
+                new_len,
+            );
         }
     }
 
     fn storage_len(&self) -> usize {
-        unsafe { *(self.mmap.as_ptr() as *const usize) }
+        unsafe { *(self.mmap.as_ref().unwrap().as_ptr() as *const usize) }
     }
 }
 
@@ -163,7 +170,9 @@ where
 
     fn deref(&self) -> &Self::Target {
         let byte_slice_len = self.storage_len() * std::mem::size_of::<T>();
-        bytemuck::cast_slice(&self.mmap.as_slice()[META_SIZE..META_SIZE + byte_slice_len])
+        bytemuck::cast_slice(
+            &self.mmap.as_ref().unwrap().as_slice()[META_SIZE..META_SIZE + byte_slice_len],
+        )
     }
 }
 
@@ -174,7 +183,7 @@ where
     fn deref_mut(&mut self) -> &mut Self::Target {
         let byte_slice_len = self.storage_len() * std::mem::size_of::<T>();
         bytemuck::cast_slice_mut(
-            &mut self.mmap.as_mut_slice()[META_SIZE..META_SIZE + byte_slice_len],
+            &mut self.mmap.as_mut().unwrap().as_mut_slice()[META_SIZE..META_SIZE + byte_slice_len],
         )
     }
 }
@@ -184,7 +193,7 @@ where
     T: Pod + std::fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let slice: &[T] = bytemuck::cast_slice(self.mmap.as_slice());
+        let slice: &[T] = bytemuck::cast_slice(self.mmap.as_ref().unwrap().as_slice());
 
         f.debug_struct("MmapVec").field("mmap", &slice).finish()
     }
