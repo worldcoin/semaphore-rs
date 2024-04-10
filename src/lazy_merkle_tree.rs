@@ -1141,7 +1141,7 @@ impl<H: Hasher> MmapMutWrapper<H> {
         let mmap = unsafe {
             MmapOptions::new(usize::try_from(buf_len as u64).expect("file size truncated"))
                 .expect("cannot create memory map")
-                .with_file(file, 0)
+                .with_file(&file, 0)
                 .map_mut()
                 .expect("cannot build memory map")
         };
@@ -1187,7 +1187,7 @@ impl<H: Hasher> MmapMutWrapper<H> {
                 usize::try_from(expected_file_size).expect("expected file size truncated"),
             )
             .expect("cannot create memory map")
-            .with_file(file, 0)
+            .with_file(&file, 0)
             .map_mut()
             .expect("cannot build memory map")
         };
