@@ -19,6 +19,8 @@ pub struct MmapVec<T> {
 
 // Public API
 impl<T> MmapVec<T> {
+    // # Safety
+    // Same requirements as `new` method
     pub unsafe fn open_create(file_path: impl AsRef<Path>) -> color_eyre::Result<Self> {
         let file = match OpenOptions::new()
             .read(true)
@@ -34,6 +36,8 @@ impl<T> MmapVec<T> {
         Self::create(file)
     }
 
+    // # Safety
+    // Same requirements as `new` method
     pub unsafe fn create(file: File) -> color_eyre::Result<Self> {
         let initial_byte_len = META_SIZE;
 
@@ -47,6 +51,8 @@ impl<T> MmapVec<T> {
         Ok(s)
     }
 
+    // # Safety
+    // Same requirements as `new` method
     pub unsafe fn restore(file_path: impl AsRef<Path>) -> color_eyre::Result<Self> {
         let file = match OpenOptions::new().read(true).write(true).open(file_path) {
             Ok(file) => file,
@@ -56,6 +62,11 @@ impl<T> MmapVec<T> {
         Self::new(file)
     }
 
+    // # Safety
+    // This method requires that the safety requirements of [`mmap_rs::MmapOptions::with_file`](https://docs.rs/mmap-rs/0.6.1/mmap_rs/struct.MmapOptions.html#method.with_file) are upheld
+    //
+    // Notably this means that there can exist no other mutable mappings to the same
+    // file in this process or any other
     pub unsafe fn new(file: File) -> color_eyre::Result<Self> {
         if std::mem::size_of::<T>() == 0 {
             bail!("Zero-sized types are not supported");
@@ -72,13 +83,11 @@ impl<T> MmapVec<T> {
 
         let capacity = byte_len.saturating_sub(META_SIZE) / std::mem::size_of::<T>();
 
-        let mmap = unsafe {
-            MmapOptions::new(byte_len)
-                .expect("cannot create memory map")
-                .with_file(&file, 0)
-                .map_mut()
-                .expect("cannot build memory map")
-        };
+        let mmap = MmapOptions::new(byte_len)
+            .expect("cannot create memory map")
+            .with_file(&file, 0)
+            .map_mut()
+            .expect("cannot build memory map");
 
         let s = Self {
             mmap: Some(mmap),
@@ -149,6 +158,12 @@ impl<T> MmapVec<T> {
     }
 
     fn set_storage_len(&mut self, new_len: usize) {
+        // # Safety
+        // We're ensuring that the file created is always at least
+        // std::mem::size_of::<usize> bytes long Therefore dst is valid for
+        // writing
+        //
+        // Memory is also aligned since it always starts at the beginning of the file
         unsafe {
             std::ptr::write(
                 self.mmap.as_mut().unwrap().as_mut_ptr() as *mut usize,
@@ -158,6 +173,10 @@ impl<T> MmapVec<T> {
     }
 
     fn storage_len(&self) -> usize {
+        // # Safety
+        // We ensure that the memory pointed to here is valid for reading and properly
+        // aligned additionally `usize` is valid for all bit patterns
+        // therefore this operation is safe.
         unsafe { *(self.mmap.as_ref().unwrap().as_ptr() as *const usize) }
     }
 }
