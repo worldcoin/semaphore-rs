@@ -123,7 +123,7 @@ fn bench_cascading_create_dense_mmap_tree(criterion: &mut Criterion) {
             value,
             |bencher: &mut criterion::Bencher, value| {
                 bencher.iter(|| {
-                    let storage: MmapVec<<PoseidonHash as Hasher>::Hash> =
+                    let storage: MmapVec<_> =
                         unsafe { MmapVec::open_create("./testfile").unwrap() };
                     let _tree: CascadingMerkleTree<PoseidonHash, _> =
                         CascadingMerkleTree::from_storage_with_leaves(
