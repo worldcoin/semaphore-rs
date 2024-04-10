@@ -186,7 +186,6 @@ where
 pub fn subtree_depth<H>(storage_slice: &[H]) -> usize {
     let len = storage_slice.len();
 
-    println!("len = {len}");
     debug_assert!(len.is_power_of_two());
     debug_assert!(len > 1);
 
