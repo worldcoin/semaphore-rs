@@ -151,7 +151,7 @@ fn bench_cascading_restore_dense_mmap_tree(criterion: &mut Criterion) {
 
     // create 3 trees with different sizes, that are immediately dropped, but mmap
     // file should be saved
-    (0..3).zip(&tree_values).for_each(|(id, value)| {
+    (0..3).zip(&tree_values).for_each(|(_id, value)| {
         let storage: MmapVec<_> = unsafe { MmapVec::open_create("./testfile").unwrap() };
         let _tree: CascadingMerkleTree<PoseidonHash, _> =
             CascadingMerkleTree::from_storage_with_leaves(
