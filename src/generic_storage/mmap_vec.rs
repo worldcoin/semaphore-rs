@@ -1,6 +1,8 @@
-use std::fs::{File, OpenOptions};
-use std::ops::{Deref, DerefMut};
-use std::path::Path;
+use std::{
+    fs::{File, OpenOptions},
+    ops::{Deref, DerefMut},
+    path::Path,
+};
 
 use bytemuck::Pod;
 use color_eyre::eyre::bail;
@@ -65,8 +67,8 @@ impl<T> MmapVec<T> {
     /// # Safety
     /// This method requires that the safety requirements of [`mmap_rs::MmapOptions::with_file`](https://docs.rs/mmap-rs/0.6.1/mmap_rs/struct.MmapOptions.html#method.with_file) are upheld
     ///
-    /// Notably this means that there can exist no other mutable mappings to the same
-    /// file in this process or any other
+    /// Notably this means that there can exist no other mutable mappings to the
+    /// same file in this process or any other
     pub unsafe fn new(file: File) -> color_eyre::Result<Self> {
         if std::mem::size_of::<T>() == 0 {
             bail!("Zero-sized types are not supported");
@@ -199,6 +201,7 @@ where
 
     fn deref(&self) -> &Self::Target {
         let byte_slice_len = self.storage_len() * std::mem::size_of::<T>();
+
         bytemuck::cast_slice(
             &self.mmap.as_ref().unwrap().as_slice()[META_SIZE..META_SIZE + byte_slice_len],
         )
@@ -211,6 +214,7 @@ where
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         let byte_slice_len = self.storage_len() * std::mem::size_of::<T>();
+
         bytemuck::cast_slice_mut(
             &mut self.mmap.as_mut().unwrap().as_mut_slice()[META_SIZE..META_SIZE + byte_slice_len],
         )
@@ -222,9 +226,12 @@ where
     T: Pod + std::fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let slice: &[T] = bytemuck::cast_slice(self.mmap.as_ref().unwrap().as_slice());
+        let contents: &[T] = self.deref();
 
-        f.debug_struct("MmapVec").field("mmap", &slice).finish()
+        f.debug_struct("MmapVec")
+            .field("contents", &contents)
+            .field("capacity", &self.capacity)
+            .finish()
     }
 }
 
