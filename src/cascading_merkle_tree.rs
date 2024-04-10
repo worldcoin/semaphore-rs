@@ -155,10 +155,8 @@ where
     }
 
     pub fn push(&mut self, leaf: H::Hash) -> Result<()> {
-        println!("push({leaf:?})");
         let index = index_from_leaf(self.num_leaves());
 
-        println!("index = {index}");
         // If the index is out of bounds, we need to reallocate the storage
         // we must always have 2^n leaves for any n
         if index >= self.storage.len() {
