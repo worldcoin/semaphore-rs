@@ -1093,43 +1093,6 @@ mod tests {
         tree.validate().unwrap();
     }
 
-    // TODO: This test is breaking safety guarantees
-    // #[test]
-    // #[serial]
-    // fn test_mmap() {
-    //     let leaves = vec![3; 3];
-    //     let empty = 1;
-    //     let tempfile = tempfile::tempfile().unwrap();
-    //     let mmap_vec: MmapVec<_> = unsafe { MmapVec::new(tempfile).unwrap() };
-
-    //     let mut tree = CascadingMerkleTree::<TestHasher,
-    // MmapVec<_>>::with_leaves(         mmap_vec,
-    //         20,
-    //         &empty,
-    //         &leaves,
-    //     );
-    //     debug_tree(&tree);
-    //     tree.validate().unwrap();
-
-    //     for _ in 0..100 {
-    //         tree.push(3).unwrap();
-    //         debug_tree(&tree);
-    //         tree.validate().unwrap();
-
-    //         let restored = unsafe {
-    //             CascadingMerkleTree::<TestHasher, MmapVec<_>>::restore(
-    //
-    // MmapTreeStorageConfig::new(PathBuf::from("target/test.mmap")),
-    //                 20,
-    //                 &empty,
-    //             )
-    //             .unwrap()
-    //         };
-    //         restored.validate().unwrap();
-    //         assert_eq!(tree, restored);
-    //     }
-    // }
-
     #[test]
     fn test_vec_realloc_speed() {
         let empty = 0;
