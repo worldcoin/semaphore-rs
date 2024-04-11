@@ -32,8 +32,7 @@ fn bench_cascading_proof_from_hash(criterion: &mut Criterion) {
         let leaf = Field::from(234123412341usize);
         b.iter_batched_ref(
             || {
-                let mut tree = CascadingMerkleTree::<PoseidonHash>::from_storage_with_leaves(
-                    vec![],
+                let mut tree = CascadingMerkleTree::<PoseidonHash>::with_leaves(
                     tree_value.depth,
                     &tree_value.empty_value,
                     &tree_value.initial_values,
@@ -59,8 +58,7 @@ fn bench_cascading_validate(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("bench_cascading_validate");
 
     for value in tree_values.iter() {
-        let tree = CascadingMerkleTree::<PoseidonHash>::from_storage_with_leaves(
-            vec![],
+        let tree = CascadingMerkleTree::<PoseidonHash>::with_leaves(
             value.depth,
             &value.empty_value,
             &value.initial_values,
@@ -94,8 +92,7 @@ fn bench_cascading_create_dense_tree(criterion: &mut Criterion) {
             value,
             |bencher: &mut criterion::Bencher, value| {
                 bencher.iter(|| {
-                    let _tree = CascadingMerkleTree::<PoseidonHash>::from_storage_with_leaves(
-                        vec![],
+                    let _tree = CascadingMerkleTree::<PoseidonHash>::with_leaves(
                         value.depth,
                         &value.empty_value,
                         &value.initial_values,
@@ -192,8 +189,7 @@ fn bench_cascading_restore_dense_mmap_tree(criterion: &mut Criterion) {
 fn bench_cascading_dense_tree_reads(criterion: &mut Criterion) {
     let tree_value = create_values_for_tree(14);
 
-    let tree = CascadingMerkleTree::<PoseidonHash>::from_storage_with_leaves(
-        vec![],
+    let tree = CascadingMerkleTree::<PoseidonHash>::with_leaves(
         tree_value.depth,
         &tree_value.empty_value,
         &tree_value.initial_values,
@@ -241,8 +237,7 @@ fn bench_cascading_dense_tree_writes(criterion: &mut Criterion) {
     criterion.bench_function("dense tree writes", |b| {
         b.iter_batched_ref(
             || {
-                CascadingMerkleTree::<PoseidonHash>::from_storage_with_leaves(
-                    vec![],
+                CascadingMerkleTree::<PoseidonHash>::with_leaves(
                     tree_value.depth,
                     &tree_value.empty_value,
                     &tree_value.initial_values,
