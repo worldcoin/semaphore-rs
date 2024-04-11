@@ -1,4 +1,3 @@
-use crate::merkle_tree::{Branch, Hasher, Proof};
 use std::{
     fs::OpenOptions,
     io::Write,
@@ -9,9 +8,11 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use mmap_rs::{MmapMut, MmapOptions};
+use mmap_rs::{MmapFlags, MmapMut, MmapOptions};
 use rayon::prelude::*;
 use thiserror::Error;
+
+use crate::merkle_tree::{Branch, Hasher, Proof};
 
 pub trait VersionMarker {}
 #[derive(Debug)]
@@ -1142,6 +1143,7 @@ impl<H: Hasher> MmapMutWrapper<H> {
             MmapOptions::new(usize::try_from(buf_len as u64).expect("file size truncated"))
                 .expect("cannot create memory map")
                 .with_file(&file, 0)
+                .with_flags(MmapFlags::SHARED)
                 .map_mut()
                 .expect("cannot build memory map")
         };
@@ -1188,6 +1190,7 @@ impl<H: Hasher> MmapMutWrapper<H> {
             )
             .expect("cannot create memory map")
             .with_file(&file, 0)
+            .with_flags(MmapFlags::SHARED)
             .map_mut()
             .expect("cannot build memory map")
         };
@@ -1229,9 +1232,10 @@ pub enum DenseMMapError {
 
 #[cfg(test)]
 mod tests {
+    use hex_literal::hex;
+
     use super::*;
     use crate::merkle_tree::{test::Keccak256, Hasher};
-    use hex_literal::hex;
 
     struct TestHasher;
 
