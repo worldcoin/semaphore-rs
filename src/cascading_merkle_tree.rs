@@ -45,19 +45,6 @@ where
     _marker:       std::marker::PhantomData<H>,
 }
 
-impl<H> CascadingMerkleTree<H, Vec<H::Hash>>
-where
-    H: Hasher,
-{
-    pub fn new(depth: usize, empty_value: &H::Hash) -> Self {
-        Self::from_storage_with_leaves(vec![], depth, empty_value, &[])
-    }
-
-    pub fn with_leaves(depth: usize, empty_value: &H::Hash, leaves: &[H::Hash]) -> Self {
-        Self::from_storage_with_leaves(vec![], depth, empty_value, leaves)
-    }
-}
-
 impl<H, S> CascadingMerkleTree<H, S>
 where
     H: Hasher,
@@ -65,6 +52,28 @@ where
 {
     /// Use to open a previously initialized tree
     pub fn from_storage(
+        storage: S,
+        depth: usize,
+        empty_value: &H::Hash,
+    ) -> Result<CascadingMerkleTree<H, S>> {
+        // # Safety
+        // Safe because we're calling `.validate` on the tree later
+        let tree = unsafe { Self::from_storage_unchecked(storage, depth, empty_value)? };
+
+        if !tree.storage.is_empty() {
+            tree.validate()?;
+        }
+
+        Ok(tree)
+    }
+
+    /// Restores a tree from the provided storage
+    ///
+    /// # Safety
+    /// This method is unsafe as it does not validate the contents of storage.
+    /// Use this only if you're sure that the contents of storage are valid -
+    /// i.e. have not been modified since last use.
+    pub unsafe fn from_storage_unchecked(
         storage: S,
         depth: usize,
         empty_value: &H::Hash,
@@ -84,8 +93,6 @@ where
             storage,
             _marker: std::marker::PhantomData,
         };
-
-        tree.validate()?;
 
         Ok(tree)
     }
@@ -145,14 +152,14 @@ where
     /// number of leaves.
     pub fn set_leaf(&mut self, leaf: usize, value: H::Hash) {
         assert!(leaf < self.num_leaves(), "Leaf index out of bounds");
-        let index = index_from_leaf(leaf);
+        let index = storage_ops::index_from_leaf(leaf);
         self.storage[index] = value;
         self.storage.propagate_up(index);
         self.recompute_root();
     }
 
     pub fn push(&mut self, leaf: H::Hash) -> Result<()> {
-        let index = index_from_leaf(self.num_leaves());
+        let index = storage_ops::index_from_leaf(self.num_leaves());
 
         // If the index is out of bounds, we need to reallocate the storage
         // we must always have 2^n leaves for any n
@@ -185,9 +192,9 @@ where
         let mut proof = Vec::with_capacity(self.depth);
         let storage_depth = storage_ops::subtree_depth(&self.storage);
 
-        let mut index = index_from_leaf(leaf);
+        let mut index = storage_ops::index_from_leaf(leaf);
         for _ in 0..storage_depth {
-            match sibling(index) {
+            match storage_ops::sibling(index) {
                 Branch::Left(sibling_index) => {
                     proof.push(Branch::Left(self.storage[sibling_index]));
                 }
@@ -195,7 +202,7 @@ where
                     proof.push(Branch::Right(self.storage[sibling_index]));
                 }
             }
-            index = parent(index);
+            index = storage_ops::parent(index);
         }
 
         let remainder = self.sparse_column[storage_depth..(self.sparse_column.len() - 1)]
@@ -229,7 +236,7 @@ where
     #[must_use]
     pub fn get_node(&self, depth: usize, offset: usize) -> H::Hash {
         let height = self.depth - depth;
-        let index = index_height_offset(height, offset);
+        let index = storage_ops::index_height_offset(height, offset);
         match self.storage.get(index) {
             Some(hash) => *hash,
             None => {
@@ -245,7 +252,7 @@ where
     /// Returns the hash at the given leaf index.
     #[must_use]
     pub fn get_leaf(&self, leaf: usize) -> H::Hash {
-        let index = index_from_leaf(leaf);
+        let index = storage_ops::index_from_leaf(leaf);
         self.storage.get(index).copied().unwrap_or(self.empty_value)
     }
 
@@ -257,14 +264,14 @@ where
             return None;
         }
 
-        let mut end = index_from_leaf(num_leaves - 1) + 1; // 4
+        let mut end = storage_ops::index_from_leaf(num_leaves - 1) + 1; // 4
         let prev_pow = end.next_power_of_two() >> 1;
         let mut start = prev_pow + (prev_pow >> 1);
 
         loop {
             match (start..end).rev().find(|&i| self.storage[i] == hash) {
                 Some(index) => {
-                    return Some(leaf_from_index(index));
+                    return Some(storage_ops::leaf_from_index(index));
                 }
                 None => {
                     if start == 1 {
@@ -366,253 +373,6 @@ where
     // }
 }
 
-// Trait for generic storage of the tree
-// We require the Deref target to be a slice rather than a Vec
-// so that we can have type level information that the length
-// is always exactly a power of 2
-pub trait CascadingTreeStorage<H: Hasher>:
-    Deref<Target = [H::Hash]> + DerefMut<Target = [H::Hash]> + Send + Sync + Sized
-{
-    type StorageConfig;
-
-    /// Reallocates the storage to be twice as large and fills the new
-    /// storage with the empty leaf value.
-    fn reallocate(&mut self, empty_value: &H::Hash, sparse_column: &[H::Hash]) -> Result<()>;
-
-    /// Initializes the storage with the given configuration, number of leaves,
-    /// and initial values.
-    fn new_from_vec(
-        config: Self::StorageConfig,
-        num_leaves: usize,
-        vec: Vec<H::Hash>,
-    ) -> Result<Self>;
-
-    fn new_from_leaves(
-        config: Self::StorageConfig,
-        empty_value: &H::Hash,
-        leaves: &[H::Hash],
-    ) -> Self {
-        let num_leaves = leaves.len();
-        let base_len = num_leaves.next_power_of_two();
-        let storage_size = base_len << 1;
-        let mut storage = vec![*empty_value; storage_size];
-        let depth = base_len.ilog2();
-
-        // We iterate over subsequently larger subtrees
-        let mut last_sub_root = *leaves.first().unwrap_or(empty_value);
-        storage[1] = last_sub_root;
-        for height in 1..(depth + 1) {
-            let left_index = 1 << height;
-            let storage_slice = &mut storage[left_index..(left_index << 1)];
-            let leaf_start = left_index >> 1;
-            let leaf_end = left_index.min(num_leaves);
-            let leaf_slice = &leaves[leaf_start..leaf_end];
-            let root = storage_ops::init_subtree_with_leaves::<H>(storage_slice, leaf_slice);
-            let hash = H::hash_node(&last_sub_root, &root);
-            storage[left_index] = hash;
-            last_sub_root = hash;
-        }
-
-        Self::new_from_vec(config, num_leaves, storage).unwrap()
-    }
-
-    /// Returns an iterator over all leaves including those that have noe been
-    /// set.
-    fn leaves(&self) -> impl Iterator<Item = H::Hash> + '_ {
-        self.row_indices(0).map(move |i| self[i])
-    }
-
-    fn row_indices(&self, height: usize) -> impl Iterator<Item = usize> + Send + '_ {
-        let first = 1 << height;
-        let storage_len = self.len();
-        let mut iters = vec![];
-
-        if first >= storage_len {
-            return iters.into_iter().flatten();
-        }
-
-        iters.push(first..(first + 1));
-
-        let mut next = (first << 1) + 1;
-
-        for i in 0.. {
-            if next >= storage_len {
-                break;
-            }
-            let slice_len = 1 << i;
-            iters.push(next..(next + slice_len));
-            next *= 2;
-        }
-
-        iters.into_iter().flatten()
-    }
-
-    fn row(&self, height: usize) -> impl Iterator<Item = H::Hash> + Send + '_ {
-        self.row_indices(height).map(move |i| self[i])
-    }
-
-    /// Returns the root hash of the growable storage, not the top level root.
-    fn storage_root(&self) -> H::Hash {
-        self[self.len() >> 1]
-    }
-
-    /// Returns the depth of growable storage, not the top level root.
-    fn storage_depth(&self) -> usize {
-        storage_ops::subtree_depth(self)
-    }
-
-    /// Sets the number of leaves.
-    fn set_num_leaves(&mut self, amount: usize) {
-        let leaf_counter: &mut [usize] = bytemuck::cast_slice_mut(&mut self[0..1]);
-        leaf_counter[0] = amount;
-    }
-
-    fn num_leaves(&self) -> usize {
-        bytemuck::cast_slice(&self[0..1])[0]
-    }
-
-    /// Increments the number of leaves.
-    fn increment_num_leaves(&mut self, amount: usize) {
-        let leaf_counter: &mut [usize] = bytemuck::cast_slice_mut(&mut self[0..1]);
-        leaf_counter[0] += amount;
-    }
-
-    /// Propogates new hashes up the top of the subtree.
-    fn propagate_up(&mut self, mut index: usize) -> Option<()> {
-        loop {
-            let (left, right) = match sibling(index) {
-                Branch::Left(sibling) => (index, sibling),
-                Branch::Right(sibling) => (sibling, index),
-            };
-            let left_hash = self.get(left)?;
-            let right_hash = self.get(right)?;
-            let parent_index = parent(index);
-            self[parent_index] = H::hash_node(left_hash, right_hash);
-            index = parent_index;
-        }
-    }
-
-    /// Validates all elements of the storage, ensuring that they
-    /// correspond to a valid tree.
-    fn validate(&self, empty_value: &H::Hash) -> Result<()> {
-        let len = self.len();
-
-        if !len.is_power_of_two() {
-            bail!("Storage length must be a power of 2");
-        }
-        if len < 2 {
-            bail!("Storage length must be greater than 1");
-        }
-
-        let width = len >> 1;
-        let depth = width.ilog2() as usize;
-
-        let num_leaves = self.num_leaves();
-        let first_empty = index_from_leaf(num_leaves);
-
-        if first_empty < len {
-            self[first_empty..].par_iter().try_for_each(|hash| {
-                if hash != empty_value {
-                    bail!("Storage contains non-empty values past the last leaf");
-                }
-                Ok(())
-            })?;
-        }
-
-        for height in 0..=depth {
-            let row = self.row(height);
-            let parents = self.row(height + 1);
-            let row_couple = row.tuples();
-
-            parents
-                .zip(row_couple)
-                .par_bridge()
-                .try_for_each(|(parent, (left, right))| {
-                    let expected = H::hash_node(&left, &right);
-                    if parent != expected {
-                        bail!("Invalid hash");
-                    }
-                    Ok(())
-                })?;
-        }
-
-        Ok(())
-    }
-}
-
-// leaves are 0 indexed
-fn index_from_leaf(leaf: usize) -> usize {
-    leaf + (leaf + 1).next_power_of_two()
-}
-
-fn leaf_from_index(index: usize) -> usize {
-    let next = (index + 1).next_power_of_two();
-    let prev = next >> 1;
-    index - prev
-}
-
-fn index_height_offset(height: usize, offset: usize) -> usize {
-    if offset == 0 {
-        return 1 << height;
-    }
-    let leaf = offset * (1 << height);
-    let subtree_size = (leaf + 1).next_power_of_two();
-    let offset_node = leaf >> height;
-    offset_node + subtree_size
-}
-
-fn parent(i: usize) -> usize {
-    if i.is_power_of_two() {
-        return i << 1;
-    }
-    let prev_pow = i.next_power_of_two() >> 1;
-    let shifted = i - prev_pow;
-    let shifted_parent = shifted >> 1;
-    shifted_parent + prev_pow
-}
-
-fn sibling(i: usize) -> Branch<usize> {
-    let next_pow = i.next_power_of_two();
-    if i == next_pow {
-        return Branch::Left((i << 1) + 1);
-    }
-    let prev_pow = next_pow >> 1;
-    if i - 1 == prev_pow {
-        return Branch::Right(prev_pow >> 1);
-    }
-    if i & 1 == 0 {
-        // even
-        Branch::Left(i + 1)
-    } else {
-        // odd
-        Branch::Right(i - 1)
-    }
-}
-
-fn _children(i: usize) -> Option<(usize, usize)> {
-    let next_pow = i.next_power_of_two();
-    if i == next_pow {
-        if i == 1 {
-            return None;
-        }
-        let left = i >> 1;
-        let right = i + 1;
-        return Some((left, right));
-    }
-    let prev_pow = next_pow >> 1;
-    let half = prev_pow >> 1;
-
-    let offset = i - prev_pow;
-    if offset >= half {
-        return None;
-    }
-
-    let offset_left = offset * 2;
-    let offset_right = offset_left + 1;
-
-    Some((prev_pow + offset_left, prev_pow + offset_right))
-}
-
 #[cfg(test)]
 mod tests {
 
@@ -645,7 +405,7 @@ mod tests {
         for _ in 1..storage_depth {
             let next = previous
                 .iter()
-                .flat_map(|&i| _children(i))
+                .flat_map(|&i| storage_ops::children(i))
                 .collect::<Vec<_>>();
             previous = next.iter().flat_map(|&(l, r)| [l, r]).collect();
             let row = previous
@@ -660,7 +420,7 @@ mod tests {
     fn test_index_from_leaf() {
         let mut leaf_indeces = Vec::new();
         for i in 0..16 {
-            leaf_indeces.push(index_from_leaf(i));
+            leaf_indeces.push(storage_ops::index_from_leaf(i));
         }
         let expected_leaves = vec![1, 3, 6, 7, 12, 13, 14, 15, 24, 25, 26, 27, 28, 29, 30, 31];
         assert_eq!(leaf_indeces, expected_leaves);
@@ -691,7 +451,7 @@ mod tests {
                 "Height: {}, Offset: {}, expected: {}",
                 height, offset, result
             );
-            assert_eq!(index_height_offset(height, offset), result);
+            assert_eq!(storage_ops::index_height_offset(height, offset), result);
         }
     }
 
@@ -699,7 +459,7 @@ mod tests {
     fn test_parent() {
         let mut parents = Vec::new();
         for i in 1..16 {
-            parents.push((i, parent(i)));
+            parents.push((i, storage_ops::parent(i)));
         }
         let expected_parents = vec![
             (1, 2),
@@ -726,7 +486,7 @@ mod tests {
     fn test_sibling() {
         let mut siblings = Vec::new();
         for i in 1..16 {
-            siblings.push((i, sibling(i)));
+            siblings.push((i, storage_ops::sibling(i)));
         }
         use Branch::*;
         let expected_siblings = vec![
@@ -754,7 +514,7 @@ mod tests {
     fn test_children() {
         let mut children = Vec::new();
         for i in 1..16 {
-            children.push((i, super::_children(i)));
+            children.push((i, storage_ops::children(i)));
         }
         let expected_siblings = vec![
             (1, None),
@@ -790,7 +550,7 @@ mod tests {
             }
         }
 
-        let _ = CascadingMerkleTree::<InvalidHasher>::with_leaves(1, &0, &[]);
+        let _ = CascadingMerkleTree::<InvalidHasher>::from_storage_with_leaves(vec![], 1, &0, &[]);
     }
 
     #[test]
@@ -798,7 +558,8 @@ mod tests {
         let num_leaves = 1;
         let leaves = vec![1; num_leaves];
         let empty = 0;
-        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(1, &empty, &leaves);
+        let tree =
+            CascadingMerkleTree::<TestHasher>::from_storage_with_leaves(vec![], 1, &empty, &leaves);
         tree.validate().unwrap();
         debug_tree(&tree);
     }
@@ -809,7 +570,8 @@ mod tests {
         let num_leaves = 1;
         let leaves = vec![1; num_leaves];
         let empty = 0;
-        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(0, &empty, &leaves);
+        let tree =
+            CascadingMerkleTree::<TestHasher>::from_storage_with_leaves(vec![], 0, &empty, &leaves);
         debug_tree(&tree);
     }
 
@@ -817,7 +579,8 @@ mod tests {
     fn test_odd_leaves() {
         let num_leaves = 5;
         let leaves = vec![1; num_leaves];
-        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(10, &0, &leaves);
+        let tree =
+            CascadingMerkleTree::<TestHasher>::from_storage_with_leaves(vec![], 10, &0, &leaves);
         let expected = CascadingMerkleTree::<TestHasher> {
             depth:         10,
             root:          5,
@@ -906,7 +669,8 @@ mod tests {
         let num_leaves = 1 << 3;
         let leaves = vec![0; num_leaves];
         let empty = 1;
-        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(4, &empty, &leaves);
+        let tree =
+            CascadingMerkleTree::<TestHasher>::from_storage_with_leaves(vec![], 4, &empty, &leaves);
         let expected = CascadingMerkleTree::<TestHasher> {
             depth:         4,
             root:          8,
@@ -925,7 +689,8 @@ mod tests {
         let num_leaves = 3;
         let leaves = vec![3; num_leaves];
         let empty = 1;
-        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(3, &empty, &leaves);
+        let tree =
+            CascadingMerkleTree::<TestHasher>::from_storage_with_leaves(vec![], 3, &empty, &leaves);
         debug_tree(&tree);
         tree.validate().unwrap();
         let expected = vec![
@@ -954,7 +719,8 @@ mod tests {
     #[test]
     fn test_get_leaf_from_hash() {
         let empty = 0;
-        let mut tree = CascadingMerkleTree::<TestHasher>::with_leaves(10, &empty, &[]);
+        let mut tree =
+            CascadingMerkleTree::<TestHasher>::from_storage_with_leaves(vec![], 10, &empty, &[]);
         tree.validate().unwrap();
         for i in 1..=64 {
             tree.push(i).unwrap();
@@ -972,7 +738,8 @@ mod tests {
         let num_leaves = 12;
         let leaves = vec![3; num_leaves];
         let empty = 1;
-        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(3, &empty, &leaves);
+        let tree =
+            CascadingMerkleTree::<TestHasher>::from_storage_with_leaves(vec![], 3, &empty, &leaves);
         tree.validate().unwrap();
         debug_tree(&tree);
         let expected = vec![
@@ -1027,7 +794,8 @@ mod tests {
     fn test_proof_from_hash() {
         let leaves = vec![1, 2, 3, 4, 5, 6];
         let empty = 1;
-        let tree = CascadingMerkleTree::<TestHasher>::with_leaves(4, &empty, &leaves);
+        let tree =
+            CascadingMerkleTree::<TestHasher>::from_storage_with_leaves(vec![], 4, &empty, &leaves);
         debug_tree(&tree);
         tree.validate().unwrap();
         let expected = vec![

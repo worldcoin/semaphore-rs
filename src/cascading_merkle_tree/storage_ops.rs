@@ -192,7 +192,7 @@ pub fn subtree_depth<H>(storage_slice: &[H]) -> usize {
     (len >> 1).ilog2() as usize
 }
 
-fn sibling(i: usize) -> Branch<usize> {
+pub fn sibling(i: usize) -> Branch<usize> {
     let next_pow = i.next_power_of_two();
     if i == next_pow {
         return Branch::Left((i << 1) + 1);
@@ -210,7 +210,7 @@ fn sibling(i: usize) -> Branch<usize> {
     }
 }
 
-fn parent(i: usize) -> usize {
+pub fn parent(i: usize) -> usize {
     if i.is_power_of_two() {
         return i << 1;
     }
@@ -221,8 +221,49 @@ fn parent(i: usize) -> usize {
 }
 
 // leaves are 0 indexed
-fn index_from_leaf(leaf: usize) -> usize {
+pub fn index_from_leaf(leaf: usize) -> usize {
     leaf + (leaf + 1).next_power_of_two()
+}
+
+pub fn leaf_from_index(index: usize) -> usize {
+    let next = (index + 1).next_power_of_two();
+    let prev = next >> 1;
+    index - prev
+}
+
+pub fn index_height_offset(height: usize, offset: usize) -> usize {
+    if offset == 0 {
+        return 1 << height;
+    }
+    let leaf = offset * (1 << height);
+    let subtree_size = (leaf + 1).next_power_of_two();
+    let offset_node = leaf >> height;
+    offset_node + subtree_size
+}
+
+#[cfg(test)]
+pub fn children(i: usize) -> Option<(usize, usize)> {
+    let next_pow = i.next_power_of_two();
+    if i == next_pow {
+        if i == 1 {
+            return None;
+        }
+        let left = i >> 1;
+        let right = i + 1;
+        return Some((left, right));
+    }
+    let prev_pow = next_pow >> 1;
+    let half = prev_pow >> 1;
+
+    let offset = i - prev_pow;
+    if offset >= half {
+        return None;
+    }
+
+    let offset_left = offset * 2;
+    let offset_right = offset_left + 1;
+
+    Some((prev_pow + offset_left, prev_pow + offset_right))
 }
 
 /// TODO: This function is slower than necessary if the entire base of the
