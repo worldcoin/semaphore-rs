@@ -1,8 +1,6 @@
-use std::{
-    fs::{File, OpenOptions},
-    ops::{Deref, DerefMut},
-    path::Path,
-};
+use std::fs::{File, OpenOptions};
+use std::ops::{Deref, DerefMut};
+use std::path::Path;
 
 use bytemuck::Pod;
 use color_eyre::eyre::bail;
@@ -242,17 +240,29 @@ mod tests {
     #[test]
     fn test_mmap_vec() {
         let f = tempfile::tempfile().unwrap();
+
         let mut storage: MmapVec<u32> = unsafe { MmapVec::create(f.try_clone().unwrap()).unwrap() };
 
+        println!("{storage:?}");
         storage.resize(2);
+        println!("{storage:?}");
 
         storage.push(u32::MAX);
+        println!("{storage:?}");
         storage.push(2);
+        println!("{storage:?}");
+
+        storage.resize(4);
+        println!("{storage:?}");
+
         storage.push(42);
+        println!("{storage:?}");
         storage.push(4);
+        println!("{storage:?}");
 
         assert_eq!(storage.len(), 4);
 
+        println!("{storage:?}");
         assert_eq!(storage[0], u32::MAX);
         assert_eq!(storage[1], 2);
         assert_eq!(storage[2], 42);
