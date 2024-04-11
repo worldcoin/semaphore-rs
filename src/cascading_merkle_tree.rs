@@ -60,9 +60,7 @@ where
         // Safe because we're calling `.validate` on the tree later
         let tree = unsafe { Self::new_unchecked(storage, depth, empty_value)? };
 
-        if !tree.storage.is_empty() {
-            tree.validate()?;
-        }
+        tree.validate()?;
 
         Ok(tree)
     }
