@@ -49,8 +49,8 @@ impl<H> CascadingMerkleTree<H, Vec<H::Hash>>
 where
     H: Hasher,
 {
-    pub fn new(depth: usize, empty_value: &H::Hash) -> Result<Self> {
-        Self::from_storage(vec![], depth, empty_value)
+    pub fn new(depth: usize, empty_value: &H::Hash) -> Self {
+        Self::from_storage_with_leaves(vec![], depth, empty_value, &[])
     }
 
     pub fn with_leaves(depth: usize, empty_value: &H::Hash, leaves: &[H::Hash]) -> Self {
