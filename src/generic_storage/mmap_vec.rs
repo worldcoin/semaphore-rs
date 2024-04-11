@@ -1,10 +1,12 @@
-use std::fs::{File, OpenOptions};
-use std::ops::{Deref, DerefMut};
-use std::path::Path;
+use std::{
+    fs::{File, OpenOptions},
+    ops::{Deref, DerefMut},
+    path::Path,
+};
 
 use bytemuck::Pod;
 use color_eyre::eyre::bail;
-use mmap_rs::{MmapMut, MmapOptions};
+use mmap_rs::{MmapFlags, MmapMut, MmapOptions};
 
 const META_SIZE: usize = std::mem::size_of::<usize>();
 
@@ -86,6 +88,7 @@ impl<T> MmapVec<T> {
         let mmap = MmapOptions::new(byte_len)
             .expect("cannot create memory map")
             .with_file(&file, 0)
+            .with_flags(MmapFlags::SHARED)
             .map_mut()
             .expect("cannot build memory map");
 
@@ -159,6 +162,7 @@ impl<T> MmapVec<T> {
                 MmapOptions::new(new_file_len)
                     .expect("cannot create memory map")
                     .with_file(&self.file, 0)
+                    .with_flags(MmapFlags::SHARED)
                     .map_mut()
                     .expect("cannot build memory map"),
             );
