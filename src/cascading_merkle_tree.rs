@@ -83,9 +83,9 @@ where
 
         let sparse_column = Self::sparse_column(depth, empty_value);
 
-        let tree = CascadingMerkleTree {
+        let mut tree = CascadingMerkleTree {
             depth,
-            root: *empty_value,
+            root: storage.storage_root(),
             empty_value: *empty_value,
             sparse_column,
             storage,
@@ -876,5 +876,37 @@ mod tests {
             tree.num_leaves(),
             elapsed.as_millis()
         );
+    }
+
+    #[test]
+    #[serial]
+    fn test_restore_from_cache() -> color_eyre::Result<()> {
+        let empty = 0;
+        let leaves = vec![1; 1 << 20];
+
+        // Create a new tmp file for mmap storage
+        let tempfile = tempfile::NamedTempFile::new()?;
+        let file_path = tempfile.path().to_owned();
+
+        // Initialize the expected tree
+        let mmap_vec: MmapVec<_> = unsafe { MmapVec::new(tempfile.reopen()?).unwrap() };
+        let expected_tree = CascadingMerkleTree::<TestHasher, MmapVec<_>>::new_with_leaves(
+            mmap_vec, 30, &empty, &leaves,
+        );
+
+        let expected_root = expected_tree.root();
+        let expected_leaves = expected_tree.leaves().collect::<Vec<usize>>();
+
+        drop(expected_tree);
+
+        // Restore the tree
+        let mmap_vec: MmapVec<_> = unsafe { MmapVec::restore(file_path).unwrap() };
+        let tree = CascadingMerkleTree::<TestHasher, MmapVec<_>>::restore(mmap_vec, 30, &empty)?;
+
+        // Assert that the root and the leaves are as expected
+        assert_eq!(tree.root(), expected_root);
+        assert_eq!(tree.leaves().collect::<Vec<usize>>(), expected_leaves);
+
+        Ok(())
     }
 }
