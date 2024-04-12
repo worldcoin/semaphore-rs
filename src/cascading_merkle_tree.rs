@@ -51,14 +51,14 @@ where
     S: StorageOps<H>,
 {
     /// Use to open a previously initialized tree
-    pub fn new(
+    pub fn restore(
         storage: S,
         depth: usize,
         empty_value: &H::Hash,
     ) -> Result<CascadingMerkleTree<H, S>> {
         // # Safety
         // Safe because we're calling `.validate` on the tree later
-        let tree = unsafe { Self::new_unchecked(storage, depth, empty_value)? };
+        let tree = unsafe { Self::restore_unchecked(storage, depth, empty_value)? };
 
         tree.validate()?;
 
@@ -71,7 +71,7 @@ where
     /// This method is unsafe as it does not validate the contents of storage.
     /// Use this only if you're sure that the contents of storage are valid -
     /// i.e. have not been modified since last use.
-    pub unsafe fn new_unchecked(
+    pub unsafe fn restore_unchecked(
         storage: S,
         depth: usize,
         empty_value: &H::Hash,
@@ -93,6 +93,14 @@ where
         };
 
         Ok(tree)
+    }
+
+    /// Create and initialize a tree in the provided storage
+    ///
+    /// initializes an empty tree
+    #[must_use]
+    pub fn new(storage: S, depth: usize, empty_value: &H::Hash) -> CascadingMerkleTree<H, S> {
+        Self::new_with_leaves(storage, depth, empty_value, &[])
     }
 
     /// Create and initialize a tree in the provided storage
