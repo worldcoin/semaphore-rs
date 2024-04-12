@@ -83,16 +83,16 @@ where
 
         let sparse_column = Self::sparse_column(depth, empty_value);
 
-        let mut tree = CascadingMerkleTree {
+        let root = H::hash_node(&storage.storage_root(), &sparse_column[depth]);
+
+        let tree = CascadingMerkleTree {
             depth,
-            root: *empty_value,
+            root,
             empty_value: *empty_value,
             sparse_column,
             storage,
             _marker: std::marker::PhantomData,
         };
-
-        tree.recompute_root();
 
         Ok(tree)
     }
