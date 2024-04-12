@@ -3,17 +3,18 @@
 // TODO: ark-circom and ethers-core pull in a lot of dependencies, some duplicate.
 #![allow(clippy::multiple_crate_versions)]
 
+pub mod cascading_merkle_tree;
 mod circuit;
 mod field;
+pub mod generic_storage;
 pub mod hash;
 pub mod identity;
+pub mod lazy_merkle_tree;
 pub mod merkle_tree;
 pub mod poseidon;
 pub mod poseidon_tree;
 pub mod protocol;
 pub mod util;
-
-pub mod lazy_merkle_tree;
 
 use ark_bn254::Parameters;
 use ark_ec::bn::Bn;

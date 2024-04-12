@@ -13,7 +13,7 @@ use std::{
 };
 
 /// Hash types, values and algorithms for a Merkle tree
-pub trait Hasher {
+pub trait Hasher: Send + Sync {
     /// Type of the leaf and node hashes
     type Hash: Clone + Eq + Serialize + Debug + Pod + Send + Sync;
 
@@ -38,18 +38,29 @@ pub struct MerkleTree<H: Hasher> {
 /// Element of a Merkle proof
 #[allow(clippy::derive_partial_eq_without_eq)] // False positive
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Branch<H: Hasher> {
+pub enum Branch<T> {
     /// Left branch taken, value is the right sibling hash.
-    Left(H::Hash),
+    Left(T),
 
     /// Right branch taken, value is the left sibling hash.
-    Right(H::Hash),
+    Right(T),
+}
+
+impl<T> Branch<T> {
+    /// Get the inner value
+    #[must_use]
+    pub fn into_inner(self) -> T {
+        match self {
+            Self::Left(sibling) => sibling,
+            Self::Right(sibling) => sibling,
+        }
+    }
 }
 
 /// Merkle proof path, bottom to top.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(bound(deserialize = "H::Hash: Deserialize<'de>",))]
-pub struct Proof<H: Hasher>(pub Vec<Branch<H>>);
+pub struct Proof<H: Hasher>(pub Vec<Branch<H::Hash>>);
 
 /// For a given node index, return the parent node index
 /// Returns None if there is no parent (root node)
@@ -109,7 +120,7 @@ impl<H: Hasher> MerkleTree<H> {
 
     #[must_use]
     pub fn root(&self) -> H::Hash {
-        self.nodes[0].clone()
+        self.nodes[0]
     }
 
     pub fn set(&mut self, leaf: usize, hash: H::Hash) {
@@ -150,8 +161,8 @@ impl<H: Hasher> MerkleTree<H> {
         while let Some(parent) = parent(index) {
             // Add proof for node at index to parent
             path.push(match index & 1 {
-                1 => Branch::Left(self.nodes[index + 1].clone()),
-                0 => Branch::Right(self.nodes[index - 1].clone()),
+                1 => Branch::Left(self.nodes[index + 1]),
+                0 => Branch::Right(self.nodes[index - 1]),
                 _ => unreachable!(),
             });
             index = parent;
@@ -202,11 +213,7 @@ impl<H: Hasher> Proof<H> {
     }
 }
 
-impl<H> Debug for Branch<H>
-where
-    H: Hasher,
-    H::Hash: Debug,
-{
+impl<T: Debug> Debug for Branch<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Left(arg0) => f.debug_tuple("Left").field(arg0).finish(),
