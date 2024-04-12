@@ -85,14 +85,12 @@ where
 
         let mut tree = CascadingMerkleTree {
             depth,
-            root: *empty_value,
+            root: storage.storage_root(),
             empty_value: *empty_value,
             sparse_column,
             storage,
             _marker: std::marker::PhantomData,
         };
-
-        tree.recompute_root();
 
         Ok(tree)
     }
