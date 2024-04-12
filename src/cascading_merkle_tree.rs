@@ -37,12 +37,12 @@ pub struct CascadingMerkleTree<H, S = Vec<<H as Hasher>::Hash>>
 where
     H: Hasher,
 {
-    depth:         usize,
-    root:          H::Hash,
-    empty_value:   H::Hash,
+    depth: usize,
+    root: H::Hash,
+    empty_value: H::Hash,
     sparse_column: Vec<H::Hash>,
-    storage:       S,
-    _marker:       std::marker::PhantomData<H>,
+    storage: S,
+    _marker: std::marker::PhantomData<H>,
 }
 
 impl<H, S> CascadingMerkleTree<H, S>
@@ -82,7 +82,6 @@ where
         }
 
         let sparse_column = Self::sparse_column(depth, empty_value);
-
         let root = H::hash_node(&storage.storage_root(), &sparse_column[depth]);
 
         let tree = CascadingMerkleTree {
@@ -384,10 +383,15 @@ where
 #[cfg(test)]
 mod tests {
 
+    use rand::Rng;
     use serial_test::serial;
 
     use super::*;
-    use crate::generic_storage::{GenericStorage, MmapVec};
+    use crate::{
+        generic_storage::{GenericStorage, MmapVec},
+        poseidon_tree::PoseidonHash,
+        Field,
+    };
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     struct TestHasher;
@@ -587,12 +591,12 @@ mod tests {
         let leaves = vec![1; num_leaves];
         let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 10, &0, &leaves);
         let expected = CascadingMerkleTree::<TestHasher> {
-            depth:         10,
-            root:          5,
-            empty_value:   0,
+            depth: 10,
+            root: 5,
+            empty_value: 0,
             sparse_column: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            storage:       vec![5, 1, 2, 1, 4, 2, 1, 1, 5, 1, 1, 0, 1, 0, 0, 0],
-            _marker:       std::marker::PhantomData,
+            storage: vec![5, 1, 2, 1, 4, 2, 1, 1, 5, 1, 1, 0, 1, 0, 0, 0],
+            _marker: std::marker::PhantomData,
         };
         debug_tree(&tree);
         tree.validate().unwrap();
@@ -606,12 +610,12 @@ mod tests {
         let empty = 0;
         let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 10, &empty, &leaves);
         let expected = CascadingMerkleTree::<TestHasher> {
-            depth:         10,
-            root:          8,
-            empty_value:   0,
+            depth: 10,
+            root: 8,
+            empty_value: 0,
             sparse_column: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            storage:       vec![8, 1, 2, 1, 4, 2, 1, 1, 8, 4, 2, 2, 1, 1, 1, 1],
-            _marker:       std::marker::PhantomData,
+            storage: vec![8, 1, 2, 1, 4, 2, 1, 1, 8, 4, 2, 2, 1, 1, 1, 1],
+            _marker: std::marker::PhantomData,
         };
         debug_tree(&tree);
         tree.validate().unwrap();
@@ -624,12 +628,12 @@ mod tests {
         let empty = 0;
         let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 10, &empty, &leaves);
         let expected = CascadingMerkleTree::<TestHasher> {
-            depth:         10,
-            root:          0,
-            empty_value:   0,
+            depth: 10,
+            root: 0,
+            empty_value: 0,
             sparse_column: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            storage:       vec![0, 0],
-            _marker:       std::marker::PhantomData,
+            storage: vec![0, 0],
+            _marker: std::marker::PhantomData,
         };
         debug_tree(&tree);
         tree.validate().unwrap();
@@ -642,12 +646,12 @@ mod tests {
         let empty = 1;
         let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 10, &empty, &leaves);
         let expected = CascadingMerkleTree::<TestHasher> {
-            depth:         10,
-            root:          1024,
-            empty_value:   1,
+            depth: 10,
+            root: 1024,
+            empty_value: 1,
             sparse_column: vec![1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024],
-            storage:       vec![0, 1],
-            _marker:       std::marker::PhantomData,
+            storage: vec![0, 1],
+            _marker: std::marker::PhantomData,
         };
         debug_tree(&tree);
         tree.validate().unwrap();
@@ -661,12 +665,12 @@ mod tests {
         let empty = 1;
         let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 4, &empty, &leaves);
         let expected = CascadingMerkleTree::<TestHasher> {
-            depth:         4,
-            root:          8,
-            empty_value:   1,
+            depth: 4,
+            root: 8,
+            empty_value: 1,
             sparse_column: vec![1, 2, 4, 8, 16],
-            storage:       vec![8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            _marker:       std::marker::PhantomData,
+            storage: vec![8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            _marker: std::marker::PhantomData,
         };
         debug_tree(&tree);
         tree.validate().unwrap();
@@ -729,9 +733,12 @@ mod tests {
         tree.validate().unwrap();
         debug_tree(&tree);
         let expected = vec![
-            (0, vec![
-                1usize, 3, 6, 7, 12, 13, 14, 15, 24, 25, 26, 27, 28, 29, 30, 31,
-            ]),
+            (
+                0,
+                vec![
+                    1usize, 3, 6, 7, 12, 13, 14, 15, 24, 25, 26, 27, 28, 29, 30, 31,
+                ],
+            ),
             (1, vec![2, 5, 10, 11, 20, 21, 22, 23]),
             (2, vec![4, 9, 18, 19]),
             (3, vec![8, 17]),
@@ -779,42 +786,60 @@ mod tests {
         debug_tree(&tree);
         tree.validate().unwrap();
         let expected = vec![
-            (1, vec![
-                Branch::Left(2),
-                Branch::Left(7),
-                Branch::Left(13),
-                Branch::Left(8),
-            ]),
-            (2, vec![
-                Branch::Right(1),
-                Branch::Left(7),
-                Branch::Left(13),
-                Branch::Left(8),
-            ]),
-            (3, vec![
-                Branch::Left(4),
-                Branch::Right(3),
-                Branch::Left(13),
-                Branch::Left(8),
-            ]),
-            (4, vec![
-                Branch::Right(3),
-                Branch::Right(3),
-                Branch::Left(13),
-                Branch::Left(8),
-            ]),
-            (5, vec![
-                Branch::Left(6),
-                Branch::Left(2),
-                Branch::Right(10),
-                Branch::Left(8),
-            ]),
-            (6, vec![
-                Branch::Right(5),
-                Branch::Left(2),
-                Branch::Right(10),
-                Branch::Left(8),
-            ]),
+            (
+                1,
+                vec![
+                    Branch::Left(2),
+                    Branch::Left(7),
+                    Branch::Left(13),
+                    Branch::Left(8),
+                ],
+            ),
+            (
+                2,
+                vec![
+                    Branch::Right(1),
+                    Branch::Left(7),
+                    Branch::Left(13),
+                    Branch::Left(8),
+                ],
+            ),
+            (
+                3,
+                vec![
+                    Branch::Left(4),
+                    Branch::Right(3),
+                    Branch::Left(13),
+                    Branch::Left(8),
+                ],
+            ),
+            (
+                4,
+                vec![
+                    Branch::Right(3),
+                    Branch::Right(3),
+                    Branch::Left(13),
+                    Branch::Left(8),
+                ],
+            ),
+            (
+                5,
+                vec![
+                    Branch::Left(6),
+                    Branch::Left(2),
+                    Branch::Right(10),
+                    Branch::Left(8),
+                ],
+            ),
+            (
+                6,
+                vec![
+                    Branch::Right(5),
+                    Branch::Left(2),
+                    Branch::Right(10),
+                    Branch::Left(8),
+                ],
+            ),
         ];
         for (leaf, expected_proof) in expected {
             let proof = tree.proof_from_hash(leaf).unwrap();
@@ -883,8 +908,15 @@ mod tests {
     #[test]
     #[serial]
     fn test_restore_from_cache() -> color_eyre::Result<()> {
-        let empty = 0;
-        let leaves = vec![1; 1 << 20];
+        let mut rng = rand::thread_rng();
+
+        let leaves: Vec<Field> = (0..1 << 10)
+            .map(|_| {
+                let val = rng.gen::<usize>();
+
+                Field::from(val)
+            })
+            .collect::<Vec<Field>>();
 
         // Create a new tmp file for mmap storage
         let tempfile = tempfile::NamedTempFile::new()?;
@@ -892,22 +924,26 @@ mod tests {
 
         // Initialize the expected tree
         let mmap_vec: MmapVec<_> = unsafe { MmapVec::new(tempfile.reopen()?).unwrap() };
-        let expected_tree = CascadingMerkleTree::<TestHasher, MmapVec<_>>::new_with_leaves(
-            mmap_vec, 30, &empty, &leaves,
+        let expected_tree = CascadingMerkleTree::<PoseidonHash, MmapVec<_>>::new_with_leaves(
+            mmap_vec,
+            20,
+            &Field::ZERO,
+            &leaves,
         );
 
         let expected_root = expected_tree.root();
-        let expected_leaves = expected_tree.leaves().collect::<Vec<usize>>();
+        let expected_leaves = expected_tree.leaves().collect::<Vec<Field>>();
 
         drop(expected_tree);
 
         // Restore the tree
         let mmap_vec: MmapVec<_> = unsafe { MmapVec::restore(file_path).unwrap() };
-        let tree = CascadingMerkleTree::<TestHasher, MmapVec<_>>::restore(mmap_vec, 30, &empty)?;
+        let tree =
+            CascadingMerkleTree::<PoseidonHash, MmapVec<_>>::restore(mmap_vec, 20, &Field::ZERO)?;
 
         // Assert that the root and the leaves are as expected
         assert_eq!(tree.root(), expected_root);
-        assert_eq!(tree.leaves().collect::<Vec<usize>>(), expected_leaves);
+        assert_eq!(tree.leaves().collect::<Vec<Field>>(), expected_leaves);
 
         Ok(())
     }
