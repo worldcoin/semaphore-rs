@@ -46,7 +46,7 @@ fn main() -> Result<()> {
     let mmap_vec: MmapVec<<TestHasher as Hasher>::Hash> = unsafe { MmapVec::new(tempfile)? };
 
     println!("restoring");
-    let mut tree = CascadingMerkleTree::<TestHasher, _>::new(mmap_vec, 30, &1)?;
+    let mut tree = CascadingMerkleTree::<TestHasher, _>::restore(mmap_vec, 30, &1)?;
     tree.push(2).unwrap();
 
     println!("tree length: {}", tree.num_leaves());

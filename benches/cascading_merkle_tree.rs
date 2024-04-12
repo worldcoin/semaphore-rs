@@ -173,7 +173,8 @@ fn bench_cascading_restore_dense_mmap_tree(criterion: &mut Criterion) {
                     let storage =
                         unsafe { MmapVec::open_create(format!("./testfile{}", id)).unwrap() };
                     let _tree: CascadingMerkleTree<PoseidonHash, _> =
-                        CascadingMerkleTree::new(storage, value.depth, &value.empty_value).unwrap();
+                        CascadingMerkleTree::restore(storage, value.depth, &value.empty_value)
+                            .unwrap();
                     let _root = _tree.root();
                 });
             },
