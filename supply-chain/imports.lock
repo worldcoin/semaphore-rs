@@ -330,17 +330,6 @@ criteria = "safe-to-deploy"
 version = "0.4.0"
 notes = "Contains `forbid_unsafe` and only uses `std::fmt` from the standard library. Otherwise only contains string manipulation."
 
-[[audits.bytecodealliance.audits.http-body]]
-who = "Pat Hickey <phickey@fastly.com>"
-criteria = "safe-to-deploy"
-version = "1.0.0-rc.2"
-
-[[audits.bytecodealliance.audits.http-body]]
-who = "Alex Crichton <alex@alexcrichton.com>"
-criteria = "safe-to-deploy"
-delta = "1.0.0-rc.2 -> 1.0.0"
-notes = "Only minor changes made for a stable release."
-
 [[audits.bytecodealliance.audits.idna]]
 who = "Alex Crichton <alex@alexcrichton.com>"
 criteria = "safe-to-deploy"
@@ -413,12 +402,6 @@ who = "Pat Hickey <phickey@fastly.com>"
 criteria = "safe-to-deploy"
 version = "0.46.0"
 notes = "one use of unsafe to call windows specific api to get console handle."
-
-[[audits.bytecodealliance.audits.num_cpus]]
-who = "Alex Crichton <alex@alexcrichton.com>"
-criteria = "safe-to-deploy"
-delta = "1.15.0 -> 1.16.0"
-notes = "Some minor platform updates but no major change to any code."
 
 [[audits.bytecodealliance.audits.openssl-macros]]
 who = "Pat Hickey <phickey@fastly.com>"
