@@ -1,8 +1,4 @@
-use std::ops::{Deref, DerefMut};
-
 use color_eyre::eyre::{bail, ensure, Result};
-use itertools::Itertools;
-use rayon::prelude::*;
 
 use crate::merkle_tree::{Branch, Hasher, Proof};
 
