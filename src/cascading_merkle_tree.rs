@@ -338,6 +338,7 @@ where
     ///
     /// ```markdown
     /// subtree_power = ilog2(8) = 3
+    ///
     ///           8    (subtree)
     ///      4      [     9     ]
     ///   2     5   [  10    11 ]
