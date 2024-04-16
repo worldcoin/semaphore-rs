@@ -357,7 +357,6 @@ where
         // If the index is out of bounds, we need to resize the storage
         // we must always have 2^n leaves for any n
         if new_last_leaf_index >= storage_len {
-            println!("Resizing storage");
             let next_power_of_two = (new_last_leaf_index + 1).next_power_of_two();
             let diff = next_power_of_two - storage_len;
 
