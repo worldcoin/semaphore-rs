@@ -183,6 +183,17 @@ impl<T: Pod> MmapVec<T> {
     }
 }
 
+impl<T> Extend<T> for MmapVec<T>
+where
+    T: Pod,
+{
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        for item in iter {
+            self.push(item);
+        }
+    }
+}
+
 impl<T> Deref for MmapVec<T>
 where
     T: Pod,
@@ -220,7 +231,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::generic_storage::GenericStorage;
 
     use super::*;
 

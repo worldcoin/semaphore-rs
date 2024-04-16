@@ -1,4 +1,4 @@
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref, DerefMut, Range};
 
 use color_eyre::{eyre::bail, Result};
 use itertools::Itertools;
@@ -19,31 +19,33 @@ pub trait StorageOps<H>:
 where
     H: Hasher,
 {
-    fn populate_with_leaves(&mut self, empty_value: &H::Hash, leaves: &[H::Hash]) {
+    /// Clears the current storage and initializes it with the given leaves.
+    fn populate_with_leaves(
+        &mut self,
+        sparse_column: &[H::Hash],
+        empty_value: &H::Hash,
+        leaves: &[H::Hash],
+    ) {
         let num_leaves = leaves.len();
         let base_len = num_leaves.next_power_of_two();
         let storage_size = base_len << 1;
-        let mut storage = vec![*empty_value; storage_size];
+        self.clear();
+        self.extend(std::iter::repeat(*empty_value).take(storage_size));
         let depth = base_len.ilog2();
 
         // We iterate over subsequently larger subtrees
         let mut last_sub_root = *leaves.first().unwrap_or(empty_value);
-        storage[1] = last_sub_root;
+        self[1] = last_sub_root;
         for height in 1..(depth + 1) {
             let left_index = 1 << height;
-            let storage_slice = &mut storage[left_index..(left_index << 1)];
+            let storage_slice = &mut self[left_index..(left_index << 1)];
             let leaf_start = left_index >> 1;
             let leaf_end = left_index.min(num_leaves);
             let leaf_slice = &leaves[leaf_start..leaf_end];
-            let root = init_subtree_with_leaves::<H>(storage_slice, leaf_slice);
+            let root = init_subtree_with_leaves::<H>(storage_slice, sparse_column, leaf_slice);
             let hash = H::hash_node(&last_sub_root, &root);
-            storage[left_index] = hash;
+            self[left_index] = hash;
             last_sub_root = hash;
-        }
-
-        self.clear();
-        for leaf in storage {
-            self.push(leaf);
         }
 
         self.set_num_leaves(num_leaves);
@@ -52,32 +54,20 @@ where
     /// Returns an iterator over all leaves including those that have noe been
     /// set.
     fn leaves(&self) -> impl Iterator<Item = H::Hash> + '_ {
-        self.row_indices(0).map(move |i| self[i])
+        self.row_indices(0)
+            .take(self.num_leaves())
+            .map(move |i| self[i])
     }
 
     fn row_indices(&self, height: usize) -> impl Iterator<Item = usize> + Send + '_ {
-        let first = 1 << height;
-        let storage_len = self.len();
-        let mut iters = vec![];
-
-        if first >= storage_len {
-            return iters.into_iter().flatten();
-        }
-
-        iters.push(first..(first + 1));
-
-        let mut next = (first << 1) + 1;
-
-        for i in 0.. {
-            if next >= storage_len {
-                break;
-            }
-            let slice_len = 1 << i;
-            iters.push(next..(next + slice_len));
-            next *= 2;
-        }
-
-        iters.into_iter().flatten()
+        let storage_height = (self.len().ilog2() - 1) as usize;
+        let width = if height > storage_height {
+            0
+        } else {
+            let height_diff = storage_height - height;
+            1 << height_diff
+        };
+        row_indices(height).take(width)
     }
 
     fn row(&self, height: usize) -> impl Iterator<Item = H::Hash> + Send + '_ {
@@ -181,7 +171,7 @@ where
 {
 }
 
-/// Assumed that slice len is a power of 2
+/// Assumes that slice len is a power of 2
 #[inline]
 pub fn subtree_depth<H>(storage_slice: &[H]) -> usize {
     let len = storage_slice.len();
@@ -241,7 +231,7 @@ pub fn index_height_offset(height: usize, offset: usize) -> usize {
     offset_node + subtree_size
 }
 
-#[cfg(test)]
+// #[cfg(test)]
 pub fn children(i: usize) -> Option<(usize, usize)> {
     let next_pow = i.next_power_of_two();
     if i == next_pow {
@@ -266,9 +256,6 @@ pub fn children(i: usize) -> Option<(usize, usize)> {
     Some((prev_pow + offset_left, prev_pow + offset_right))
 }
 
-/// TODO: This function is slower than necessary if the entire base of the
-/// subtree is not filled with leaves.
-///
 /// Initialize a subtree with the given leaves in parallel.
 ///
 /// O(n) time complexity
@@ -289,8 +276,12 @@ pub fn children(i: usize) -> Option<(usize, usize)> {
 ///   2     5   [  10    11 ]
 /// 1  3  6  7  [12 13 14 15]
 ///  ```
-pub fn init_subtree_with_leaves<H: Hasher>(storage: &mut [H::Hash], leaves: &[H::Hash]) -> H::Hash {
-    let (depth, width) = subtree_depth_width(storage);
+pub fn init_subtree_with_leaves<H: Hasher>(
+    storage: &mut [H::Hash],
+    sparse_column: &[H::Hash],
+    leaves: &[H::Hash],
+) -> H::Hash {
+    let (_depth, width) = subtree_depth_width(storage);
 
     storage[width..(width + leaves.len())]
         .par_iter_mut()
@@ -299,12 +290,84 @@ pub fn init_subtree_with_leaves<H: Hasher>(storage: &mut [H::Hash], leaves: &[H:
             *val = *leaf;
         });
 
+    sparse_fill_partial_subtree::<H>(storage, sparse_column, leaves.len()..width);
+    propogate_partial_subtree::<H>(storage, 0..leaves.len());
+    storage[1]
+}
+
+/// Extend leaves onto a preexisting subtree.
+///
+/// O(n) time complexity
+///
+/// Subtrees are 1 indexed and directly attached to the left most branch
+/// of the main tree.
+///
+/// This function assumes that storage is already initialized with empty
+/// values and is the correct length for the subtree.
+/// If 'leaves' is not long enough, the remaining leaves will be left empty
+///
+/// storage.len() must be a power of 2 and greater than or equal to 2
+/// storage is 1 indexed
+///
+/// ```markdown
+///           8    (subtree)
+///      4      [     9     ]
+///   2     5   [  10    11 ]
+/// 1  3  6  7  [12 13 14 15]
+///  ```
+pub fn extend_subtree_with_leaves<H: Hasher>(
+    storage: &mut [H::Hash],
+    sparse_column: &[H::Hash],
+    start: usize,
+    leaves: &[H::Hash],
+) -> H::Hash {
+    let (_depth, width) = subtree_depth_width(storage);
+
+    storage[(width + start)..(width + start + leaves.len())]
+        .par_iter_mut()
+        .zip(leaves.par_iter())
+        .for_each(|(val, leaf)| {
+            *val = *leaf;
+        });
+
+    sparse_fill_partial_subtree::<H>(storage, sparse_column, start + leaves.len()..width);
+    propogate_partial_subtree::<H>(storage, start..start + leaves.len());
+    storage[1]
+}
+
+/// Propogate hash up a subtree with leaves within a given range.
+///
+/// O(n) time complexity
+///
+/// Subtrees are 1 indexed and directly attached to the left most branch
+/// of the main tree.
+///
+/// This function assumes that the tree is in a valid state except for the
+/// newly added leaves.
+///
+/// storage.len() must be a power of 2 and greater than or equal to 2
+/// storage is 1 indexed
+///
+/// ```markdown
+///           8    (subtree)
+///      4      [     9     ]
+///   2     5   [  10    11 ]
+/// 1  3  6  7  [12 13 14 15]
+///  ```
+pub fn propogate_partial_subtree<H: Hasher>(
+    storage: &mut [H::Hash],
+    mut range: Range<usize>,
+) -> H::Hash {
+    let depth = subtree_depth(storage);
+
     // Iterate over mutable layers of the tree
     for current_depth in (1..=depth).rev() {
         let (top, child_layer) = storage.split_at_mut(1 << current_depth);
         let parent_layer = &mut top[(1 << (current_depth - 1))..];
+        range.start /= 2;
+        range.end = ((range.end - 1) / 2) + 1;
 
-        parent_layer
+        parent_layer[range.clone()]
             .par_iter_mut()
             .enumerate()
             .for_each(|(i, value)| {
@@ -317,9 +380,67 @@ pub fn init_subtree_with_leaves<H: Hasher>(storage: &mut [H::Hash], leaves: &[H:
     storage[1]
 }
 
+/// Propogates empty hashes up the tree within a given range.
+///
+/// O(n) time complexity
+///
+/// Subtrees are 1 indexed and directly attached to the left most branch
+/// of the main tree.
+///
+/// This function will overwrite any  existing or dependent values withing the
+/// range. It assumes that the base layer has already been initialized with
+/// empty values.
+///
+/// storage.len() must be a power of 2 and greater than or equal to 2
+/// storage is 1 indexed
+///
+/// ```markdown
+///           8    (subtree)
+///      4      [     9     ]
+///   2     5   [  10    11 ]
+/// 1  3  6  7  [12 13 14 15]
+///  ```
+pub fn sparse_fill_partial_subtree<H: Hasher>(
+    storage: &mut [H::Hash],
+    sparse_column: &[H::Hash],
+    mut range: Range<usize>,
+) -> H::Hash {
+    let depth = subtree_depth(storage);
+
+    // Iterate over mutable layers of the tree
+    for current_depth in (1..=depth).rev() {
+        let (top, _child_layer) = storage.split_at_mut(1 << current_depth);
+        let parent_layer = &mut top[(1 << (current_depth - 1))..];
+        range.start /= 2;
+        range.end = ((range.end - 1) / 2) + 1;
+
+        parent_layer[range.clone()].par_iter_mut().for_each(|i| {
+            *i = sparse_column[depth + 1 - current_depth];
+        });
+    }
+
+    storage[1]
+}
+
+fn row_indices(height: usize) -> impl Iterator<Item = usize> + Send {
+    let first = 1 << height;
+    let iter_1 = first..(first + 1);
+
+    let next = (first << 1) + 1;
+
+    let iter_2 = (0..).scan(next, |next, i| {
+        let slice_len = 1 << i;
+        let res = *next..(*next + slice_len);
+        *next *= 2;
+        Some(res)
+    });
+
+    std::iter::once(iter_1).chain(iter_2).flatten()
+}
+
 /// Assumed that slice len is a power of 2
 #[inline]
-fn subtree_depth_width<H>(storage_slice: &[H]) -> (usize, usize) {
+pub fn subtree_depth_width<H>(storage_slice: &[H]) -> (usize, usize) {
     let len = storage_slice.len();
 
     debug_assert!(len.is_power_of_two());
@@ -334,7 +455,10 @@ fn subtree_depth_width<H>(storage_slice: &[H]) -> (usize, usize) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{generic_storage::MmapVec, poseidon_tree::PoseidonHash};
+    use crate::{
+        cascading_merkle_tree::tests::TestHasher, generic_storage::MmapVec,
+        poseidon_tree::PoseidonHash,
+    };
 
     fn test_is_storage_ops<S>(_s: &S)
     where
@@ -346,5 +470,14 @@ mod tests {
     #[allow(unused)]
     fn test_mmap_vec_is_storage_ops(s: MmapVec<<PoseidonHash as Hasher>::Hash>) {
         test_is_storage_ops(&s);
+    }
+
+    #[test]
+    fn test_sparse_fill_partial_subtree() {
+        let mut storage = vec![1; 16];
+        let sparse_column = vec![1, 2, 4, 8, 16];
+        sparse_fill_partial_subtree::<TestHasher>(&mut storage, &sparse_column, 4..8);
+        let expected = vec![1, 8, 1, 4, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1];
+        assert_eq!(storage, expected);
     }
 }
