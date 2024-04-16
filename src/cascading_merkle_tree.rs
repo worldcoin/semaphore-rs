@@ -334,19 +334,29 @@ where
         self.storage.validate(&self.empty_value)
     }
 
+    /// Extends the tree with the given leaves in parallel.
+    ///
+    /// ```markdown
+    /// subtree_power = ilog2(8) = 3
+    ///           8    (subtree)
+    ///      4      [     9     ]
+    ///   2     5   [  10    11 ]
+    /// 1  3  6  7  [12 13 14 15]
+    ///  ```
     pub fn extend_from_slice(&mut self, leaves: &[H::Hash]) {
         if leaves.is_empty() {
             return;
         }
-        let num_leaves = leaves.len();
+        let num_new_leaves = leaves.len();
         let storage_len = self.storage.len();
         let current_leaves = self.num_leaves();
-        let total_leaves = current_leaves + num_leaves;
+        let total_leaves = current_leaves + num_new_leaves;
         let new_last_leaf_index = storage_ops::index_from_leaf(total_leaves - 1);
 
         // If the index is out of bounds, we need to resize the storage
         // we must always have 2^n leaves for any n
         if new_last_leaf_index >= storage_len {
+            println!("Resizing storage");
             let next_power_of_two = (new_last_leaf_index + 1).next_power_of_two();
             let diff = next_power_of_two - storage_len;
 
@@ -354,14 +364,22 @@ where
                 .extend(std::iter::repeat(self.empty_value).take(diff));
         }
 
-        let initial_subtree_power = ((current_leaves + 1).next_power_of_two()).ilog2();
-        let end_subtree_power = ((total_leaves).next_power_of_two()).ilog2();
+        // Represense the power of the first subtree that has been modified
+        let first_subtree_power = ((current_leaves + 1).next_power_of_two()).ilog2();
+        // Represense the power of the last subtree that has been modified
+        let last_subtree_power = ((total_leaves).next_power_of_two()).ilog2();
 
         let mut remaining_leaves = leaves;
 
-        // We iterate over subsequently larger subtrees
-        for subtree_power in initial_subtree_power..=end_subtree_power {
-            let left_index = if subtree_power == 0 {
+        // We iterate over subsequently larger subtrees which have been
+        // modified by the new leaves.
+        for subtree_power in first_subtree_power..=last_subtree_power {
+            // We have a special case for subtree_power = 0
+            // because the subtree is completely empty.
+            // This represents the very borrow left of the tree.
+            // parent_index represents the index of the parent node of the subtree.
+            // It is the power of two on the left most branch of the tree.
+            let parent_index = if subtree_power == 0 {
                 let (leaf_slice, remaining) = remaining_leaves.split_at(1);
                 remaining_leaves = remaining;
                 self.storage[1] = leaf_slice[0];
@@ -369,28 +387,40 @@ where
             } else {
                 1 << subtree_power
             };
-            let storage_slice = &mut self.storage[left_index..(left_index << 1)];
-            let (_depth, width) = storage_ops::subtree_depth_width(storage_slice);
-            let leaf_start = if subtree_power == initial_subtree_power {
+
+            // The slice of the storage that contains the subtree
+            let subtree_slice = &mut self.storage[parent_index..(parent_index << 1)];
+            let (_depth, width) = storage_ops::subtree_depth_width(subtree_slice);
+
+            // leaf_start represents the leaf index of the subtree where we should begin
+            // inserting the new leaves.
+            let leaf_start = if subtree_power == first_subtree_power {
                 current_leaves - ((current_leaves + 1).next_power_of_two() >> 1).min(current_leaves)
             } else {
                 0
             };
 
+            // The number of leaves to be inserted into this subtree.
             let leaves_to_take = (width - leaf_start).min(remaining_leaves.len());
             let (leaf_slice, remaining) = remaining_leaves.split_at(leaves_to_take);
             remaining_leaves = remaining;
+
+            // Extend the subtree with the new leaves beginning at leaf_start
             let root = storage_ops::extend_subtree_with_leaves::<H>(
-                storage_slice,
+                subtree_slice,
                 &self.sparse_column,
                 leaf_start,
                 leaf_slice,
             );
-            let last_sub_root = self.storage[1 << (subtree_power - 1)];
 
-            self.storage[left_index] = H::hash_node(&last_sub_root, &root);
+            // sibling_hash represents the hash of the sibling of the tip of the subtree.
+            let sibling_hash = self.storage[1 << (subtree_power - 1)];
+
+            // Update the parent node of the tip of this subtree.
+            self.storage[parent_index] = H::hash_node(&sibling_hash, &root);
         }
 
+        // Update the number of leaves in the tree.
         self.storage.set_num_leaves(total_leaves);
     }
 }

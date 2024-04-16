@@ -283,6 +283,7 @@ pub fn init_subtree_with_leaves<H: Hasher>(
 ) -> H::Hash {
     let (_depth, width) = subtree_depth_width(storage);
 
+    // Set the leaves
     storage[width..(width + leaves.len())]
         .par_iter_mut()
         .zip(leaves.par_iter())
@@ -290,8 +291,15 @@ pub fn init_subtree_with_leaves<H: Hasher>(
             *val = *leaf;
         });
 
+    // For empty values to the right of the newly set leaves
+    // we can propogate the sparse column up the tree
+    // in O(log(n)) hashes
     sparse_fill_partial_subtree::<H>(storage, sparse_column, leaves.len()..width);
+
+    // For newly set leaves we can propogate the hashes up the tree
+    // in O(n) hashes
     propogate_partial_subtree::<H>(storage, 0..leaves.len());
+
     storage[1]
 }
 
@@ -323,6 +331,7 @@ pub fn extend_subtree_with_leaves<H: Hasher>(
 ) -> H::Hash {
     let (_depth, width) = subtree_depth_width(storage);
 
+    // Set the leaves
     storage[(width + start)..(width + start + leaves.len())]
         .par_iter_mut()
         .zip(leaves.par_iter())
@@ -330,8 +339,15 @@ pub fn extend_subtree_with_leaves<H: Hasher>(
             *val = *leaf;
         });
 
+    // For empty values to the right of the newly set leaves
+    // we can propogate the sparse column up the tree
+    // in O(log(n)) hashes
     sparse_fill_partial_subtree::<H>(storage, sparse_column, start + leaves.len()..width);
+
+    // For newly set leaves we can propogate the hashes up the tree
+    // in O(n) hashes
     propogate_partial_subtree::<H>(storage, start..start + leaves.len());
+
     storage[1]
 }
 
@@ -362,8 +378,11 @@ pub fn propogate_partial_subtree<H: Hasher>(
 
     // Iterate over mutable layers of the tree
     for current_depth in (1..=depth).rev() {
+        // Split the subtree into relavent layers
         let (top, child_layer) = storage.split_at_mut(1 << current_depth);
         let parent_layer = &mut top[(1 << (current_depth - 1))..];
+
+        // Update the range to match the new parent layer
         range.start /= 2;
         range.end = ((range.end - 1) / 2) + 1;
 
@@ -409,8 +428,11 @@ pub fn sparse_fill_partial_subtree<H: Hasher>(
 
     // Iterate over mutable layers of the tree
     for current_depth in (1..=depth).rev() {
+        // Split the subtree into relavent layers
         let (top, _child_layer) = storage.split_at_mut(1 << current_depth);
         let parent_layer = &mut top[(1 << (current_depth - 1))..];
+
+        // Update the range to match the new parent layer
         range.start /= 2;
         range.end = ((range.end - 1) / 2) + 1;
 
@@ -438,7 +460,7 @@ fn row_indices(height: usize) -> impl Iterator<Item = usize> + Send {
     std::iter::once(iter_1).chain(iter_2).flatten()
 }
 
-/// Assumed that slice len is a power of 2
+/// Assumes that slice len is a power of 2
 #[inline]
 pub fn subtree_depth_width<H>(storage_slice: &[H]) -> (usize, usize) {
     let len = storage_slice.len();
