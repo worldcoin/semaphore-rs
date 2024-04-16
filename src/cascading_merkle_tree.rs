@@ -334,11 +334,7 @@ where
         self.storage.validate(&self.empty_value)
     }
 
-    pub fn extend_from_slice(&mut self, leaves: &[H::Hash])
-    where
-        S: std::fmt::Debug,
-        H: std::fmt::Debug,
-    {
+    pub fn extend_from_slice(&mut self, leaves: &[H::Hash]) {
         if leaves.is_empty() {
             return;
         }
@@ -348,16 +344,9 @@ where
         let total_leaves = current_leaves + num_leaves;
         let new_last_leaf_index = storage_ops::index_from_leaf(total_leaves - 1);
 
-        println!(
-            "\n\nStorage len: {}, new last leaf index: {}, num_leaves: {}",
-            self.storage.len(),
-            new_last_leaf_index,
-            num_leaves
-        );
-
         // If the index is out of bounds, we need to resize the storage
         // we must always have 2^n leaves for any n
-        if new_last_leaf_index >= self.storage.len() {
+        if new_last_leaf_index >= storage_len {
             let next_power_of_two = (new_last_leaf_index + 1).next_power_of_two();
             let diff = next_power_of_two - storage_len;
 
@@ -365,50 +354,31 @@ where
                 .extend(std::iter::repeat(self.empty_value).take(diff));
         }
 
-        println!("storage len: {:?}", self.storage.len());
-
-        println!("Current leaves: {}", current_leaves);
         let initial_subtree_power = ((current_leaves + 1).next_power_of_two()).ilog2();
-        println!("Initial subtree power: {}", initial_subtree_power);
-
         let end_subtree_power = ((total_leaves).next_power_of_two()).ilog2();
-        println!("End subtree power: {}", end_subtree_power);
-
-        debug_storage::<H, S>(&self.storage);
 
         let mut remaining_leaves = leaves;
 
         // We iterate over subsequently larger subtrees
-        // let mut last_sub_root = self.storage[initial_subtree_root_index];
         for subtree_power in initial_subtree_power..=end_subtree_power {
-            println!("\nSubtree power: {}", subtree_power);
             let left_index = if subtree_power == 0 {
                 let (leaf_slice, remaining) = remaining_leaves.split_at(1);
                 remaining_leaves = remaining;
                 self.storage[1] = leaf_slice[0];
-                // last_sub_root = self.storage[1];
                 continue;
             } else {
                 1 << subtree_power
             };
-            // let left_index = 1 << height;
             let storage_slice = &mut self.storage[left_index..(left_index << 1)];
-            println!("storage_slice: {:?}", storage_slice);
             let (_depth, width) = storage_ops::subtree_depth_width(storage_slice);
             let leaf_start = if subtree_power == initial_subtree_power {
-                let start_subtree_leaf_index = current_leaves
-                    - ((current_leaves + 1).next_power_of_two() >> 1).min(current_leaves);
-                println!("Start subtree leaf index: {}", start_subtree_leaf_index);
-                start_subtree_leaf_index
+                current_leaves - ((current_leaves + 1).next_power_of_two() >> 1).min(current_leaves)
             } else {
                 0
             };
-            println!("Leaf start: {}", leaf_start);
 
             let leaves_to_take = (width - leaf_start).min(remaining_leaves.len());
-            println!("Leaves to take: {}", leaves_to_take);
             let (leaf_slice, remaining) = remaining_leaves.split_at(leaves_to_take);
-            println!("leaf_slice: {:?}", leaf_slice);
             remaining_leaves = remaining;
             let root = storage_ops::extend_subtree_with_leaves::<H>(
                 storage_slice,
@@ -417,37 +387,11 @@ where
                 leaf_slice,
             );
             let last_sub_root = self.storage[1 << (subtree_power - 1)];
-            println!("Root: {:?}", root);
-            println!("last_sub_root: {:?}", last_sub_root);
-            let hash = H::hash_node(&last_sub_root, &root);
-            self.storage[left_index] = hash;
-            // last_sub_root = hash;
-            println!("Result:");
-            debug_storage::<H, S>(&self.storage);
+
+            self.storage[left_index] = H::hash_node(&last_sub_root, &root);
         }
 
         self.storage.set_num_leaves(total_leaves);
-    }
-}
-
-pub fn debug_storage<H, S>(storage: &S)
-where
-    H: Hasher + std::fmt::Debug,
-    S: std::ops::Deref<Target = [<H as Hasher>::Hash]> + std::fmt::Debug,
-{
-    let storage_depth = storage.len().ilog2();
-    let storage_len = storage.len();
-    let root_index = storage_len >> 1;
-    let mut previous = vec![root_index];
-    println!("{:?}", vec![storage[root_index]]);
-    for _ in 1..storage_depth {
-        let next = previous
-            .iter()
-            .flat_map(|&i| storage_ops::children(i))
-            .collect::<Vec<_>>();
-        previous = next.iter().flat_map(|&(l, r)| [l, r]).collect();
-        let row = previous.iter().map(|&i| storage[i]).collect::<Vec<_>>();
-        println!("{row:?}");
     }
 }
 
@@ -481,6 +425,27 @@ mod tests {
     {
         println!("{tree:?}");
         debug_storage::<H, S>(&tree.storage);
+    }
+
+    pub fn debug_storage<H, S>(storage: &S)
+    where
+        H: Hasher + std::fmt::Debug,
+        S: std::ops::Deref<Target = [<H as Hasher>::Hash]> + std::fmt::Debug,
+    {
+        let storage_depth = storage.len().ilog2();
+        let storage_len = storage.len();
+        let root_index = storage_len >> 1;
+        let mut previous = vec![root_index];
+        println!("{:?}", vec![storage[root_index]]);
+        for _ in 1..storage_depth {
+            let next = previous
+                .iter()
+                .flat_map(|&i| storage_ops::children(i))
+                .collect::<Vec<_>>();
+            previous = next.iter().flat_map(|&(l, r)| [l, r]).collect();
+            let row = previous.iter().map(|&i| storage[i]).collect::<Vec<_>>();
+            println!("{row:?}");
+        }
     }
 
     #[test]

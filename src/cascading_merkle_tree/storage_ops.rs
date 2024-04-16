@@ -231,7 +231,7 @@ pub fn index_height_offset(height: usize, offset: usize) -> usize {
     offset_node + subtree_size
 }
 
-// #[cfg(test)]
+#[cfg(test)]
 pub fn children(i: usize) -> Option<(usize, usize)> {
     let next_pow = i.next_power_of_two();
     if i == next_pow {
@@ -335,7 +335,7 @@ pub fn extend_subtree_with_leaves<H: Hasher>(
     storage[1]
 }
 
-/// Propogate hash up a subtree with leaves within a given range.
+/// Propogate hashes up a subtree with leaves within a given range.
 ///
 /// O(n) time complexity
 ///
@@ -382,7 +382,7 @@ pub fn propogate_partial_subtree<H: Hasher>(
 
 /// Propogates empty hashes up the tree within a given range.
 ///
-/// O(n) time complexity
+/// O(log(n)) time complexity
 ///
 /// Subtrees are 1 indexed and directly attached to the left most branch
 /// of the main tree.
