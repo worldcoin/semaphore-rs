@@ -962,6 +962,28 @@ mod tests {
     }
 
     #[test]
+    fn test_extend_from_slice_root() {
+        let mut tree = CascadingMerkleTree::<TestHasher>::new(vec![], 2, &1);
+        debug_tree(&tree);
+        tree.validate().unwrap();
+
+        //      4
+        //   2     2
+        // 1  1  1  1
+        let root = tree.root();
+        assert_eq!(root, 4);
+
+        //      10
+        //   3     7
+        // 1  2  3  4
+        tree.extend_from_slice(&[1, 2, 3, 4]);
+        debug_tree(&tree);
+
+        let root = tree.root();
+        assert_eq!(root, 10);
+    }
+
+    #[test]
     fn test_vec_realloc_speed() {
         let empty = 0;
         let leaves = vec![1; 1 << 20];
