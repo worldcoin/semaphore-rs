@@ -1,9 +1,10 @@
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 #[allow(clippy::wildcard_imports)]
 use semaphore::cascading_merkle_tree::*;
-use semaphore::{
-    generic_storage::MmapVec, merkle_tree::Hasher, poseidon_tree::PoseidonHash, Field,
-};
+use semaphore::generic_storage::MmapVec;
+use semaphore::merkle_tree::Hasher;
+use semaphore::poseidon_tree::PoseidonHash;
+use semaphore::Field;
 
 criterion_main!(cascading_merkle_tree);
 criterion_group!(
@@ -16,7 +17,9 @@ criterion_group!(
     bench_cascading_dense_mmap_tree_reads,
     bench_cascading_dense_tree_writes,
     bench_cascading_dense_mmap_tree_writes,
-    bench_cascading_proof_from_hash
+    bench_cascading_proof_from_hash,
+    bench_cascading_push,
+    bench_cascading_extend,
 );
 
 struct TreeValues<H: Hasher> {
@@ -279,6 +282,40 @@ fn bench_cascading_dense_mmap_tree_writes(criterion: &mut Criterion) {
     });
     // remove mmap file
     let _ = std::fs::remove_file("./testfile");
+}
+
+fn bench_cascading_push(criterion: &mut Criterion) {
+    let empty_value = Field::from(0);
+    let values_to_push = (0..(1 << 8)).map(Field::from).collect::<Vec<_>>();
+    let tree = CascadingMerkleTree::<PoseidonHash, _>::new(vec![], 8, &empty_value);
+
+    criterion.bench_function("cascading_tree_push", |b| {
+        b.iter_batched(
+            || tree.clone(),
+            |mut tree| {
+                for value in values_to_push.iter() {
+                    tree.push(*value).unwrap();
+                }
+            },
+            BatchSize::SmallInput,
+        );
+    });
+}
+
+fn bench_cascading_extend(criterion: &mut Criterion) {
+    let empty_value = Field::from(0);
+    let values_to_push = (0..(1 << 8)).map(Field::from).collect::<Vec<_>>();
+    let tree = CascadingMerkleTree::<PoseidonHash, _>::new(vec![], 8, &empty_value);
+
+    criterion.bench_function("cascading_tree_extend", |b| {
+        b.iter_batched(
+            || tree.clone(),
+            |mut tree| {
+                tree.extend_from_slice(&values_to_push);
+            },
+            BatchSize::SmallInput,
+        );
+    });
 }
 
 fn create_values_for_tree(depth: usize) -> TreeValues<PoseidonHash> {
