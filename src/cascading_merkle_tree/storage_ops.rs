@@ -34,18 +34,18 @@ where
         let depth = base_len.ilog2();
 
         // We iterate over subsequently larger subtrees
-        let mut last_sub_root = *leaves.first().unwrap_or(empty_value);
-        self[1] = last_sub_root;
-        for height in 1..(depth + 1) {
-            let left_index = 1 << height;
-            let storage_slice = &mut self[left_index..(left_index << 1)];
-            let leaf_start = left_index >> 1;
-            let leaf_end = left_index.min(num_leaves);
+        let mut sibling_hash = *leaves.first().unwrap_or(empty_value);
+        self[1] = sibling_hash;
+        for subtree_power in 1..(depth + 1) {
+            let parent_index = 1 << subtree_power;
+            let subtree_slice = &mut self[parent_index..(parent_index << 1)];
+            let leaf_start = parent_index >> 1;
+            let leaf_end = parent_index.min(num_leaves);
             let leaf_slice = &leaves[leaf_start..leaf_end];
-            let root = init_subtree_with_leaves::<H>(storage_slice, sparse_column, leaf_slice);
-            let hash = H::hash_node(&last_sub_root, &root);
-            self[left_index] = hash;
-            last_sub_root = hash;
+            let root = init_subtree_with_leaves::<H>(subtree_slice, sparse_column, leaf_slice);
+            let hash = H::hash_node(&sibling_hash, &root);
+            self[parent_index] = hash;
+            sibling_hash = hash;
         }
 
         self.set_num_leaves(num_leaves);
