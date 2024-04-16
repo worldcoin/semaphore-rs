@@ -1,13 +1,12 @@
 use std::ops::{Deref, DerefMut, Range};
 
-use color_eyre::{eyre::bail, Result};
+use color_eyre::eyre::bail;
+use color_eyre::Result;
 use itertools::Itertools;
 use rayon::prelude::*;
 
-use crate::{
-    generic_storage::GenericStorage,
-    merkle_tree::{Branch, Hasher},
-};
+use crate::generic_storage::GenericStorage;
+use crate::merkle_tree::{Branch, Hasher};
 
 pub trait StorageOps<H>:
     GenericStorage<H::Hash>
@@ -454,11 +453,12 @@ pub fn subtree_depth_width<H>(storage_slice: &[H]) -> (usize, usize) {
 
 #[cfg(test)]
 mod tests {
+    use test_case::test_case;
+
     use super::*;
-    use crate::{
-        cascading_merkle_tree::tests::TestHasher, generic_storage::MmapVec,
-        poseidon_tree::PoseidonHash,
-    };
+    use crate::cascading_merkle_tree::tests::TestHasher;
+    use crate::generic_storage::MmapVec;
+    use crate::poseidon_tree::PoseidonHash;
 
     fn test_is_storage_ops<S>(_s: &S)
     where
@@ -479,5 +479,21 @@ mod tests {
         sparse_fill_partial_subtree::<TestHasher>(&mut storage, &sparse_column, 4..8);
         let expected = vec![1, 8, 1, 4, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1];
         assert_eq!(storage, expected);
+    }
+
+    #[test_case(&[1, 2] => (0, 1))]
+    #[test_case(&[1, 2, 3, 4] => (1, 2))]
+    #[test_case(&[1, 2, 3, 4, 5, 6, 7, 8] => (2, 4))]
+    fn subtree_depth_width_test(leaves: &[i32]) -> (usize, usize) {
+        subtree_depth_width(leaves)
+    }
+
+    #[test_case(0 => None)]
+    #[test_case(1 => None)]
+    #[test_case(2 => Some((1, 3)))]
+    #[test_case(16 => Some((8, 17)))]
+    fn children_test(i: usize) -> Option<(usize, usize)> {
+        children(i)
+
     }
 }

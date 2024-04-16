@@ -392,6 +392,7 @@ where
         }
 
         self.storage.set_num_leaves(total_leaves);
+        self.recompute_root();
     }
 }
 
