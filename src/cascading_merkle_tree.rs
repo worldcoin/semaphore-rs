@@ -177,14 +177,19 @@ where
         }
 
         self.storage[index] = leaf;
-
         self.storage.increment_num_leaves(1);
         self.storage.propagate_up(index);
         self.recompute_root();
+
         Ok(())
     }
 
     /// Returns the Merkle proof for the given leaf.
+    ///
+    /// TODO: Currently the branch which connects the storage tip to the root
+    /// is not stored persistenetly. Repeated requests for proofs in between
+    /// tree updates result in recomputing the same hashes when this could be
+    /// avoided.
     ///
     /// # Panics
     ///
@@ -395,7 +400,7 @@ where
             // leaf_start represents the leaf index of the subtree where we should begin
             // inserting the new leaves.
             let leaf_start = if subtree_power == first_subtree_power {
-                current_leaves - ((current_leaves + 1).next_power_of_two() >> 1).min(current_leaves)
+                current_leaves - ((current_leaves + 1).next_power_of_two() >> 1)
             } else {
                 0
             };
@@ -413,7 +418,7 @@ where
                 leaf_slice,
             );
 
-            // sibling_hash represents the hash of the sibling of the tip of the subtree.
+            // sibling_hash represents the hash of the sibling of the tip of this subtree.
             let sibling_hash = self.storage[1 << (subtree_power - 1)];
 
             // Update the parent node of the tip of this subtree.
