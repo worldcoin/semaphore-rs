@@ -441,11 +441,9 @@ mod tests {
     use serial_test::serial;
 
     use super::*;
-    use crate::{
-        generic_storage::{GenericStorage, MmapVec},
-        poseidon_tree::PoseidonHash,
-        Field,
-    };
+    use crate::generic_storage::{GenericStorage, MmapVec};
+    use crate::poseidon_tree::PoseidonHash;
+    use crate::Field;
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct TestHasher;
@@ -927,6 +925,57 @@ mod tests {
         tree.push(3).unwrap();
         debug_tree(&tree);
         tree.validate().unwrap();
+    }
+
+    #[test]
+    fn incremental_push_depth_3() {
+        let storage: Vec<<TestHasher as Hasher>::Hash> = Vec::new();
+        let empty_value = 1;
+        let mut tree: CascadingMerkleTree<TestHasher> =
+            CascadingMerkleTree::new(storage, 3, &empty_value);
+
+        //          8
+        //     4         4
+        //  2    2    2    2
+        // 1 1  1 1  1 1  1 1
+        assert_eq!(tree.root(), 8);
+
+        tree.push(2).unwrap();
+        //          9
+        //     5         4
+        //  3    2    2    2
+        // 2 1  1 1  1 1  1 1
+        assert_eq!(tree.root(), 9);
+
+        tree.push(3).unwrap();
+        //          11
+        //     7         4
+        //  5    2    2    2
+        // 2 3  1 1  1 1  1 1
+        assert_eq!(tree.root(), 11);
+
+        tree.push(10).unwrap();
+        //          20
+        //     16          4
+        //  5     11    2    2
+        // 2 3  10  1  1 1  1 1
+        assert_eq!(tree.root(), 20);
+
+        tree.push(123).unwrap();
+        debug_tree(&tree);
+        //            142
+        //     138            4
+        //  5     133       2    2
+        // 2 3  10  123   1 1  1 1
+        assert_eq!(tree.root(), 142);
+
+        tree.push(2).unwrap();
+        debug_tree(&tree);
+        //            143
+        //     138            5
+        //  5     133       3    2
+        // 2 3  10  123   2 1  1 1
+        assert_eq!(tree.root(), 143);
     }
 
     #[test]
