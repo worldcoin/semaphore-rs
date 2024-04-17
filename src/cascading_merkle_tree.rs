@@ -411,12 +411,15 @@ where
             remaining_leaves = remaining;
 
             // Extend the subtree with the new leaves beginning at leaf_start
-            let root = storage_ops::extend_subtree_with_leaves::<H>(
-                subtree_slice,
-                &self.sparse_column,
-                leaf_start,
-                leaf_slice,
-            );
+            let root = if leaf_start == 0 {
+                storage_ops::init_subtree_with_leaves::<H>(
+                    subtree_slice,
+                    &self.sparse_column,
+                    leaf_slice,
+                )
+            } else {
+                storage_ops::extend_subtree_with_leaves::<H>(subtree_slice, leaf_start, leaf_slice)
+            };
 
             // sibling_hash represents the hash of the sibling of the tip of this subtree.
             let sibling_hash = self.storage[1 << (subtree_power - 1)];

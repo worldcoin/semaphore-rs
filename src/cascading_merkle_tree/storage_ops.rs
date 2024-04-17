@@ -281,10 +281,30 @@ pub fn init_subtree_with_leaves<H: Hasher>(
     sparse_column: &[H::Hash],
     leaves: &[H::Hash],
 ) -> H::Hash {
-    extend_subtree_with_leaves::<H>(storage, sparse_column, 0, leaves)
+    let (_depth, width) = subtree_depth_width(storage);
+
+    // Set the leaves
+    storage[(width)..(width + leaves.len())]
+        .par_iter_mut()
+        .zip(leaves.par_iter())
+        .for_each(|(val, leaf)| {
+            *val = *leaf;
+        });
+
+    // For empty values to the right of the newly set leaves
+    // we can propogate the sparse column up the tree
+    // in O(log(n)) hashes
+    sparse_fill_partial_subtree::<H>(storage, sparse_column, leaves.len()..width);
+
+    // For newly set leaves we can propogate the hashes up the tree
+    // in O(n) hashes
+    propogate_partial_subtree::<H>(storage, 0..leaves.len());
+
+    storage[1]
 }
 
-/// Extend leaves onto a preexisting subtree.
+/// Extend leaves onto a preexisting subtree. This method assumes that the
+/// sparse column has already been applied to all rows
 ///
 /// O(n) time complexity
 ///
@@ -306,7 +326,6 @@ pub fn init_subtree_with_leaves<H: Hasher>(
 ///  ```
 pub fn extend_subtree_with_leaves<H: Hasher>(
     storage: &mut [H::Hash],
-    sparse_column: &[H::Hash],
     start: usize,
     leaves: &[H::Hash],
 ) -> H::Hash {
@@ -319,11 +338,6 @@ pub fn extend_subtree_with_leaves<H: Hasher>(
         .for_each(|(val, leaf)| {
             *val = *leaf;
         });
-
-    // For empty values to the right of the newly set leaves
-    // we can propogate the sparse column up the tree
-    // in O(log(n)) hashes
-    sparse_fill_partial_subtree::<H>(storage, sparse_column, start + leaves.len()..width);
 
     // For newly set leaves we can propogate the hashes up the tree
     // in O(n) hashes
