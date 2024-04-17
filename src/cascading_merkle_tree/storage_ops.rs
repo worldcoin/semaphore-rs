@@ -100,7 +100,7 @@ where
         leaf_counter[0] += amount;
     }
 
-    /// Propogates new hashes up the top of the subtree.
+    /// Propagates new hashes up the top of the subtree.
     fn propagate_up(&mut self, mut index: usize) -> Option<()> {
         loop {
             let (left, right) = match sibling(index) {
@@ -292,13 +292,13 @@ pub fn init_subtree_with_leaves<H: Hasher>(
         });
 
     // For empty values to the right of the newly set leaves
-    // we can propogate the sparse column up the tree
+    // we can prapogate the sparse column up the tree
     // in O(log(n)) hashes
     sparse_fill_partial_subtree::<H>(storage, sparse_column, leaves.len()..width);
 
-    // For newly set leaves we can propogate the hashes up the tree
+    // For newly set leaves we can prapogate the hashes up the tree
     // in O(n) hashes
-    propogate_partial_subtree::<H>(storage, 0..leaves.len());
+    propagate_partial_subtree::<H>(storage, 0..leaves.len());
 
     storage[1]
 }
@@ -339,14 +339,14 @@ pub fn extend_subtree_with_leaves<H: Hasher>(
             *val = *leaf;
         });
 
-    // For newly set leaves we can propogate the hashes up the tree
+    // For newly set leaves we can propagate the hashes up the tree
     // in O(n) hashes
-    propogate_partial_subtree::<H>(storage, start..start + leaves.len());
+    propagate_partial_subtree::<H>(storage, start..start + leaves.len());
 
     storage[1]
 }
 
-/// Propogate hashes up a subtree with leaves within a given range.
+/// Propagate hashes up a subtree with leaves within a given range.
 ///
 /// O(n) time complexity
 ///
@@ -365,7 +365,7 @@ pub fn extend_subtree_with_leaves<H: Hasher>(
 ///   2     5   [  10    11 ]
 /// 1  3  6  7  [12 13 14 15]
 ///  ```
-pub fn propogate_partial_subtree<H: Hasher>(
+pub fn propagate_partial_subtree<H: Hasher>(
     storage: &mut [H::Hash],
     mut range: Range<usize>,
 ) -> H::Hash {
@@ -395,7 +395,7 @@ pub fn propogate_partial_subtree<H: Hasher>(
     storage[1]
 }
 
-/// Propogates empty hashes up the tree within a given range.
+/// Propagates empty hashes up the tree within a given range.
 ///
 /// O(log(n)) time complexity
 ///
