@@ -430,6 +430,7 @@ where
 
         // Update the number of leaves in the tree.
         self.storage.set_num_leaves(total_leaves);
+        self.recompute_root();
     }
 }
 
@@ -930,7 +931,7 @@ mod tests {
 
     #[test]
     fn test_extend_from_slice() -> color_eyre::Result<()> {
-        let leaves = (0..1 << 5).into_iter().map(Field::from).collect::<Vec<_>>();
+        let leaves = (0..1 << 5).map(Field::from).collect::<Vec<_>>();
 
         // Create expected tree
         let expected_tree =
