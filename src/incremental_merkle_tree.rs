@@ -74,7 +74,7 @@ where
     ///
     /// Performs the calculation up the tree but also recalculates every right
     /// branch of tree recursively this way if a number of new leaves were
-    /// added at once we
+    /// added at once we recalculate all the updated tree paths
     fn recalculate_storage(&mut self, mut current: usize) {
         // We must propagate the new leaf up the tree while
         // also recalculating every right we encounter
