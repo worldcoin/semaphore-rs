@@ -371,6 +371,7 @@ pub fn propogate_partial_subtree<H: Hasher>(
             .par_iter_mut()
             .enumerate()
             .for_each(|(i, value)| {
+                let i = i + range.start;
                 let left = &child_layer[2 * i];
                 let right = &child_layer[2 * i + 1];
                 *value = H::hash_node(left, right);

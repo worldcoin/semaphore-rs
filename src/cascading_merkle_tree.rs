@@ -926,74 +926,18 @@ mod tests {
     }
 
     #[test]
-    fn test_extend_one_from_slice() {
-        let mut tree = CascadingMerkleTree::<TestHasher>::new(vec![], 10, &1);
-        debug_tree(&tree);
-        tree.validate().unwrap();
-
-        tree.extend_from_slice(&[]);
-        debug_tree(&tree);
-        tree.validate().unwrap();
-        let expected: Vec<usize> = vec![];
-        assert_eq!(tree.leaves().collect::<Vec<usize>>(), expected);
-
-        tree.extend_from_slice(&[2]);
-        debug_tree(&tree);
-        tree.validate().unwrap();
-        assert_eq!(tree.leaves().collect::<Vec<usize>>(), vec![2]);
-
-        tree.extend_from_slice(&[2]);
-        debug_tree(&tree);
-        tree.validate().unwrap();
-        assert_eq!(tree.leaves().collect::<Vec<usize>>(), vec![2, 2]);
-
-        tree.extend_from_slice(&[2]);
-        debug_tree(&tree);
-        tree.validate().unwrap();
-        assert_eq!(tree.leaves().collect::<Vec<usize>>(), vec![2, 2, 2]);
-
-        tree.extend_from_slice(&[2]);
-        debug_tree(&tree);
-        tree.validate().unwrap();
-        assert_eq!(tree.leaves().collect::<Vec<usize>>(), vec![2, 2, 2, 2]);
-
-        tree.extend_from_slice(&[2]);
-        debug_tree(&tree);
-        tree.validate().unwrap();
-        assert_eq!(tree.leaves().collect::<Vec<usize>>(), vec![2, 2, 2, 2, 2]);
-    }
-
-    #[test]
     fn test_extend_from_slice() {
-        let mut tree = CascadingMerkleTree::<TestHasher>::new(vec![], 10, &1);
-        debug_tree(&tree);
-        tree.validate().unwrap();
-
-        tree.extend_from_slice(&[2, 2, 2]);
-        debug_tree(&tree);
-        tree.validate().unwrap();
-        assert_eq!(tree.leaves().collect::<Vec<usize>>(), vec![2, 2, 2]);
-
-        tree.extend_from_slice(&[2, 2, 2]);
-        debug_tree(&tree);
-        tree.validate().unwrap();
-        assert_eq!(tree.leaves().collect::<Vec<usize>>(), vec![
-            2, 2, 2, 2, 2, 2
-        ]);
-
-        tree.extend_from_slice(&[2, 2, 2]);
-        debug_tree(&tree);
-        tree.validate().unwrap();
-        assert_eq!(tree.leaves().collect::<Vec<usize>>(), vec![
-            2, 2, 2, 2, 2, 2, 2, 2, 2
-        ]);
-
-        tree.extend_from_slice(&[2, 2, 2]);
-        debug_tree(&tree);
-        tree.validate().unwrap();
-        assert_eq!(tree.leaves().collect::<Vec<usize>>(), vec![
-            2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2
-        ]);
+        for increment in 1..20 {
+            let mut tree = CascadingMerkleTree::<TestHasher>::new(vec![], 30, &1);
+            let mut vec = vec![];
+            for _ in 0..20 {
+                tree.extend_from_slice(&vec![2; increment]);
+                vec.extend_from_slice(&vec![2; increment]);
+                debug_tree(&tree);
+                tree.validate().unwrap();
+                assert_eq!(tree.leaves().collect::<Vec<usize>>(), vec);
+            }
+        }
     }
 
     #[test]
