@@ -1,6 +1,9 @@
 use color_eyre::eyre::{bail, ensure, Result};
 
-use crate::merkle_tree::{Branch, Hasher, Proof};
+use crate::{
+    cascading_merkle_tree::storage_ops::sparse_fill_partial_subtree,
+    merkle_tree::{Branch, Hasher, Proof},
+};
 
 mod storage_ops;
 
@@ -164,16 +167,16 @@ where
 
     pub fn push(&mut self, leaf: H::Hash) -> Result<()> {
         let index = storage_ops::index_from_leaf(self.num_leaves());
+        let storage_len = self.storage.len();
 
         // If the index is out of bounds, we need to reallocate the storage
         // we must always have 2^n leaves for any n
-        if index >= self.storage.len() {
-            let next_power_of_two = (self.storage.len() + 1).next_power_of_two();
-            let diff = next_power_of_two - self.storage.len();
-
-            for _ in 0..diff {
-                self.storage.push(self.empty_value);
-            }
+        if index >= storage_len {
+            debug_assert!(storage_len.is_power_of_two());
+            self.storage
+                .extend(std::iter::repeat(self.empty_value).take(storage_len));
+            let subtree = &mut self.storage[storage_len..(storage_len << 1)];
+            sparse_fill_partial_subtree::<H>(subtree, &self.sparse_column, 0..(storage_len >> 1));
         }
 
         self.storage[index] = leaf;
@@ -186,7 +189,8 @@ where
 
     /// Returns the Merkle proof for the given leaf.
     ///
-    /// TODO: Currently the branch which connects the storage tip to the root
+    /// # TODO:
+    /// Currently the branch which connects the storage tip to the root
     /// is not stored persistenetly. Repeated requests for proofs in between
     /// tree updates result in recomputing the same hashes when this could be
     /// avoided.
@@ -916,20 +920,6 @@ mod tests {
     }
 
     #[test]
-    fn test_push() {
-        let num_leaves = 1 << 3;
-        let leaves = vec![1; num_leaves];
-        let empty = 0;
-        let mut tree =
-            CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 22, &empty, &leaves);
-        debug_tree(&tree);
-        tree.validate().unwrap();
-        tree.push(3).unwrap();
-        debug_tree(&tree);
-        tree.validate().unwrap();
-    }
-
-    #[test]
     fn test_extend_from_slice_poseidon() -> color_eyre::Result<()> {
         let leaves = (0..1 << 5).map(Field::from).collect::<Vec<_>>();
 
@@ -947,6 +937,19 @@ mod tests {
 
         assert_eq!(tree.root(), expected_tree.root());
         Ok(())
+    }
+
+    #[test]
+    fn test_push() {
+        let mut tree = CascadingMerkleTree::<TestHasher>::new(vec![], 30, &1);
+        let mut vec = vec![];
+        for _ in 0..300 {
+            tree.push(2).unwrap();
+            vec.push(2);
+            debug_tree(&tree);
+            tree.validate().unwrap();
+            assert_eq!(tree.leaves().collect::<Vec<usize>>(), vec);
+        }
     }
 
     #[test]

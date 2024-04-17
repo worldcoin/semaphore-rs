@@ -277,14 +277,14 @@ pub fn children(i: usize) -> Option<(usize, usize)> {
 /// 1  3  6  7  [12 13 14 15]
 ///  ```
 pub fn init_subtree_with_leaves<H: Hasher>(
-    storage: &mut [H::Hash],
+    subtree: &mut [H::Hash],
     sparse_column: &[H::Hash],
     leaves: &[H::Hash],
 ) -> H::Hash {
-    let (_depth, width) = subtree_depth_width(storage);
+    let (_depth, width) = subtree_depth_width(subtree);
 
     // Set the leaves
-    storage[(width)..(width + leaves.len())]
+    subtree[(width)..(width + leaves.len())]
         .par_iter_mut()
         .zip(leaves.par_iter())
         .for_each(|(val, leaf)| {
@@ -294,13 +294,13 @@ pub fn init_subtree_with_leaves<H: Hasher>(
     // For empty values to the right of the newly set leaves
     // we can prapogate the sparse column up the tree
     // in O(log(n)) hashes
-    sparse_fill_partial_subtree::<H>(storage, sparse_column, leaves.len()..width);
+    sparse_fill_partial_subtree::<H>(subtree, sparse_column, leaves.len()..width);
 
     // For newly set leaves we can prapogate the hashes up the tree
     // in O(n) hashes
-    propagate_partial_subtree::<H>(storage, 0..leaves.len());
+    propagate_partial_subtree::<H>(subtree, 0..leaves.len());
 
-    storage[1]
+    subtree[1]
 }
 
 /// Extend leaves onto a preexisting subtree. This method assumes that the
@@ -325,14 +325,14 @@ pub fn init_subtree_with_leaves<H: Hasher>(
 /// 1  3  6  7  [12 13 14 15]
 ///  ```
 pub fn extend_subtree_with_leaves<H: Hasher>(
-    storage: &mut [H::Hash],
+    subtree: &mut [H::Hash],
     start: usize,
     leaves: &[H::Hash],
 ) -> H::Hash {
-    let (_depth, width) = subtree_depth_width(storage);
+    let (_depth, width) = subtree_depth_width(subtree);
 
     // Set the leaves
-    storage[(width + start)..(width + start + leaves.len())]
+    subtree[(width + start)..(width + start + leaves.len())]
         .par_iter_mut()
         .zip(leaves.par_iter())
         .for_each(|(val, leaf)| {
@@ -341,9 +341,9 @@ pub fn extend_subtree_with_leaves<H: Hasher>(
 
     // For newly set leaves we can propagate the hashes up the tree
     // in O(n) hashes
-    propagate_partial_subtree::<H>(storage, start..start + leaves.len());
+    propagate_partial_subtree::<H>(subtree, start..start + leaves.len());
 
-    storage[1]
+    subtree[1]
 }
 
 /// Propagate hashes up a subtree with leaves within a given range.
@@ -366,15 +366,15 @@ pub fn extend_subtree_with_leaves<H: Hasher>(
 /// 1  3  6  7  [12 13 14 15]
 ///  ```
 pub fn propagate_partial_subtree<H: Hasher>(
-    storage: &mut [H::Hash],
+    subtree: &mut [H::Hash],
     mut range: Range<usize>,
 ) -> H::Hash {
-    let depth = subtree_depth(storage);
+    let depth = subtree_depth(subtree);
 
     // Iterate over mutable layers of the tree
     for current_depth in (1..=depth).rev() {
         // Split the subtree into relavent layers
-        let (top, child_layer) = storage.split_at_mut(1 << current_depth);
+        let (top, child_layer) = subtree.split_at_mut(1 << current_depth);
         let parent_layer = &mut top[(1 << (current_depth - 1))..];
 
         // Update the range to match the new parent layer
@@ -392,7 +392,7 @@ pub fn propagate_partial_subtree<H: Hasher>(
             });
     }
 
-    storage[1]
+    subtree[1]
 }
 
 /// Propagates empty hashes up the tree within a given range.
@@ -416,16 +416,16 @@ pub fn propagate_partial_subtree<H: Hasher>(
 /// 1  3  6  7  [12 13 14 15]
 ///  ```
 pub fn sparse_fill_partial_subtree<H: Hasher>(
-    storage: &mut [H::Hash],
+    subtree: &mut [H::Hash],
     sparse_column: &[H::Hash],
     mut range: Range<usize>,
 ) -> H::Hash {
-    let depth = subtree_depth(storage);
+    let depth = subtree_depth(subtree);
 
     // Iterate over mutable layers of the tree
     for current_depth in (1..=depth).rev() {
         // Split the subtree into relavent layers
-        let (top, _child_layer) = storage.split_at_mut(1 << current_depth);
+        let (top, _child_layer) = subtree.split_at_mut(1 << current_depth);
         let parent_layer = &mut top[(1 << (current_depth - 1))..];
 
         // Update the range to match the new parent layer
@@ -437,7 +437,7 @@ pub fn sparse_fill_partial_subtree<H: Hasher>(
         });
     }
 
-    storage[1]
+    subtree[1]
 }
 
 fn row_indices(height: usize) -> impl Iterator<Item = usize> + Send {
