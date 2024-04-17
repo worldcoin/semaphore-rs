@@ -52,3 +52,4 @@ let success = verify_proof(root, nullifier_hash, signal_hash, external_nullifier
 
 assert!(success);
 ```
+
