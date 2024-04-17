@@ -930,7 +930,7 @@ mod tests {
     }
 
     #[test]
-    fn test_extend_from_slice() -> color_eyre::Result<()> {
+    fn test_extend_from_slice_poseidon() -> color_eyre::Result<()> {
         let leaves = (0..1 << 5).map(Field::from).collect::<Vec<_>>();
 
         // Create expected tree
@@ -947,6 +947,21 @@ mod tests {
 
         assert_eq!(tree.root(), expected_tree.root());
         Ok(())
+    }
+
+    #[test]
+    fn test_extend_from_slice() {
+        for increment in 1..20 {
+            let mut tree = CascadingMerkleTree::<TestHasher>::new(vec![], 30, &1);
+            let mut vec = vec![];
+            for _ in 0..20 {
+                tree.extend_from_slice(&vec![2; increment]);
+                vec.extend_from_slice(&vec![2; increment]);
+                debug_tree(&tree);
+                tree.validate().unwrap();
+                assert_eq!(tree.leaves().collect::<Vec<usize>>(), vec);
+            }
+        }
     }
 
     #[test]
