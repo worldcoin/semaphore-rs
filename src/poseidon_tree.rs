@@ -11,7 +11,7 @@ pub type PoseidonTree = MerkleTree<PoseidonHash>;
 #[allow(clippy::module_name_repetitions)]
 pub type LazyPoseidonTree = LazyMerkleTree<PoseidonHash>;
 #[allow(dead_code)]
-pub type Branch = merkle_tree::Branch<PoseidonHash>;
+pub type Branch = merkle_tree::Branch<<PoseidonHash as Hasher>::Hash>;
 #[allow(dead_code)]
 pub type Proof = merkle_tree::Proof<PoseidonHash>;
 
