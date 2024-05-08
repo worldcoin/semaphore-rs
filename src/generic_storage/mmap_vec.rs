@@ -20,7 +20,7 @@ pub struct MmapVec<T> {
 }
 
 // Public API
-impl<T> MmapVec<T> {
+impl<T: Pod> MmapVec<T> {
     /// # Safety
     /// Same requirements as `new` method
     pub unsafe fn open_create(file_path: impl AsRef<Path>) -> color_eyre::Result<Self> {
@@ -109,34 +109,27 @@ impl<T> MmapVec<T> {
     pub fn push(&mut self, v: T) {
         let len = self.storage_len();
         let capacity = self.capacity;
+        let new_len = len + 1;
 
-        if len == capacity {
-            if capacity == 0 {
-                self.resize(1);
-            } else {
-                self.resize(capacity * 2);
-            }
+        if new_len > capacity {
+            self.resize(new_len.next_power_of_two());
         }
 
-        let offset = META_SIZE + len * std::mem::size_of::<T>();
+        self.capacity_slice_mut()[len] = v;
+        self.set_storage_len(new_len);
+    }
 
-        // # Safety
-        // In order for this operation to be safe we must ensure the following:
-        // 1. Memory pointed to is valid for writes
-        // 2. Memory is properly aligned
-        //
-        // The memory is valid for writes since we've created the memory map and we're
-        // ensuring we're always writing below capacity (which is derived from
-        // file size). There exists no aliased access to this memory so long as
-        // safety requirements of constructing this type are upheld.
-        // Memory is properly aligned since we always write at offsets equal to size of
-        // T
-        unsafe {
-            let typed_ptr = self.mmap.as_mut().unwrap().as_mut_ptr().add(offset) as *mut T;
-            std::ptr::write(typed_ptr, v);
+    pub fn extend_from_slice(&mut self, slice: &[T]) {
+        let len = self.storage_len();
+        let capacity = self.capacity;
+        let new_len = len + slice.len();
+
+        if new_len >= capacity {
+            self.resize(new_len.next_power_of_two());
         }
 
-        self.set_storage_len(len + 1);
+        self.capacity_slice_mut()[len..(new_len)].copy_from_slice(slice);
+        self.set_storage_len(new_len);
     }
 
     pub fn resize(&mut self, new_capacity: usize) {
@@ -172,26 +165,32 @@ impl<T> MmapVec<T> {
     }
 
     fn set_storage_len(&mut self, new_len: usize) {
-        // # Safety
-        // We're ensuring that the file created is always at least
-        // std::mem::size_of::<usize> bytes long Therefore dst is valid for
-        // writing
-        //
-        // Memory is also aligned since it always starts at the beginning of the file
-        unsafe {
-            std::ptr::write(
-                self.mmap.as_mut().unwrap().as_mut_ptr() as *mut usize,
-                new_len,
-            );
-        }
+        let slice: &mut [usize] =
+            bytemuck::cast_slice_mut(&mut self.mmap.as_mut().unwrap()[..META_SIZE]);
+        slice[0] = new_len;
     }
 
     fn storage_len(&self) -> usize {
-        // # Safety
-        // We ensure that the memory pointed to here is valid for reading and properly
-        // aligned additionally `usize` is valid for all bit patterns
-        // therefore this operation is safe.
-        unsafe { *(self.mmap.as_ref().unwrap().as_ptr() as *const usize) }
+        bytemuck::cast_slice(&self.mmap.as_ref().unwrap()[..META_SIZE])[0]
+    }
+
+    fn capacity_slice(&self) -> &[T] {
+        bytemuck::cast_slice(&self.mmap.as_ref().unwrap().as_slice()[META_SIZE..])
+    }
+
+    fn capacity_slice_mut(&mut self) -> &mut [T] {
+        bytemuck::cast_slice_mut(&mut self.mmap.as_mut().unwrap().as_mut_slice()[META_SIZE..])
+    }
+}
+
+impl<T> Extend<T> for MmapVec<T>
+where
+    T: Pod,
+{
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        for item in iter {
+            self.push(item);
+        }
     }
 }
 
@@ -202,11 +201,7 @@ where
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
-        let byte_slice_len = self.storage_len() * std::mem::size_of::<T>();
-
-        bytemuck::cast_slice(
-            &self.mmap.as_ref().unwrap().as_slice()[META_SIZE..META_SIZE + byte_slice_len],
-        )
+        &self.capacity_slice()[..self.storage_len()]
     }
 }
 
@@ -215,11 +210,8 @@ where
     T: Pod,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        let byte_slice_len = self.storage_len() * std::mem::size_of::<T>();
-
-        bytemuck::cast_slice_mut(
-            &mut self.mmap.as_mut().unwrap().as_mut_slice()[META_SIZE..META_SIZE + byte_slice_len],
-        )
+        let len = self.storage_len();
+        &mut self.capacity_slice_mut()[..len]
     }
 }
 
@@ -239,6 +231,7 @@ where
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[test]
