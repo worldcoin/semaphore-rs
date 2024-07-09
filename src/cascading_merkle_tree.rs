@@ -1,6 +1,9 @@
 use color_eyre::eyre::{bail, ensure, Result};
 
-use crate::merkle_tree::{Branch, Hasher, Proof};
+use crate::{
+    cascading_merkle_tree::storage_ops::sparse_fill_partial_subtree,
+    merkle_tree::{Branch, Hasher, Proof},
+};
 
 mod storage_ops;
 
@@ -110,9 +113,9 @@ where
         leaves: &[H::Hash],
     ) -> CascadingMerkleTree<H, S> {
         assert!(depth > 0, "Tree depth must be greater than 0");
-        storage.populate_with_leaves(empty_value, leaves);
 
         let sparse_column = Self::sparse_column(depth, empty_value);
+        storage.populate_with_leaves(&sparse_column, empty_value, leaves);
 
         let mut tree = CascadingMerkleTree {
             depth,
@@ -164,27 +167,33 @@ where
 
     pub fn push(&mut self, leaf: H::Hash) -> Result<()> {
         let index = storage_ops::index_from_leaf(self.num_leaves());
+        let storage_len = self.storage.len();
 
         // If the index is out of bounds, we need to reallocate the storage
         // we must always have 2^n leaves for any n
-        if index >= self.storage.len() {
-            let next_power_of_two = (self.storage.len() + 1).next_power_of_two();
-            let diff = next_power_of_two - self.storage.len();
-
-            for _ in 0..diff {
-                self.storage.push(self.empty_value);
-            }
+        if index >= storage_len {
+            debug_assert!(storage_len.is_power_of_two());
+            self.storage
+                .extend(std::iter::repeat(self.empty_value).take(storage_len));
+            let subtree = &mut self.storage[storage_len..(storage_len << 1)];
+            sparse_fill_partial_subtree::<H>(subtree, &self.sparse_column, 0..(storage_len >> 1));
         }
 
         self.storage[index] = leaf;
-
         self.storage.increment_num_leaves(1);
         self.storage.propagate_up(index);
         self.recompute_root();
+
         Ok(())
     }
 
     /// Returns the Merkle proof for the given leaf.
+    ///
+    /// # TODO:
+    /// Currently the branch which connects the storage tip to the root
+    /// is not stored persistenetly. Repeated requests for proofs in between
+    /// tree updates result in recomputing the same hashes when this could be
+    /// avoided.
     ///
     /// # Panics
     ///
@@ -294,7 +303,7 @@ where
     }
 
     /// Returns the `sparse_column` for the given depth and empty_value.
-    /// This columns represents empy values sequentially hashed together up to
+    /// This columns represents empty values sequentially hashed together up to
     /// the top of the tree.
     /// Index 0 represents the bottom layer of the tree.
     #[must_use]
@@ -334,47 +343,99 @@ where
         self.storage.validate(&self.empty_value)
     }
 
-    // pub fn extend_from_slice(&mut self, leaves: &[H::Hash]) {
-    //     let mut storage_len = self.storage.len();
-    //     let leaf_capacity = storage_len >> 1;
-    //     if self.num_leaves + leaves.len() > leaf_capacity {
-    //         self.reallocate();
-    //         storage_len = self.storage.len();
-    //     }
-    //
-    //     let base_len = storage_len >> 1;
-    //     let depth = base_len.ilog2();
-    //
-    //     let mut parents = vec![];
-    //     leaves.par_iter().enumerate().for_each(|(i, &val)| {
-    //         let leaf_index = self.num_leaves + i;
-    //         let index = index_from_leaf(leaf_index);
-    //         self.storage[index] = val;
-    //         parents.push(index);
-    //     });
+    /// Extends the tree with the given leaves in parallel.
+    ///
+    /// ```markdown
+    /// subtree_power = ilog2(8) = 3
+    ///
+    ///           8    (subtree)
+    ///      4      [     9     ]
+    ///   2     5   [  10    11 ]
+    /// 1  3  6  7  [12 13 14 15]
+    ///  ```
+    pub fn extend_from_slice(&mut self, leaves: &[H::Hash]) {
+        if leaves.is_empty() {
+            return;
+        }
+        let num_new_leaves = leaves.len();
+        let storage_len = self.storage.len();
+        let current_leaves = self.num_leaves();
+        let total_leaves = current_leaves + num_new_leaves;
+        let new_last_leaf_index = storage_ops::index_from_leaf(total_leaves - 1);
 
-    // leaves.iter().enumerate().for_each(|(i, &val)| {
-    //     storage[base_len + i] = val;
-    // });
-    //
-    // // We iterate over mutable layers of the tree
-    // for current_depth in (1..=depth).rev() {
-    //     let (top, child_layer) = storage.split_at_mut(1 <<
-    // current_depth);     let parent_layer = &mut top[(1 <<
-    // (current_depth - 1))..];
-    //
-    //     parent_layer
-    //         .par_iter_mut()
-    //         .enumerate()
-    //         .for_each(|(i, value)| {
-    //             let left = &child_layer[2 * i];
-    //             let right = &child_layer[2 * i + 1];
-    //             *value = H::hash_node(left, right);
-    //         });
-    // }
-    //
-    // storage[1]
-    // }
+        // If the index is out of bounds, we need to resize the storage
+        // we must always have 2^n leaves for any n
+        if new_last_leaf_index >= storage_len {
+            let next_power_of_two = new_last_leaf_index.next_power_of_two();
+            let diff = next_power_of_two - storage_len;
+
+            self.storage
+                .extend(std::iter::repeat(self.empty_value).take(diff));
+        }
+
+        // Represense the power of the first subtree that has been modified
+        let first_subtree_power = ((current_leaves + 1).next_power_of_two()).ilog2();
+        // Represense the power of the last subtree that has been modified
+        let last_subtree_power = ((total_leaves).next_power_of_two()).ilog2();
+
+        let mut remaining_leaves = leaves;
+
+        // We iterate over subsequently larger subtrees which have been
+        // modified by the new leaves.
+        for subtree_power in first_subtree_power..=last_subtree_power {
+            // We have a special case for subtree_power = 0
+            // because the subtree is completely empty.
+            // This represents the very borrow left of the tree.
+            // parent_index represents the index of the parent node of the subtree.
+            // It is the power of two on the left most branch of the tree.
+            let parent_index = if subtree_power == 0 {
+                let (leaf_slice, remaining) = remaining_leaves.split_at(1);
+                remaining_leaves = remaining;
+                self.storage[1] = leaf_slice[0];
+                continue;
+            } else {
+                1 << subtree_power
+            };
+
+            // The slice of the storage that contains the subtree
+            let subtree_slice = &mut self.storage[parent_index..(parent_index << 1)];
+            let (_depth, width) = storage_ops::subtree_depth_width(subtree_slice);
+
+            // leaf_start represents the leaf index of the subtree where we should begin
+            // inserting the new leaves.
+            let leaf_start = if subtree_power == first_subtree_power {
+                current_leaves - ((current_leaves + 1).next_power_of_two() >> 1)
+            } else {
+                0
+            };
+
+            // The number of leaves to be inserted into this subtree.
+            let leaves_to_take = (width - leaf_start).min(remaining_leaves.len());
+            let (leaf_slice, remaining) = remaining_leaves.split_at(leaves_to_take);
+            remaining_leaves = remaining;
+
+            // Extend the subtree with the new leaves beginning at leaf_start
+            let root = if leaf_start == 0 {
+                storage_ops::init_subtree_with_leaves::<H>(
+                    subtree_slice,
+                    &self.sparse_column,
+                    leaf_slice,
+                )
+            } else {
+                storage_ops::extend_subtree_with_leaves::<H>(subtree_slice, leaf_start, leaf_slice)
+            };
+
+            // sibling_hash represents the hash of the sibling of the tip of this subtree.
+            let sibling_hash = self.storage[1 << (subtree_power - 1)];
+
+            // Update the parent node of the tip of this subtree.
+            self.storage[parent_index] = H::hash_node(&sibling_hash, &root);
+        }
+
+        // Update the number of leaves in the tree.
+        self.storage.set_num_leaves(total_leaves);
+        self.recompute_root();
+    }
 }
 
 #[cfg(test)]
@@ -391,7 +452,7 @@ mod tests {
     };
 
     #[derive(Debug, Clone, PartialEq, Eq)]
-    struct TestHasher;
+    pub struct TestHasher;
     impl Hasher for TestHasher {
         type Hash = usize;
 
@@ -400,27 +461,32 @@ mod tests {
         }
     }
 
-    fn debug_tree<H, S>(tree: &CascadingMerkleTree<H, S>)
+    pub fn debug_tree<H, S>(tree: &CascadingMerkleTree<H, S>)
     where
         H: Hasher + std::fmt::Debug,
         S: GenericStorage<H::Hash> + std::fmt::Debug,
     {
         println!("{tree:?}");
-        let storage_depth = tree.storage.len().ilog2();
-        let storage_len = tree.storage.len();
+        debug_storage::<H, S>(&tree.storage);
+    }
+
+    pub fn debug_storage<H, S>(storage: &S)
+    where
+        H: Hasher + std::fmt::Debug,
+        S: std::ops::Deref<Target = [<H as Hasher>::Hash]> + std::fmt::Debug,
+    {
+        let storage_depth = storage.len().ilog2();
+        let storage_len = storage.len();
         let root_index = storage_len >> 1;
         let mut previous = vec![root_index];
-        println!("{:?}", vec![tree.storage[root_index]]);
+        println!("{:?}", vec![storage[root_index]]);
         for _ in 1..storage_depth {
             let next = previous
                 .iter()
                 .flat_map(|&i| storage_ops::children(i))
                 .collect::<Vec<_>>();
             previous = next.iter().flat_map(|&(l, r)| [l, r]).collect();
-            let row = previous
-                .iter()
-                .map(|&i| tree.storage[i])
-                .collect::<Vec<_>>();
+            let row = previous.iter().map(|&i| storage[i]).collect::<Vec<_>>();
             println!("{row:?}");
         }
     }
@@ -825,17 +891,80 @@ mod tests {
     }
 
     #[test]
+    fn test_leaves() {
+        let mut tree = CascadingMerkleTree::<TestHasher>::new(vec![], 22, &0);
+        debug_tree(&tree);
+        tree.validate().unwrap();
+        let expected: Vec<usize> = vec![];
+        assert_eq!(tree.leaves().collect::<Vec<_>>(), expected);
+
+        tree.push(1).unwrap();
+        debug_tree(&tree);
+        tree.validate().unwrap();
+        assert_eq!(tree.leaves().collect::<Vec<_>>(), vec![1]);
+
+        tree.push(1).unwrap();
+        debug_tree(&tree);
+        tree.validate().unwrap();
+        assert_eq!(tree.leaves().collect::<Vec<_>>(), vec![1, 1]);
+
+        tree.push(1).unwrap();
+        debug_tree(&tree);
+        tree.validate().unwrap();
+        assert_eq!(tree.leaves().collect::<Vec<_>>(), vec![1, 1, 1]);
+
+        tree.push(1).unwrap();
+        debug_tree(&tree);
+        tree.validate().unwrap();
+        assert_eq!(tree.leaves().collect::<Vec<_>>(), vec![1, 1, 1, 1]);
+    }
+
+    #[test]
+    fn test_extend_from_slice_poseidon() -> color_eyre::Result<()> {
+        let leaves = (0..1 << 5).map(Field::from).collect::<Vec<_>>();
+
+        // Create expected tree
+        let expected_tree =
+            CascadingMerkleTree::<PoseidonHash>::new_with_leaves(vec![], 10, &Field::ZERO, &leaves);
+
+        let mut tree = CascadingMerkleTree::<PoseidonHash>::new(vec![], 10, &Field::ZERO);
+        tree.extend_from_slice(&leaves);
+
+        assert_eq!(
+            tree.leaves().collect::<Vec<Field>>(),
+            expected_tree.leaves().collect::<Vec<Field>>()
+        );
+
+        assert_eq!(tree.root(), expected_tree.root());
+        Ok(())
+    }
+
+    #[test]
     fn test_push() {
-        let num_leaves = 1 << 3;
-        let leaves = vec![1; num_leaves];
-        let empty = 0;
-        let mut tree =
-            CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 22, &empty, &leaves);
-        debug_tree(&tree);
-        tree.validate().unwrap();
-        tree.push(3).unwrap();
-        debug_tree(&tree);
-        tree.validate().unwrap();
+        let mut tree = CascadingMerkleTree::<TestHasher>::new(vec![], 30, &1);
+        let mut vec = vec![];
+        for _ in 0..300 {
+            tree.push(2).unwrap();
+            vec.push(2);
+            debug_tree(&tree);
+            tree.validate().unwrap();
+            assert_eq!(tree.leaves().collect::<Vec<usize>>(), vec);
+        }
+    }
+
+    #[test]
+    fn test_extend_from_slice() {
+        for increment in 1..20 {
+            let mut tree = CascadingMerkleTree::<TestHasher>::new(vec![], 30, &1);
+            let mut vec = vec![];
+            for _ in 0..20 {
+                tree.extend_from_slice(&vec![2; increment]);
+                vec.extend_from_slice(&vec![2; increment]);
+                debug_tree(&tree);
+                tree.validate().unwrap();
+                assert_eq!(tree.leaves().collect::<Vec<usize>>(), vec);
+            }
+        }
     }
 
     #[test]
