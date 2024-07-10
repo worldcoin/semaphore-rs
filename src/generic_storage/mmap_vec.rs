@@ -5,7 +5,7 @@ use std::{
 };
 
 use bytemuck::Pod;
-use color_eyre::eyre::{bail, Context};
+use color_eyre::eyre::{ensure, Context};
 use mmap_rs::{MmapFlags, MmapMut, MmapOptions};
 
 const META_SIZE: usize = std::mem::size_of::<usize>();
@@ -78,11 +78,9 @@ impl<T: Pod> MmapVec<T> {
     /// Notably this means that there can exist no other mutable mappings to the
     /// same file in this process or any other
     pub unsafe fn restore(file: File) -> color_eyre::Result<Self> {
-        if std::mem::size_of::<T>() == 0 {
-            bail!("Zero-sized types are not supported");
-        }
+        const { assert!(std::mem::size_of::<T>() != 0) };
 
-        let mut byte_len = file.metadata().expect("cannot get file metadata").len() as usize;
+        let mut byte_len = file.metadata()?.len() as usize;
 
         if byte_len < META_SIZE {
             file.set_len(META_SIZE as u64)
@@ -91,7 +89,10 @@ impl<T: Pod> MmapVec<T> {
             byte_len = META_SIZE;
         }
 
-        let capacity = byte_len.saturating_sub(META_SIZE) / std::mem::size_of::<T>();
+        let data_len = byte_len.saturating_sub(META_SIZE);
+        ensure!(data_len % std::mem::size_of::<T>() == 0);
+
+        let capacity = data_len / std::mem::size_of::<T>();
 
         let mmap = MmapOptions::new(byte_len)?
             .with_file(&file, 0)
@@ -280,12 +281,5 @@ mod tests {
         assert_eq!(restored[1], 2);
         assert_eq!(restored[2], 42);
         assert_eq!(restored[3], 4);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_mmap_vec_zst() {
-        let f = tempfile::tempfile().unwrap();
-        let _storage: MmapVec<()> = unsafe { MmapVec::create(f.try_clone().unwrap()).unwrap() };
     }
 }
