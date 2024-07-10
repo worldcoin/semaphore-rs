@@ -55,9 +55,6 @@ mod test {
         signal: &[u8],
         depth: usize,
     ) {
-        // const LEAF: Hash = Hash::from_bytes_be(hex!(
-        //     "0000000000000000000000000000000000000000000000000000000000000000"
-        // ));
         let leaf = Field::from(0);
 
         // generate identity
