@@ -5,7 +5,7 @@ use std::{
 };
 
 use bytemuck::Pod;
-use color_eyre::eyre::bail;
+use color_eyre::eyre::{bail, Context};
 use mmap_rs::{MmapFlags, MmapMut, MmapOptions};
 
 const META_SIZE: usize = std::mem::size_of::<usize>();
@@ -21,55 +21,63 @@ pub struct MmapVec<T> {
 
 // Public API
 impl<T: Pod> MmapVec<T> {
+    /// Creates a new MmapVec from a file path.
+    /// Any existing data in the file will be truncated.
+    ///
     /// # Safety
-    /// Same requirements as `new` method
-    pub unsafe fn open_create(file_path: impl AsRef<Path>) -> color_eyre::Result<Self> {
-        let file = match OpenOptions::new()
+    /// Same requirements as `create`
+    pub unsafe fn create_from_path(file_path: impl AsRef<Path>) -> color_eyre::Result<Self> {
+        let file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
             .truncate(true)
-            .open(file_path)
-        {
-            Ok(file) => file,
-            Err(_e) => bail!("File creation failed"),
-        };
+            .open(file_path)?;
 
         Self::create(file)
     }
 
+    /// Creates a new MmapVec from a file.
+    /// Any existing data in the file will be truncated.
+    ///
     /// # Safety
-    /// Same requirements as `new` method
+    /// This method requires that the safety requirements of [`mmap_rs::MmapOptions::with_file`](https://docs.rs/mmap-rs/0.6.1/mmap_rs/struct.MmapOptions.html#method.with_file) are upheld.
+    ///
+    /// Notably this means that there can exist no other mutable mappings to the
+    /// same file in this process or any other
     pub unsafe fn create(file: File) -> color_eyre::Result<Self> {
         let initial_byte_len = META_SIZE;
 
         file.set_len(initial_byte_len as u64)
-            .expect("Failed to resize underlying file");
+            .context("Failed to resize underlying file")?;
 
-        let mut s = Self::new(file)?;
+        let mut s = Self::restore(file)?;
 
         s.set_storage_len(0);
 
         Ok(s)
     }
 
+    /// Restores an MmapVec from a file path.
+    ///
     /// # Safety
-    /// Same requirements as `new` method
-    pub unsafe fn restore(file_path: impl AsRef<Path>) -> color_eyre::Result<Self> {
-        let file = match OpenOptions::new().read(true).write(true).open(file_path) {
-            Ok(file) => file,
-            Err(_e) => bail!("File doesn't exist"),
-        };
+    /// Same requirements as `restore`
+    pub unsafe fn restore_from_path(file_path: impl AsRef<Path>) -> color_eyre::Result<Self> {
+        let file = OpenOptions::new().read(true).write(true).open(file_path)?;
 
-        Self::new(file)
+        Self::restore(file)
     }
 
+    /// Restores an MmapVec from a file.
+    ///
     /// # Safety
-    /// This method requires that the safety requirements of [`mmap_rs::MmapOptions::with_file`](https://docs.rs/mmap-rs/0.6.1/mmap_rs/struct.MmapOptions.html#method.with_file) are upheld
+    /// This method requires that the safety requirements of [`mmap_rs::MmapOptions::with_file`](https://docs.rs/mmap-rs/0.6.1/mmap_rs/struct.MmapOptions.html#method.with_file) are upheld.
+    ///
+    /// Additioanally the caller must ensure that the file contains valid data.
     ///
     /// Notably this means that there can exist no other mutable mappings to the
     /// same file in this process or any other
-    pub unsafe fn new(file: File) -> color_eyre::Result<Self> {
+    pub unsafe fn restore(file: File) -> color_eyre::Result<Self> {
         if std::mem::size_of::<T>() == 0 {
             bail!("Zero-sized types are not supported");
         }
@@ -78,19 +86,17 @@ impl<T: Pod> MmapVec<T> {
 
         if byte_len < META_SIZE {
             file.set_len(META_SIZE as u64)
-                .expect("Failed to resize underlying file");
+                .context("Failed to resize underlying file")?;
 
             byte_len = META_SIZE;
         }
 
         let capacity = byte_len.saturating_sub(META_SIZE) / std::mem::size_of::<T>();
 
-        let mmap = MmapOptions::new(byte_len)
-            .expect("cannot create memory map")
+        let mmap = MmapOptions::new(byte_len)?
             .with_file(&file, 0)
             .with_flags(MmapFlags::SHARED)
-            .map_mut()
-            .expect("cannot build memory map");
+            .map_mut()?;
 
         let s = Self {
             mmap: Some(mmap),
@@ -266,7 +272,7 @@ mod tests {
         assert_eq!(storage[3], 4);
 
         drop(storage);
-        let restored: MmapVec<u32> = unsafe { MmapVec::new(f).unwrap() };
+        let restored: MmapVec<u32> = unsafe { MmapVec::restore(f).unwrap() };
 
         assert_eq!(restored.len(), 4);
 
