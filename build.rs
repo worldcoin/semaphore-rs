@@ -40,15 +40,15 @@ fn build_circuit(depth: usize) -> Result<()> {
     let depth_subfolder = depth_subfolder.display();
     download_and_store_binary(
         &format!("{SEMAPHORE_DOWNLOAD_URL}/{depth_str}/semaphore.zkey"),
-        &format!("{depth_subfolder}/semaphore.zkey"),
+        format!("{depth_subfolder}/semaphore.zkey"),
     )?;
     download_and_store_binary(
         &format!("{SEMAPHORE_DOWNLOAD_URL}/{depth_str}/semaphore.wasm"),
-        &format!("{depth_subfolder}/semaphore.wasm"),
+        format!("{depth_subfolder}/semaphore.wasm"),
     )?;
 
-    let zkey_file = base_path.join(&depth_str).join(format!("semaphore.zkey"));
-    let wasm_file = base_path.join(&depth_str).join(format!("semaphore.wasm"));
+    let zkey_file = base_path.join(&depth_str).join("semaphore.zkey");
+    let wasm_file = base_path.join(&depth_str).join("semaphore.wasm");
 
     assert!(zkey_file.exists());
     assert!(wasm_file.exists());

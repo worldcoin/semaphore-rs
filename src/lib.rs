@@ -27,6 +27,7 @@ pub use semaphore_depth_config::get_supported_depths;
 pub type Groth16Proof = ark_groth16::Proof<Bn<Parameters>>;
 pub type EthereumGroth16Proof = ark_circom::ethereum::Proof;
 
+#[allow(dead_code)]
 #[cfg(test)]
 mod test {
     use crate::{

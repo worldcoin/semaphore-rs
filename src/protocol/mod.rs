@@ -219,6 +219,7 @@ pub fn verify_proof(
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 mod test {
     use super::*;
     use crate::{hash_to_field, poseidon_tree::LazyPoseidonTree};

@@ -55,9 +55,7 @@ where
         depth: usize,
         empty_value: &H::Hash,
     ) -> Result<CascadingMerkleTree<H, S>> {
-        // # Safety
-        // Safe because we're calling `.validate` on the tree later
-        let tree = unsafe { Self::restore_unchecked(storage, depth, empty_value)? };
+        let tree = Self::restore_unchecked(storage, depth, empty_value)?;
 
         tree.validate()?;
 
@@ -66,18 +64,15 @@ where
 
     /// Restores a tree from the provided storage
     ///
-    /// # Safety
-    /// This method is unsafe as it does not validate the contents of storage.
-    /// Use this only if you're sure that the contents of storage are valid -
-    /// i.e. have not been modified since last use.
-    pub unsafe fn restore_unchecked(
+    /// Invalid storage will likely result in unpredictable behavior and panic
+    pub fn restore_unchecked(
         storage: S,
         depth: usize,
         empty_value: &H::Hash,
     ) -> Result<CascadingMerkleTree<H, S>> {
         ensure!(depth > 0, "Tree depth must be greater than 0");
         if storage.is_empty() || !storage.len().is_power_of_two() {
-            bail!("Storage must have been previously initialized and cannot be empty");
+            bail!("Invalid storage length: {}", storage.len());
         }
 
         let sparse_column = Self::sparse_column(depth, empty_value);
@@ -992,7 +987,7 @@ mod tests {
         println!("Create tempfile");
         let tempfile = tempfile::tempfile().unwrap();
         println!("Init mmap");
-        let mmap_vec: MmapVec<_> = unsafe { MmapVec::new(tempfile).unwrap() };
+        let mmap_vec: MmapVec<_> = unsafe { MmapVec::restore(tempfile).unwrap() };
 
         println!("Init tree");
         let mut tree = CascadingMerkleTree::<TestHasher, MmapVec<_>>::new_with_leaves(
@@ -1028,7 +1023,7 @@ mod tests {
         let file_path = tempfile.path().to_owned();
 
         // Initialize the expected tree
-        let mmap_vec: MmapVec<_> = unsafe { MmapVec::new(tempfile.reopen()?).unwrap() };
+        let mmap_vec: MmapVec<_> = unsafe { MmapVec::restore(tempfile.reopen()?).unwrap() };
         let expected_tree = CascadingMerkleTree::<PoseidonHash, MmapVec<_>>::new_with_leaves(
             mmap_vec,
             3,
@@ -1042,7 +1037,7 @@ mod tests {
         drop(expected_tree);
 
         // Restore the tree
-        let mmap_vec: MmapVec<_> = unsafe { MmapVec::restore(file_path).unwrap() };
+        let mmap_vec: MmapVec<_> = unsafe { MmapVec::restore_from_path(file_path).unwrap() };
         let tree =
             CascadingMerkleTree::<PoseidonHash, MmapVec<_>>::restore(mmap_vec, 3, &Field::ZERO)?;
 

@@ -20,7 +20,7 @@ fn main() -> Result<()> {
 
     let tempfile = tempfile::tempfile()?;
     let mmap_vec: MmapVec<<TestHasher as Hasher>::Hash> =
-        unsafe { MmapVec::new(tempfile.try_clone()?)? };
+        unsafe { MmapVec::restore(tempfile.try_clone()?)? };
 
     // initialize
     if args.len() == 1 {
@@ -43,7 +43,7 @@ fn main() -> Result<()> {
 
     drop(mmap_vec);
 
-    let mmap_vec: MmapVec<<TestHasher as Hasher>::Hash> = unsafe { MmapVec::new(tempfile)? };
+    let mmap_vec: MmapVec<<TestHasher as Hasher>::Hash> = unsafe { MmapVec::restore(tempfile)? };
 
     println!("restoring");
     let mut tree = CascadingMerkleTree::<TestHasher, _>::restore(mmap_vec, 30, &1)?;
