@@ -1,6 +1,9 @@
 use std::ops::{Deref, DerefMut, Range};
 
-use color_eyre::{eyre::bail, Result};
+use color_eyre::{
+    eyre::{bail, ensure},
+    Result,
+};
 use itertools::Itertools;
 use rayon::prelude::*;
 
@@ -115,19 +118,23 @@ where
         }
     }
 
+    /// Performs partial constant time validation of the storage.
+    fn validate_const(&self) -> Result<()> {
+        let len = self.len();
+
+        ensure!(
+            len.is_power_of_two(),
+            "Storage length ({len}) must be a power of 2"
+        );
+        ensure!(len > 1, "Storage length ({len}) must be greater than 1");
+
+        Ok(())
+    }
     /// Validates all elements of the storage, ensuring that they
     /// correspond to a valid tree.
     fn validate(&self, empty_value: &H::Hash) -> Result<()> {
+        self.validate_const()?;
         let len = self.len();
-
-        if !len.is_power_of_two() {
-            bail!("Storage length ({len}) must be a power of 2");
-        }
-
-        if len < 2 {
-            bail!("Storage length ({len}) must be greater than 1");
-        }
-
         let width = len >> 1;
         let depth = width.ilog2() as usize;
 
