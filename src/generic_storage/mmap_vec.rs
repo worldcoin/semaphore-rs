@@ -68,7 +68,7 @@ impl<T: Pod> MmapVec<T> {
         Self::restore(file)
     }
 
-    /// Restores an MmapVec from a file.
+    /// Restores an MmapVec from a file. This should not panic.
     ///
     /// # Safety
     /// This method requires that the safety requirements of [`mmap_rs::MmapOptions::with_file`](https://docs.rs/mmap-rs/0.6.1/mmap_rs/struct.MmapOptions.html#method.with_file) are upheld.
@@ -83,8 +83,9 @@ impl<T: Pod> MmapVec<T> {
         let mut byte_len = file.metadata()?.len() as usize;
 
         if byte_len < META_SIZE {
-            file.set_len(META_SIZE as u64)
-                .context("Failed to resize underlying file")?;
+            file.set_len(0)?;
+
+            file.set_len(META_SIZE as u64)?;
 
             byte_len = META_SIZE;
         }
@@ -105,6 +106,9 @@ impl<T: Pod> MmapVec<T> {
             capacity,
             phantom: std::marker::PhantomData,
         };
+
+        let len = s.storage_len();
+        ensure!(len <= capacity);
 
         Ok(s)
     }

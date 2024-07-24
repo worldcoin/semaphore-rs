@@ -1,4 +1,4 @@
-use color_eyre::eyre::{bail, ensure, Result};
+use color_eyre::eyre::{ensure, Result};
 
 use crate::{
     cascading_merkle_tree::storage_ops::sparse_fill_partial_subtree,
@@ -64,16 +64,21 @@ where
 
     /// Restores a tree from the provided storage
     ///
-    /// Invalid storage will likely result in unpredictable behavior and panic
+    /// Invalid storage will result in unpredictable behavior
     pub fn restore_unchecked(
         storage: S,
         depth: usize,
         empty_value: &H::Hash,
     ) -> Result<CascadingMerkleTree<H, S>> {
+        let len = storage.len();
+
+        storage.validate_const()?;
+
         ensure!(depth > 0, "Tree depth must be greater than 0");
-        if storage.is_empty() || !storage.len().is_power_of_two() {
-            bail!("Invalid storage length: {}", storage.len());
-        }
+        ensure!(
+            len <= 2usize.checked_pow(depth as u32 + 1).unwrap(),
+            "Storage length must be less than or equal to 2^(depth + 1)"
+        );
 
         let sparse_column = Self::sparse_column(depth, empty_value);
 
@@ -87,6 +92,13 @@ where
         };
 
         tree.recompute_root();
+
+        let num_leaves = tree.num_leaves();
+        ensure!(
+            num_leaves <= len >> 1,
+            "Number of leaves ({num_leaves}) must be less than or equal to half the storage \
+             length ({len})"
+        );
 
         Ok(tree)
     }
@@ -605,6 +617,17 @@ mod tests {
         ];
         assert_eq!(children, expected_siblings);
         println!("Siblings: {:?}", children);
+    }
+
+    #[test]
+    fn test_invalid_storage() {
+        let _ = CascadingMerkleTree::<TestHasher>::restore_unchecked(vec![2, 1, 1, 1, 1], 1, &0)
+            .expect_err("invalid storage len");
+        let _ = CascadingMerkleTree::<TestHasher>::restore_unchecked(vec![3, 1, 1, 1], 1, &0)
+            .expect_err("invalid num leaves");
+        let _ =
+            CascadingMerkleTree::<TestHasher>::restore_unchecked(vec![3, 1, 1, 1, 1, 1, 1], 1, &0)
+                .expect_err("len too long for depth");
     }
 
     #[should_panic]
