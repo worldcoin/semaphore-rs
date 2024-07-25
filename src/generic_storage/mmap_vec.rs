@@ -46,9 +46,8 @@ impl<T: Pod> MmapVec<T> {
     /// Notably this means that there can exist no other mutable mappings to the
     /// same file in this process or any other
     pub unsafe fn create(file: File) -> color_eyre::Result<Self> {
-        let initial_byte_len = META_SIZE;
-
-        file.set_len(initial_byte_len as u64)
+        file.set_len(0)?;
+        file.set_len(META_SIZE as u64)
             .context("Failed to resize underlying file")?;
 
         let mut s = Self::restore(file)?;
@@ -249,6 +248,202 @@ where
 mod tests {
 
     use super::*;
+
+    #[test]
+    #[allow(clippy::manual_bits)]
+    fn test_capacity_push() {
+        let f = tempfile::NamedTempFile::new().unwrap();
+        let file_path = f.path().to_owned();
+
+        let mut storage: MmapVec<u32> = unsafe { MmapVec::create(f.reopen().unwrap()).unwrap() };
+        assert_eq!(storage.capacity, 0);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len(),
+            META_SIZE as u64
+        );
+
+        storage.push(0);
+        assert_eq!(storage.capacity, 1);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len() as usize,
+            size_of::<u32>() + META_SIZE
+        );
+
+        storage.push(0);
+        assert_eq!(storage.capacity, 2);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len() as usize,
+            size_of::<u32>() * 2 + META_SIZE
+        );
+
+        storage.push(0);
+        assert_eq!(storage.capacity, 4);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len() as usize,
+            size_of::<u32>() * 4 + META_SIZE
+        );
+
+        storage.push(0);
+        assert_eq!(storage.capacity, 4);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len() as usize,
+            size_of::<u32>() * 4 + META_SIZE
+        );
+
+        storage.push(0);
+        assert_eq!(storage.capacity, 8);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len() as usize,
+            size_of::<u32>() * 8 + META_SIZE
+        );
+    }
+
+    #[test]
+    #[allow(clippy::manual_bits)]
+    fn test_capacity_extend() {
+        let f = tempfile::NamedTempFile::new().unwrap();
+        let file_path = f.path().to_owned();
+
+        let mut storage: MmapVec<u32> = unsafe { MmapVec::create(f.reopen().unwrap()).unwrap() };
+        assert_eq!(storage.capacity, 0);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len(),
+            META_SIZE as u64
+        );
+
+        storage.extend_from_slice(&[0, 0]);
+        assert_eq!(storage.capacity, 2);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len() as usize,
+            size_of::<u32>() * 2 + META_SIZE
+        );
+
+        storage.extend_from_slice(&[0, 0, 0]);
+        assert_eq!(storage.capacity, 8);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len() as usize,
+            size_of::<u32>() * 8 + META_SIZE
+        );
+
+        storage.extend_from_slice(&[0]);
+        assert_eq!(storage.capacity, 8);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len() as usize,
+            size_of::<u32>() * 8 + META_SIZE
+        );
+    }
+
+    #[test]
+    #[allow(clippy::manual_bits)]
+    fn test_capacity_create() {
+        let f = tempfile::NamedTempFile::new().unwrap();
+        let file_path = f.path().to_owned();
+
+        let mut storage: MmapVec<u32> = unsafe { MmapVec::create(f.reopen().unwrap()).unwrap() };
+        assert_eq!(storage.capacity, 0);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len() as usize,
+            META_SIZE
+        );
+
+        storage.extend_from_slice(&[0, 0, 0, 0, 0]);
+        assert_eq!(storage.capacity, 8);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len() as usize,
+            size_of::<u32>() * 8 + META_SIZE
+        );
+
+        let storage: MmapVec<u32> = unsafe { MmapVec::create(f.reopen().unwrap()).unwrap() };
+        assert_eq!(storage.capacity, 0);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len() as usize,
+            META_SIZE
+        );
+    }
+
+    #[test]
+    #[allow(clippy::manual_bits)]
+    fn test_capacity_create_from_path() {
+        let f = tempfile::NamedTempFile::new().unwrap();
+        let file_path = f.path().to_owned();
+
+        let mut storage: MmapVec<u32> = unsafe { MmapVec::create(f.reopen().unwrap()).unwrap() };
+        assert_eq!(storage.capacity, 0);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len() as usize,
+            META_SIZE
+        );
+
+        storage.extend_from_slice(&[0, 0, 0, 0, 0]);
+        assert_eq!(storage.capacity, 8);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len() as usize,
+            size_of::<u32>() * 8 + META_SIZE
+        );
+
+        let storage: MmapVec<u32> = unsafe { MmapVec::create_from_path(&file_path).unwrap() };
+        assert_eq!(storage.capacity, 0);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len() as usize,
+            META_SIZE
+        );
+    }
+
+    #[test]
+    #[allow(clippy::manual_bits)]
+    fn test_capacity_restore() {
+        let f = tempfile::NamedTempFile::new().unwrap();
+        let file_path = f.path().to_owned();
+
+        let mut storage: MmapVec<u32> = unsafe { MmapVec::create(f.reopen().unwrap()).unwrap() };
+        assert_eq!(storage.capacity, 0);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len() as usize,
+            META_SIZE
+        );
+
+        storage.extend_from_slice(&[0, 0, 0, 0, 0]);
+        assert_eq!(storage.capacity, 8);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len() as usize,
+            size_of::<u32>() * 8 + META_SIZE
+        );
+
+        let storage: MmapVec<u32> = unsafe { MmapVec::restore(f.reopen().unwrap()).unwrap() };
+        assert_eq!(storage.capacity, 8);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len() as usize,
+            size_of::<u32>() * 8 + META_SIZE
+        );
+    }
+
+    #[test]
+    #[allow(clippy::manual_bits)]
+    fn test_capacity_restore_from_path() {
+        let f = tempfile::NamedTempFile::new().unwrap();
+        let file_path = f.path().to_owned();
+
+        let mut storage: MmapVec<u32> = unsafe { MmapVec::create(f.reopen().unwrap()).unwrap() };
+        assert_eq!(storage.capacity, 0);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len() as usize,
+            META_SIZE
+        );
+
+        storage.extend_from_slice(&[0, 0, 0, 0, 0]);
+        assert_eq!(storage.capacity, 8);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len() as usize,
+            size_of::<u32>() * 8 + META_SIZE
+        );
+
+        let storage: MmapVec<u32> = unsafe { MmapVec::restore_from_path(&file_path).unwrap() };
+        assert_eq!(storage.capacity, 8);
+        assert_eq!(
+            std::fs::metadata(&file_path).unwrap().len() as usize,
+            size_of::<u32>() * 8 + META_SIZE
+        );
+    }
 
     #[test]
     fn test_mmap_vec() {
