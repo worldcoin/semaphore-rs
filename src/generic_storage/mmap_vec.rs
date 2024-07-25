@@ -63,7 +63,12 @@ impl<T: Pod> MmapVec<T> {
     /// # Safety
     /// Same requirements as `restore`
     pub unsafe fn restore_from_path(file_path: impl AsRef<Path>) -> color_eyre::Result<Self> {
-        let file = OpenOptions::new().read(true).write(true).open(file_path)?;
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(file_path)?;
 
         Self::restore(file)
     }
