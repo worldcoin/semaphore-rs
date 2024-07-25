@@ -1,10 +1,11 @@
 use crate::{field::MODULUS, poseidon, Field};
+use rand::Rng;
 use sha2::{Digest, Sha256};
 use zeroize::Zeroize;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Identity {
-    pub trapdoor:  Field,
+    pub trapdoor: Field,
     pub nullifier: Field,
 }
 
@@ -33,9 +34,26 @@ impl Identity {
     pub fn from_seed(seed: &[u8]) -> Self {
         let seed_hex = seed_hex(seed);
         Self {
-            trapdoor:  derive_field(&seed_hex, b"identity_trapdoor"),
+            trapdoor: derive_field(&seed_hex, b"identity_trapdoor"),
             nullifier: derive_field(&seed_hex, b"identity_nullifier"),
         }
+    }
+
+    #[must_use]
+    pub fn random() -> Self {
+        let mut rng = rand::thread_rng();
+        let random_number: u32 = rng.gen();
+
+        // num to string to bytes
+        let random_string = random_number.to_string();
+        let secret_bytes = random_string.as_bytes();
+
+        // convert bytes to a fixed-length byte array, you'll need to adjust this.
+        let mut secret = Vec::from(secret_bytes);
+
+        let identity = Self::from_secret(&mut secret, None);
+
+        identity
     }
 
     #[must_use]
@@ -44,7 +62,7 @@ impl Identity {
         secret.zeroize();
 
         let identity = Self {
-            trapdoor:  derive_field(&secret_hex, trapdoor_seed.unwrap_or(b"identity_trapdoor")),
+            trapdoor: derive_field(&secret_hex, trapdoor_seed.unwrap_or(b"identity_trapdoor")),
             nullifier: derive_field(&secret_hex, b"identity_nullifier"),
         };
         secret_hex.zeroize();
