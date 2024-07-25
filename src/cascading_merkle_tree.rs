@@ -347,6 +347,11 @@ where
     /// Validates all elements of the storage, ensuring that they
     /// correspond to a valid tree.
     pub fn validate(&self) -> Result<()> {
+        debug_assert_eq!(
+            self.root,
+            self.compute_from_storage_tip(0),
+            "Root hash does not match recomputed root hash"
+        );
         self.storage.validate(&self.empty_value)
     }
 
@@ -981,6 +986,23 @@ mod tests {
                 debug_tree(&tree);
                 tree.validate().unwrap();
                 assert_eq!(tree.leaves().collect::<Vec<usize>>(), vec);
+            }
+        }
+    }
+
+    #[test]
+    fn test_extend_from_slice_2() {
+        for increment in 1..20 {
+            let mut tree = CascadingMerkleTree::<PoseidonHash>::new(vec![], 30, &Field::ZERO);
+            let mut vec = vec![];
+            for _ in 0..20 {
+                let slice = (0..increment)
+                    .map(|_| Field::from(rand::random::<usize>()))
+                    .collect::<Vec<_>>();
+                tree.extend_from_slice(&slice);
+                vec.extend_from_slice(&slice);
+                tree.validate().unwrap();
+                assert_eq!(tree.leaves().collect::<Vec<_>>(), vec);
             }
         }
     }
