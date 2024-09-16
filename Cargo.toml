@@ -69,7 +69,6 @@ witness = { git = "https://github.com/philsippl/circom-witness-rs" }
 # Use the same `ethers-core` version as ark-circom
 # TODO: Remove
 ethers-core = { git = "https://github.com/gakonst/ethers-rs", default-features = false }
-bytemuck = "1.13.1"
 ethabi = "18.0.0"
 
 [dev-dependencies]
