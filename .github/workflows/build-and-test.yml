@@ -57,7 +57,7 @@ jobs:
 
       - name: Set up Rust
         run: |
-          rustup update ${{ env.NIGHTLY_VERSION }} && rustup default ${{ env.NIGHTLY_VERSION }}
+          rustup update ${{ env.NIGHTLY_VERSION }} && rustup default ${{ env.NIGHTLY_VERSION }} && rustup component add rustfmt clippy
 
       - name: Cache Cargo registry
         uses: actions/cache@v4
