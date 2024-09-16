@@ -101,8 +101,8 @@ impl VisitMut for IdentReplacer {
                 }
             }
             syn::Expr::Macro(mcr) => {
-                let Ok(mut args) =  mcr.mac.parse_body::<MacroArgs>() else {
-                     return;
+                let Ok(mut args) = mcr.mac.parse_body::<MacroArgs>() else {
+                    return;
                 };
                 for arg in &mut args.args {
                     self.visit_expr_mut(arg);
