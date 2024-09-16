@@ -10,7 +10,8 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::util::{bytes_from_hex, bytes_to_hex, deserialize_bytes, serialize_bytes};
 
-/// A packed proof is a representation of the ZKP in a single attribute (as opposed to array of arrays) which is easier to transport
+/// A packed proof is a representation of the ZKP in a single attribute (as
+/// opposed to array of arrays) which is easier to transport
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PackedProof(pub [u8; 256]);
 
@@ -43,10 +44,10 @@ impl From<PackedProof> for Proof {
             .collect::<Vec<U256>>();
 
         let a = (decoded_uint_array[0], decoded_uint_array[1]);
-        let b = (
-            [decoded_uint_array[2], decoded_uint_array[3]],
-            [decoded_uint_array[4], decoded_uint_array[5]],
-        );
+        let b = ([decoded_uint_array[2], decoded_uint_array[3]], [
+            decoded_uint_array[4],
+            decoded_uint_array[5],
+        ]);
         let c = (decoded_uint_array[6], decoded_uint_array[7]);
         Self(a, b, c)
     }
@@ -92,10 +93,10 @@ pub mod test {
     fn test_serializing_proof_into_packed_proof() {
         let proof = Proof(
             (U256::from(1), U256::from(2)),
-            (
-                [U256::from(3), U256::from(4)],
-                [U256::from(5), U256::from(6)],
-            ),
+            ([U256::from(3), U256::from(4)], [
+                U256::from(5),
+                U256::from(6),
+            ]),
             (U256::from(7), U256::from(8)),
         );
 
