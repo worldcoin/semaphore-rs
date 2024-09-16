@@ -1,6 +1,7 @@
 [package]
 name = "semaphore-depth-macros"
 version = "0.1.0"
+license = "MIT"
 edition = "2021"
 publish = false
 
