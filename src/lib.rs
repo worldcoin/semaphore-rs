@@ -11,6 +11,7 @@ pub mod hash;
 pub mod identity;
 pub mod lazy_merkle_tree;
 pub mod merkle_tree;
+pub mod packed_proof;
 pub mod poseidon;
 pub mod poseidon_tree;
 pub mod protocol;
