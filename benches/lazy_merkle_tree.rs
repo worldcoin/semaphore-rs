@@ -74,18 +74,17 @@ fn bench_restore_dense_mmap_tree(criterion: &mut Criterion) {
         create_values_for_tree(14),
     ];
 
-
     let mut group = criterion.benchmark_group("bench_restore_dense_mmap_tree");
 
     (0..3).zip(tree_values).for_each(|(id, value)| {
-        
+
         let file = tempfile::NamedTempFile::new().unwrap();
         let path = file.path().to_str().unwrap();
         {
             let _tree = LazyMerkleTree::<PoseidonHash, Canonical>::new_mmapped_with_dense_prefix_with_init_values(value.depth, value.prefix_depth, &value.empty_value, &value.initial_values, path).unwrap();
             let _root = _tree.root();
         }
-        
+
         group.bench_with_input(
             BenchmarkId::from_parameter(format!("restore_dense_mmap_tree_depth_{}", value.depth)),
             &(id, value),
