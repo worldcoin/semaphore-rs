@@ -181,10 +181,9 @@ pub fn generate_witness(
         ("identityTrapdoor".to_owned(), vec![identity.trapdoor]),
         ("treePathIndices".to_owned(), merkle_proof.path_index()),
         ("treeSiblings".to_owned(), merkle_proof_to_vec(merkle_proof)),
-        (
-            "externalNullifier".to_owned(),
-            vec![external_nullifier_hash],
-        ),
+        ("externalNullifier".to_owned(), vec![
+            external_nullifier_hash,
+        ]),
         ("signalHash".to_owned(), vec![signal_hash]),
     ]);
 

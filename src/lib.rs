@@ -8,6 +8,7 @@ mod field;
 pub mod hash;
 pub mod identity;
 pub mod merkle_tree;
+pub mod packed_proof;
 pub mod poseidon;
 pub mod poseidon_tree;
 pub mod protocol;
@@ -145,8 +146,11 @@ mod test {
 #[cfg(feature = "bench")]
 pub mod bench {
     use crate::{
-        hash_to_field, identity::Identity, poseidon_tree::LazyPoseidonTree,
-        protocol::{generate_proof, generate_witness}, Field,
+        hash_to_field,
+        identity::Identity,
+        poseidon_tree::LazyPoseidonTree,
+        protocol::{generate_proof, generate_witness},
+        Field,
     };
     use criterion::Criterion;
     use semaphore_depth_config::get_supported_depths;
