@@ -44,10 +44,10 @@ impl From<PackedProof> for Proof {
             .collect::<Vec<U256>>();
 
         let a = (decoded_uint_array[0], decoded_uint_array[1]);
-        let b = (
-            [decoded_uint_array[2], decoded_uint_array[3]],
-            [decoded_uint_array[4], decoded_uint_array[5]],
-        );
+        let b = ([decoded_uint_array[2], decoded_uint_array[3]], [
+            decoded_uint_array[4],
+            decoded_uint_array[5],
+        ]);
         let c = (decoded_uint_array[6], decoded_uint_array[7]);
         Self(a, b, c)
     }
@@ -93,10 +93,10 @@ pub mod test {
     fn test_serializing_proof_into_packed_proof() {
         let proof = Proof(
             (U256::from(1), U256::from(2)),
-            (
-                [U256::from(3), U256::from(4)],
-                [U256::from(5), U256::from(6)],
-            ),
+            ([U256::from(3), U256::from(4)], [
+                U256::from(5),
+                U256::from(6),
+            ]),
             (U256::from(7), U256::from(8)),
         );
 
@@ -117,10 +117,10 @@ pub mod test {
 
         let expected_proof = Proof(
             (U256::from(1), U256::from(2)),
-            (
-                [U256::from(3), U256::from(4)],
-                [U256::from(5), U256::from(6)],
-            ),
+            ([U256::from(3), U256::from(4)], [
+                U256::from(5),
+                U256::from(6),
+            ]),
             (U256::from(7), U256::from(8)),
         );
 
@@ -138,10 +138,10 @@ pub mod test {
 
         let expected_proof = Proof(
             (U256::from(5), U256::from(6)),
-            (
-                [U256::from(3), U256::from(4)],
-                [U256::from(5), U256::from(6)],
-            ),
+            ([U256::from(3), U256::from(4)], [
+                U256::from(5),
+                U256::from(6),
+            ]),
             (U256::from(7), U256::from(8)),
         );
 
@@ -161,11 +161,9 @@ pub mod test {
 
         assert_eq!(
             serialized,
-            serde_json::json!([
-                ["0x1", "0x2"],
-                [["0x3", "0x4"], ["0x5", "0x6"]],
-                ["0x7", "0x8"]
-            ])
+            serde_json::json!([["0x1", "0x2"], [["0x3", "0x4"], ["0x5", "0x6"]], [
+                "0x7", "0x8"
+            ]])
         );
     }
 
