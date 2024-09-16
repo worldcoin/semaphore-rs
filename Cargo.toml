@@ -12,7 +12,7 @@ description = "Rust support library for Semaphore"
 keywords = ["worldcoin", "protocol", "signup"]
 categories = ["cryptography"]
 readme = "Readme.md"
-license-file = "mit-license.md"
+license = "MIT"
 
 [workspace]
 members = ["crates/*"]
