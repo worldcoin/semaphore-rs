@@ -1,21 +1,27 @@
 [package]
 name = "semaphore"
 version = "0.1.0"
-edition = "2021"
 authors = [
     "Remco Bloemen <remco@worldcoin.org>",
     "Philipp Sippl <philipp@worldcoin.org>",
 ]
-homepage = "https://github.com/worldcoin/semaphore-rs"
-repository = "https://github.com/worldcoin/semaphore-rs"
 description = "Rust support library for Semaphore"
 keywords = ["worldcoin", "protocol", "signup"]
 categories = ["cryptography"]
-readme = "Readme.md"
-license = "MIT"
+
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [workspace]
 members = ["crates/*"]
+
+[workspace.package]
+edition = "2021"
+homepage = "https://github.com/worldcoin/semaphore-rs"
+license = "MIT"
+repository = "https://github.com/worldcoin/semaphore-rs"
 
 [features]
 depth_16 = [
