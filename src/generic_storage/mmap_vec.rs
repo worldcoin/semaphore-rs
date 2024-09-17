@@ -82,7 +82,7 @@ impl<T: Pod> MmapVec<T> {
     /// Notably this means that there can exist no other mutable mappings to the
     /// same file in this process or any other
     pub unsafe fn restore(file: File) -> color_eyre::Result<Self> {
-        const { assert!(std::mem::size_of::<T>() != 0) };
+        assert!(std::mem::size_of::<T>() != 0);
 
         let mut byte_len = file.metadata()?.len() as usize;
 
