@@ -10,6 +10,7 @@ mod storage_ops;
 use self::storage_ops::StorageOps;
 
 /// A dynamically growable array represented merkle tree.
+///
 /// The left most branch of the tree consists of progressively increasing powers
 /// of two. The right child of each power of two looks like a traditionally
 /// indexed binary tree offset by its parent.

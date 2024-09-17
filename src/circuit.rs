@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use ark_bn254::{Bn254, Fr};
 use ark_circom::{read_zkey, WitnessCalculator};
 use ark_groth16::ProvingKey;

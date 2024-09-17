@@ -21,6 +21,21 @@ jobs:
           toolchain: ${{ env.NIGHTLY_VERSION }}
           override: true
           components: rustfmt, clippy
+      - name: Check (workspace)
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --workspace
+      - name: Check (workspace & all features)
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --workspace --all-features
+      - name: Check (benches & tests)
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --workspace --tests --benches --all-features
       - name: Check Formatting
         uses: actions-rs/cargo@v1
         with:
@@ -30,7 +45,7 @@ jobs:
         uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --features depth_16,depth_20,depth_30
+          args: --all-features
   test:
     name: Test
     runs-on: ubuntu-latest

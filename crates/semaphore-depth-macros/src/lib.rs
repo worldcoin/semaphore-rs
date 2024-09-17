@@ -8,6 +8,8 @@ use syn::{
     Ident, Token,
 };
 
+/// Multi-depth test generator
+///
 /// This macro is used to generate a test for each supported depth.
 /// It expects to annotate a function with a single argument, and will generate
 /// test cases delegating to that function for each supported depth.
@@ -129,6 +131,8 @@ impl Parse for ArrayForDepthsInput {
     }
 }
 
+/// Macro to generate code for multiple depths.
+///
 /// Generates an array of expressions, where the given identifier is replaced
 /// with each supported depth. The argument must use closure syntax, but this
 /// is pure syntactic, the closure expression gets unrolled statically.
