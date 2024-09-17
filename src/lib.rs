@@ -33,7 +33,7 @@ pub type EthereumGroth16Proof = ark_circom::ethereum::Proof;
 mod test {
     use crate::{
         hash_to_field,
-        identity::Identity,
+        identity::{self, Identity},
         poseidon_tree::LazyPoseidonTree,
         protocol,
         protocol::{generate_nullifier_hash, generate_proof, verify_proof},
@@ -48,6 +48,18 @@ mod test {
         let serialized = serde_json::to_value(value).unwrap();
         let deserialized = serde_json::from_value(serialized).unwrap();
         assert_eq!(value, deserialized);
+    }
+
+    #[test]
+    fn test_random_identity() {
+        // create identity-1
+        let identity_1 = Identity::random();
+
+        // create identity-2
+        let identity_2 = Identity::random();
+
+        // ensure they are different
+        assert_ne!(identity_1.secret_hash(), identity_2.secret_hash());
     }
 
     fn test_end_to_end(
