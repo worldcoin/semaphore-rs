@@ -3,7 +3,6 @@ on: push
 
 env:
   RUST_VERSION: 1.81.0
-  NIGHTLY_VERSION: nightly-2024-09-17
   # CARGO_VET_VERSION: 0.7.0
   # CARGO_VET_REPO: https://github.com/mozilla/cargo-vet
 
@@ -18,7 +17,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: ${{ env.NIGHTLY_VERSION }}
+          toolchain: ${{ env.RUST_VERSION }}
           override: true
           components: rustfmt, clippy
       - name: Check (workspace)
