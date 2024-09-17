@@ -35,11 +35,12 @@ jobs:
         with:
           command: check
           args: --workspace --tests --benches --all-features
-      - name: Check Formatting
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+      # TODO: Reenable after we've merged the oxide branch
+      # - name: Check Formatting
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: fmt
+      #     args: --all -- --check
       - name: Run Clippy
         uses: actions-rs/clippy-check@v1
         with:
