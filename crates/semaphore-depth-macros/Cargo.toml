@@ -1,9 +1,12 @@
 [package]
 name = "semaphore-depth-macros"
 version = "0.1.0"
-license = "MIT"
-edition = "2021"
 publish = false
+
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [features]
 depth_16 = ["semaphore-depth-config/depth_16"]
