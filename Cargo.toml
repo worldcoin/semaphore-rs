@@ -36,6 +36,7 @@ depth_30 = [
     "semaphore-depth-config/depth_30",
     "semaphore-depth-macros/depth_30",
 ]
+bench = ["criterion"]
 
 [[bench]]
 name = "lazy_merkle_tree"
@@ -88,6 +89,7 @@ semaphore-depth-macros = { path = "crates/semaphore-depth-macros" }
 zeroize = "1.6.0"
 mmap-rs = "0.6.1"
 bincode = "1.3.3"
+criterion = { version = "0.5.1", features = ["async_tokio", "html_reports"], optional = true }
 
 # Use the same `ethers-core` version as ark-circom
 # TODO: Remove
@@ -97,7 +99,7 @@ ethabi = "18.0.0"
 
 [dev-dependencies]
 serial_test = "3"
-criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
+# criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
 bincode = "1.3.3"
 proptest = "1.0"
 rand_chacha = "0.3.1"

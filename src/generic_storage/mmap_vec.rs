@@ -82,7 +82,7 @@ impl<T: Pod> MmapVec<T> {
     /// Notably this means that there can exist no other mutable mappings to the
     /// same file in this process or any other
     pub unsafe fn restore(file: File) -> color_eyre::Result<Self> {
-        const { assert!(std::mem::size_of::<T>() != 0) };
+        assert!(std::mem::size_of::<T>() != 0);
 
         let mut byte_len = file.metadata()?.len() as usize;
 
@@ -266,35 +266,35 @@ mod tests {
         assert_eq!(storage.capacity, 1);
         assert_eq!(
             std::fs::metadata(&file_path).unwrap().len() as usize,
-            size_of::<u32>() + META_SIZE
+            std::mem::size_of::<u32>() + META_SIZE
         );
 
         storage.push(0);
         assert_eq!(storage.capacity, 2);
         assert_eq!(
             std::fs::metadata(&file_path).unwrap().len() as usize,
-            size_of::<u32>() * 2 + META_SIZE
+            std::mem::size_of::<u32>() * 2 + META_SIZE
         );
 
         storage.push(0);
         assert_eq!(storage.capacity, 4);
         assert_eq!(
             std::fs::metadata(&file_path).unwrap().len() as usize,
-            size_of::<u32>() * 4 + META_SIZE
+            std::mem::size_of::<u32>() * 4 + META_SIZE
         );
 
         storage.push(0);
         assert_eq!(storage.capacity, 4);
         assert_eq!(
             std::fs::metadata(&file_path).unwrap().len() as usize,
-            size_of::<u32>() * 4 + META_SIZE
+            std::mem::size_of::<u32>() * 4 + META_SIZE
         );
 
         storage.push(0);
         assert_eq!(storage.capacity, 8);
         assert_eq!(
             std::fs::metadata(&file_path).unwrap().len() as usize,
-            size_of::<u32>() * 8 + META_SIZE
+            std::mem::size_of::<u32>() * 8 + META_SIZE
         );
     }
 
@@ -315,21 +315,21 @@ mod tests {
         assert_eq!(storage.capacity, 2);
         assert_eq!(
             std::fs::metadata(&file_path).unwrap().len() as usize,
-            size_of::<u32>() * 2 + META_SIZE
+            std::mem::size_of::<u32>() * 2 + META_SIZE
         );
 
         storage.extend_from_slice(&[0, 0, 0]);
         assert_eq!(storage.capacity, 8);
         assert_eq!(
             std::fs::metadata(&file_path).unwrap().len() as usize,
-            size_of::<u32>() * 8 + META_SIZE
+            std::mem::size_of::<u32>() * 8 + META_SIZE
         );
 
         storage.extend_from_slice(&[0]);
         assert_eq!(storage.capacity, 8);
         assert_eq!(
             std::fs::metadata(&file_path).unwrap().len() as usize,
-            size_of::<u32>() * 8 + META_SIZE
+            std::mem::size_of::<u32>() * 8 + META_SIZE
         );
     }
 
@@ -350,7 +350,7 @@ mod tests {
         assert_eq!(storage.capacity, 8);
         assert_eq!(
             std::fs::metadata(&file_path).unwrap().len() as usize,
-            size_of::<u32>() * 8 + META_SIZE
+            std::mem::size_of::<u32>() * 8 + META_SIZE
         );
 
         let storage: MmapVec<u32> = unsafe { MmapVec::create(f.reopen().unwrap()).unwrap() };
@@ -378,7 +378,7 @@ mod tests {
         assert_eq!(storage.capacity, 8);
         assert_eq!(
             std::fs::metadata(&file_path).unwrap().len() as usize,
-            size_of::<u32>() * 8 + META_SIZE
+            std::mem::size_of::<u32>() * 8 + META_SIZE
         );
 
         let storage: MmapVec<u32> = unsafe { MmapVec::create_from_path(&file_path).unwrap() };
@@ -406,14 +406,14 @@ mod tests {
         assert_eq!(storage.capacity, 8);
         assert_eq!(
             std::fs::metadata(&file_path).unwrap().len() as usize,
-            size_of::<u32>() * 8 + META_SIZE
+            std::mem::size_of::<u32>() * 8 + META_SIZE
         );
 
         let storage: MmapVec<u32> = unsafe { MmapVec::restore(f.reopen().unwrap()).unwrap() };
         assert_eq!(storage.capacity, 8);
         assert_eq!(
             std::fs::metadata(&file_path).unwrap().len() as usize,
-            size_of::<u32>() * 8 + META_SIZE
+            std::mem::size_of::<u32>() * 8 + META_SIZE
         );
     }
 
@@ -434,14 +434,14 @@ mod tests {
         assert_eq!(storage.capacity, 8);
         assert_eq!(
             std::fs::metadata(&file_path).unwrap().len() as usize,
-            size_of::<u32>() * 8 + META_SIZE
+            std::mem::size_of::<u32>() * 8 + META_SIZE
         );
 
         let storage: MmapVec<u32> = unsafe { MmapVec::restore_from_path(&file_path).unwrap() };
         assert_eq!(storage.capacity, 8);
         assert_eq!(
             std::fs::metadata(&file_path).unwrap().len() as usize,
-            size_of::<u32>() * 8 + META_SIZE
+            std::mem::size_of::<u32>() * 8 + META_SIZE
         );
     }
 

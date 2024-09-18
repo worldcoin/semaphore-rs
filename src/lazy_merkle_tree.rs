@@ -22,7 +22,9 @@ impl VersionMarker for Canonical {}
 pub struct Derived;
 impl VersionMarker for Derived {}
 
-/// A storage-optimized merkle tree. It has a certain linear-buffer represented
+/// A storage-optimized merkle tree.
+///
+/// It has a certain linear-buffer represented
 /// prefix subtree and the rest of the tree is represented using lazy,
 /// pointer-based structures. This makes it possible to hold even large trees in
 /// memory, assuming only a relatively small subset is ever modified.

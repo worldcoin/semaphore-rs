@@ -2,10 +2,9 @@ name: Build and Test
 on: push
 
 env:
-  RUST_VERSION: 1.76.0
-  NIGHTLY_VERSION: nightly-2024-02-04
-  CARGO_VET_VERSION: 0.7.0
-  CARGO_VET_REPO: https://github.com/mozilla/cargo-vet
+  RUST_VERSION: 1.81.0
+  # CARGO_VET_VERSION: 0.7.0
+  # CARGO_VET_REPO: https://github.com/mozilla/cargo-vet
 
 jobs:
   lint:
@@ -18,19 +17,35 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: ${{ env.NIGHTLY_VERSION }}
+          toolchain: ${{ env.RUST_VERSION }}
           override: true
           components: rustfmt, clippy
-      - name: Check Formatting
+      - name: Check (workspace)
         uses: actions-rs/cargo@v1
         with:
-          command: fmt
-          args: --all -- --check
+          command: check
+          args: --workspace
+      - name: Check (workspace & all features)
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --workspace --all-features
+      - name: Check (benches & tests)
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --workspace --tests --benches --all-features
+      # TODO: Reenable after we've merged the oxide branch
+      # - name: Check Formatting
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: fmt
+      #     args: --all -- --check
       - name: Run Clippy
         uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --features depth_16,depth_20,depth_30
+          args: --all-features
   test:
     name: Test
     runs-on: ubuntu-latest
