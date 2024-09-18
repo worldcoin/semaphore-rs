@@ -1,11 +1,5 @@
-use crate::{
-    circuit::{graph, zkey},
-    identity::Identity,
-    merkle_tree::{self, Branch},
-    poseidon,
-    poseidon_tree::PoseidonHash,
-    Field,
-};
+use std::collections::HashMap;
+
 use ark_bn254::{Config, Fr};
 use ark_circom::CircomReduction;
 use ark_ec::bn::Bn;
@@ -20,9 +14,14 @@ use rand::{thread_rng, Rng};
 use semaphore_depth_config::{get_depth_index, get_supported_depth_count};
 use semaphore_depth_macros::array_for_depths;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use thiserror::Error;
-use witness::{init_graph, Graph};
+use witness::Graph;
+
+use crate::circuit::zkey;
+use crate::identity::Identity;
+use crate::merkle_tree::{self, Branch};
+use crate::poseidon_tree::PoseidonHash;
+use crate::{poseidon, Field};
 
 pub mod authentication;
 
@@ -33,7 +32,9 @@ pub type G1 = (U256, U256);
 pub type G2 = ([U256; 2], [U256; 2]);
 
 static WITHESS_GRAPH: [Lazy<Graph>; get_supported_depth_count()] = array_for_depths!(|depth| {
-    Lazy::new(|| init_graph(graph(depth)).expect("Failed to initialize Graph"))
+    Lazy::new(|| {
+        witness::init_graph(crate::circuit::graph(depth)).expect("Failed to initialize Graph")
+    })
 });
 
 /// Wrap a proof object so we have serde support
@@ -181,9 +182,10 @@ pub fn generate_witness(
         ("identityTrapdoor".to_owned(), vec![identity.trapdoor]),
         ("treePathIndices".to_owned(), merkle_proof.path_index()),
         ("treeSiblings".to_owned(), merkle_proof_to_vec(merkle_proof)),
-        ("externalNullifier".to_owned(), vec![
-            external_nullifier_hash,
-        ]),
+        (
+            "externalNullifier".to_owned(),
+            vec![external_nullifier_hash],
+        ),
         ("signalHash".to_owned(), vec![signal_hash]),
     ]);
 
@@ -227,12 +229,14 @@ pub fn verify_proof(
 #[cfg(test)]
 #[allow(dead_code)]
 mod test {
-    use super::*;
-    use crate::{hash_to_field, poseidon_tree::LazyPoseidonTree};
     use rand::SeedableRng as _;
     use rand_chacha::ChaChaRng;
     use semaphore_depth_macros::test_all_depths;
     use serde_json::json;
+
+    use super::*;
+    use crate::hash_to_field;
+    use crate::poseidon_tree::LazyPoseidonTree;
 
     fn arb_proof(seed: u64, depth: usize) -> Proof {
         // Deterministic randomness for testing
