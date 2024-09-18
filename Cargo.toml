@@ -25,10 +25,18 @@ repository = "https://github.com/worldcoin/semaphore-rs"
 
 [features]
 default = []
-bench = ["criterion", "proptest"]
-depth_16 = ["semaphore-depth-config/depth_16", "semaphore-depth-macros/depth_16"]
-depth_20 = ["semaphore-depth-config/depth_20", "semaphore-depth-macros/depth_20"]
-depth_30 = ["semaphore-depth-config/depth_30", "semaphore-depth-macros/depth_30"]
+depth_16 = [
+    "semaphore-depth-config/depth_16",
+    "semaphore-depth-macros/depth_16",
+]
+depth_20 = [
+    "semaphore-depth-config/depth_20",
+    "semaphore-depth-macros/depth_20",
+]
+depth_30 = [
+    "semaphore-depth-config/depth_30",
+    "semaphore-depth-macros/depth_30",
+]
 
 [[bench]]
 name = "cascading_merkle_tree"
@@ -36,24 +44,40 @@ harness = false
 
 [dependencies]
 ark-bn254 = { version = "=0.4.0" }
-ark-circom = { git = "https://github.com/arkworks-rs/circom-compat.git", rev="f97ac2b", features = ["circom-2"] }
-ark-ec = { version = "0.4.1", default-features = false, features = ["parallel"] }
-ark-ff = { version = "0.4.1", default-features = false, features = ["parallel", "asm"] }
+ark-circom = { git = "https://github.com/arkworks-rs/circom-compat.git", rev = "f97ac2b", features = [
+    "circom-2",
+] }
+ark-ec = { version = "0.4.1", default-features = false, features = [
+    "parallel",
+] }
+ark-ff = { version = "0.4.1", default-features = false, features = [
+    "parallel",
+    "asm",
+] }
 ark-groth16 = { version = "=0.4.0", features = ["parallel"] }
 ark-relations = { version = "=0.4.0", default-features = false }
-ark-std = { version = "0.4.0", default-features = false, features = ["parallel"] }
+ark-std = { version = "0.4.0", default-features = false, features = [
+    "parallel",
+] }
 # TODO: Need to give mopro a example zkey for satisfying its tests
 # for now i just commented them out
 # ark-zkey = { git = "https://github.com/worldcoin/mopro" }
 ark-zkey = { path = "crates/ark-zkey" }
+bytemuck = "1.18"
 color-eyre = "0.6"
 hex = "0.4.0"
 hex-literal = "0.4"
+itertools = "0.13"
 num-bigint = { version = "0.4", default-features = false, features = ["rand"] }
 once_cell = "1.8"
 rand = "0.8.4"
 rayon = "1.5.1"
-ruint = { version = "1.10.1", features = ["serde", "num-bigint", "ark-ff"] }
+ruint = { version = "1.12.3", features = [
+    "bytemuck",
+    "serde",
+    "num-bigint",
+    "ark-ff",
+] }
 semaphore-depth-config = { path = "crates/semaphore-depth-config" }
 serde = "1.0"
 sha2 = "0.10.1"

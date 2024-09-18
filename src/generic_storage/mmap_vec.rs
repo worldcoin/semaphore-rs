@@ -1,8 +1,6 @@
-use std::{
-    fs::{File, OpenOptions},
-    ops::{Deref, DerefMut},
-    path::Path,
-};
+use std::fs::{File, OpenOptions};
+use std::ops::{Deref, DerefMut};
+use std::path::Path;
 
 use bytemuck::Pod;
 use color_eyre::eyre::{ensure, Context};
@@ -13,10 +11,10 @@ const META_SIZE: usize = std::mem::size_of::<usize>();
 pub struct MmapVec<T> {
     // This must be Option to properly uphold aliasing access safety guarantees
     // Look at the `resize` method for more details
-    mmap:     Option<MmapMut>,
-    file:     File,
+    mmap: Option<MmapMut>,
+    file: File,
     capacity: usize,
-    phantom:  std::marker::PhantomData<T>,
+    phantom: std::marker::PhantomData<T>,
 }
 
 // Public API
@@ -95,7 +93,10 @@ impl<T: Pod> MmapVec<T> {
         }
 
         let data_len = byte_len.saturating_sub(META_SIZE);
-        ensure!(data_len % std::mem::size_of::<T>() == 0);
+        ensure!(
+            data_len % std::mem::size_of::<T>() == 0,
+            "data must be divisible by size of T"
+        );
 
         let capacity = data_len / std::mem::size_of::<T>();
 
@@ -112,7 +113,7 @@ impl<T: Pod> MmapVec<T> {
         };
 
         let len = s.storage_len();
-        ensure!(len <= capacity);
+        ensure!(len <= capacity, "len must be lower than capacity");
 
         Ok(s)
     }
