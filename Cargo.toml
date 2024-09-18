@@ -59,7 +59,6 @@ serde = "1.0"
 sha2 = "0.10.1"
 thiserror = "1.0.0"
 tiny-keccak = { version = "2.0.2" }
-wasmer = { version = "2.0" }
 semaphore-depth-macros = { path = "crates/semaphore-depth-macros" }
 zeroize = "1.6.0"
 mmap-rs = "0.6.1"
@@ -85,10 +84,7 @@ tracing-test = "0.2"
 [build-dependencies]
 ark-zkey = { path = "crates/ark-zkey" }
 color-eyre = "0.6"
-enumset = "1.0.8"
 reqwest = { version = "0.11", features = ["blocking"] }
-wasmer = { version = "2.0" }
-wasmer-compiler-cranelift = { version = "2.2.1", optional = true }
 semaphore-depth-config = { path = "crates/semaphore-depth-config" }
 
 [profile.release]

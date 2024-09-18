@@ -2917,7 +2917,7 @@ dependencies = [
  "bincode",
  "color-eyre",
  "criterion",
- "enumset",
+ "ethabi",
  "ethers-core",
  "hex",
  "hex-literal",
@@ -2939,9 +2939,6 @@ dependencies = [
  "thiserror",
  "tiny-keccak",
  "tracing-test",
- "wasmer",
- "wasmer-compiler-cranelift",
- "wasmer-engine-dylib",
  "witness",
  "zeroize",
 ]
