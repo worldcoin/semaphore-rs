@@ -29,5 +29,6 @@ pub fn zkey(depth: usize) -> &'static (ProvingKey<Bn254>, ConstraintMatrices<Fr>
 #[must_use]
 pub fn graph(depth: usize) -> &'static [u8] {
     let index = get_depth_index(depth).unwrap_or_else(|| panic!("depth {depth} is not supported"));
-    &GRAPH_BYTES[index]
+
+    GRAPH_BYTES[index]
 }
