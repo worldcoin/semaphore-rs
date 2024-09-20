@@ -4,7 +4,6 @@ use color_eyre::{
     eyre::{bail, ensure},
     Result,
 };
-use itertools::Itertools;
 use rayon::prelude::*;
 
 use crate::{
@@ -153,7 +152,7 @@ where
         for height in 0..=depth {
             let row = self.row(height);
             let parents = self.row(height + 1);
-            let row_couple = row.tuples();
+            let row_couple = itertools::Itertools::tuples(row);
 
             parents
                 .zip(row_couple)

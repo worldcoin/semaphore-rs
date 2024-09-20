@@ -1,0 +1,18 @@
+[package]
+name = "ark-zkey"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+color-eyre = "0.6"
+memmap2 = "0.9"
+flame = "0.2"
+flamer = "0.5"
+
+ark-serialize = { version = "=0.4.1", features = ["derive"] }
+ark-bn254 = { version = "=0.4.0" }
+ark-groth16 = { version = "=0.4.0" }
+ark-circom = { git = "https://github.com/arkworks-rs/circom-compat.git", rev="f97ac2b", features = ["circom-2"] }
+ark-relations = { version = "=0.4.0" }
+ark-ff = { version = "=0.4.1" }
+ark-ec = { version = "=0.4.1" }
