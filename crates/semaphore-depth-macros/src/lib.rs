@@ -65,7 +65,7 @@ pub fn test_all_depths(_attr: TokenStream, item: TokenStream) -> TokenStream {
 #[derive(Debug)]
 struct ArrayForDepthsInput {
     replaced_ident: Ident,
-    expr:           syn::Expr,
+    expr: syn::Expr,
 }
 
 #[derive(Debug)]

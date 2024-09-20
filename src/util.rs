@@ -131,8 +131,9 @@ mod test {
             serialize_bytes::<16, 34, _>(&mut ser, &bytes).unwrap();
         }
         // Bincode appears to prefix with a length.
-        assert_eq!(bin, [
-            16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
-        ]);
+        assert_eq!(
+            bin,
+            [16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+        );
     }
 }
