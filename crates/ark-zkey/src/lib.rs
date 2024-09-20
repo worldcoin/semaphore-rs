@@ -164,10 +164,8 @@ pub fn convert_zkey(
 ) -> Result<()> {
     let arkzkey_file_path = PathBuf::from(arkzkey_path);
 
-    let serialized_path = PathBuf::from(arkzkey_file_path);
-
     let mut file =
-        File::create(&serialized_path).wrap_err("Failed to create serialized proving key file")?;
+        File::create(&arkzkey_file_path).wrap_err("Failed to create serialized proving key file")?;
 
     proving_key
         .serialize_compressed(&mut file)

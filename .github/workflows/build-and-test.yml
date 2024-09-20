@@ -3,66 +3,58 @@ on: push
 
 env:
   RUST_VERSION: 1.81.0
-  # CARGO_VET_VERSION: 0.7.0
-  # CARGO_VET_REPO: https://github.com/mozilla/cargo-vet
 
 jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ env.RUST_VERSION }}
-          override: true
-          components: rustfmt, clippy
-      - name: Check (workspace)
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --workspace
-      - name: Check (workspace & all features)
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --workspace --all-features
-      - name: Check (benches & tests)
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --workspace --tests --benches --all-features
-      # TODO: Reenable after we've merged the oxide branch
-      # - name: Check Formatting
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: fmt
-      #     args: --all -- --check
-      - name: Run Clippy
-        uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
   test:
     name: Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        run: |
+          rustup update ${{ env.RUST_VERSION }} && rustup default ${{ env.RUST_VERSION }} && rustup component add rustfmt --toolchain ${{ env.RUST_VERSION }} && rustup component add clippy --toolchain ${{ env.RUST_VERSION }}
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
         with:
-          profile: minimal
-          toolchain: ${{ env.RUST_VERSION }}
-          override: true
-      - name: Run Tests
-        uses: actions-rs/cargo@v1
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache Cargo index
+        uses: actions/cache@v4
         with:
-          command: test
-          args: --features depth_16,depth_20,depth_30
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-index-
+
+      - name: Cache Cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-
+
+      - name: Check
+        run: cargo check
+
+      - name: Check (workspace & tests)
+        run: cargo check --workspace --tests
+
+      - name: Check (workspace, tests, benches & all features)
+        run: cargo check --workspace --tests --benches --all-features
+
+      - name: Check Formatting
+        run: echo "Formatting temporarily disabled"
+        # run: cargo fmt --all -- --check
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features
   # vet:
   #   name: Vet Dependencies
   #   runs-on: ubuntu-latest

@@ -1,14 +1,9 @@
-use std::path::{absolute, PathBuf};
-use std::{
-    fs::{create_dir, create_dir_all, File},
-    path::Path,
-};
+use std::fs::{create_dir, create_dir_all, File};
+use std::path::{absolute, Path, PathBuf};
 
 use color_eyre::eyre::Result;
 
 extern crate reqwest;
-
-use ark_zkey;
 
 const SEMAPHORE_FILES_PATH: &str = "semaphore_files";
 const SEMAPHORE_DOWNLOAD_URL: &str = "https://www.trusted-setup-pse.org/semaphore";
@@ -51,7 +46,7 @@ fn build_circuit(depth: usize) -> Result<()> {
         create_dir_all(&base_path)?;
     }
 
-    let depth_str = &depth.to_string();
+    let depth_str = depth.to_string();
     let depth_subfolder = base_path.join(&depth_str);
     if !Path::new(&depth_subfolder).exists() {
         create_dir(&depth_subfolder)?;
