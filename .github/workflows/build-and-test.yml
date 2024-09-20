@@ -54,6 +54,9 @@ jobs:
 
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features
+
+      - name: Run test
+        run: cargo test --workspace --all-features
   # vet:
   #   name: Vet Dependencies
   #   runs-on: ubuntu-latest
