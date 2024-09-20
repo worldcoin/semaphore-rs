@@ -20,8 +20,8 @@ criterion_group!(
 );
 
 struct TreeValues<H: Hasher> {
-    depth:          usize,
-    empty_value:    H::Hash,
+    depth: usize,
+    empty_value: H::Hash,
     initial_values: Vec<H::Hash>,
 }
 

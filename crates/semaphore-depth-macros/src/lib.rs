@@ -24,18 +24,16 @@ use syn::{
 /// ```
 /// with `depth_16` and `depth_30` features active will generate the following
 /// code:
-/// ```
+/// ```no_run
 /// fn test_depth_non_zero(depth: usize) {
 ///     assert!(depth > 0);
 /// }
 ///
-/// # #[no_run]
 /// #[test]
 /// fn test_depth_non_zero_depth_16() {
 ///     test_depth_non_zero(16);
 /// }
 ///
-/// # #[no_run]
 /// #[test]
 /// fn test_depth_non_zero_depth_30() {
 ///     test_depth_non_zero(30);
@@ -65,7 +63,7 @@ pub fn test_all_depths(_attr: TokenStream, item: TokenStream) -> TokenStream {
 #[derive(Debug)]
 struct ArrayForDepthsInput {
     replaced_ident: Ident,
-    expr:           syn::Expr,
+    expr: syn::Expr,
 }
 
 #[derive(Debug)]

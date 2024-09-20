@@ -4,7 +4,6 @@ use ark_bn254::{Bn254, Fr};
 use ark_groth16::ProvingKey;
 use ark_relations::r1cs::ConstraintMatrices;
 use once_cell::sync::Lazy;
-
 use semaphore_depth_config::{get_depth_index, get_supported_depth_count};
 use semaphore_depth_macros::array_for_depths;
 
@@ -29,5 +28,6 @@ pub fn zkey(depth: usize) -> &'static (ProvingKey<Bn254>, ConstraintMatrices<Fr>
 #[must_use]
 pub fn graph(depth: usize) -> &'static [u8] {
     let index = get_depth_index(depth).unwrap_or_else(|| panic!("depth {depth} is not supported"));
-    &GRAPH_BYTES[index]
+
+    GRAPH_BYTES[index]
 }
