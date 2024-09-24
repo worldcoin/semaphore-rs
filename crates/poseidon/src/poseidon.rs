@@ -1,18 +1,16 @@
-mod constants;
-
 use ark_bn254::Fr;
 use ark_ff::{Field, Zero};
 use once_cell::sync::Lazy;
 use ruint::aliases::U256;
+
+use crate::constants;
 
 static M1: Lazy<[[Fr; 2]; 2]> = Lazy::new(|| {
     constants::M1
         .iter()
         .map(|row| {
             row.iter()
-                .map(|r| {
-                    Fr::try_from(r)
-                })
+                .map(|r| Fr::try_from(r))
                 .collect::<Result<Vec<Fr>, _>>()
                 .unwrap()
                 .try_into()
@@ -137,8 +135,9 @@ pub fn hash2(left: U256, right: U256) -> U256 {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use ruint::uint;
+
+    use super::*;
 
     #[test]
     fn test_hash1() {
