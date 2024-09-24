@@ -28,7 +28,7 @@ where
 /// Returns None if there is no parent (root node)
 const fn parent(index: usize) -> Option<usize> {
     if index <= 1 {
-        return None;
+        None
     } else {
         Some(index >> 1)
     }

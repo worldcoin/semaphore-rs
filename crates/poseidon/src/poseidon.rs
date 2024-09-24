@@ -10,7 +10,7 @@ static M1: Lazy<[[Fr; 2]; 2]> = Lazy::new(|| {
         .iter()
         .map(|row| {
             row.iter()
-                .map(|r| Fr::try_from(r))
+                .map(Fr::try_from)
                 .collect::<Result<Vec<Fr>, _>>()
                 .unwrap()
                 .try_into()
