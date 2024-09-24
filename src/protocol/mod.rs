@@ -199,7 +199,7 @@ pub fn generate_witness(
         .collect::<Vec<_>>()
 }
 
-/// Compute path index (TODO: do we want to keep this here?)
+/// Compute path index
 #[must_use]
 pub fn path_index(proof: &trees::Proof<Poseidon>) -> Vec<Field> {
     proof
