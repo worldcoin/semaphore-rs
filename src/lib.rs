@@ -1,29 +1,20 @@
 #![doc = include_str!("../README.md")]
-#![warn(clippy::all, clippy::cargo)]
-// TODO: ark-circom and ethers-core pull in a lot of dependencies, some duplicate.
-#![allow(clippy::multiple_crate_versions)]
 
-// pub mod cascading_merkle_tree;
 mod circuit;
 mod field;
-// pub mod generic_storage;
 pub mod hash;
 pub mod identity;
-// pub mod lazy_merkle_tree;
-// pub mod merkle_tree;
 pub mod packed_proof;
-// pub mod poseidon;
 pub mod poseidon_tree;
 pub mod protocol;
 pub mod util;
 
 use ark_bn254::Config;
 use ark_ec::bn::Bn;
+pub use semaphore_depth_config::get_supported_depths;
 
 // Export types
 pub use crate::field::{hash_to_field, Field};
-
-pub use semaphore_depth_config::get_supported_depths;
 
 pub type Groth16Proof = ark_groth16::Proof<Bn<Config>>;
 pub type EthereumGroth16Proof = ark_circom::ethereum::Proof;
@@ -31,16 +22,14 @@ pub type EthereumGroth16Proof = ark_circom::ethereum::Proof;
 #[allow(dead_code)]
 #[cfg(test)]
 mod test {
-    use crate::{
-        hash_to_field,
-        identity::Identity,
-        poseidon_tree::LazyPoseidonTree,
-        protocol,
-        protocol::{generate_nullifier_hash, generate_proof, verify_proof},
-        Field,
-    };
-    use semaphore_depth_macros::test_all_depths;
     use std::thread::spawn;
+
+    use semaphore_depth_macros::test_all_depths;
+
+    use crate::identity::Identity;
+    use crate::poseidon_tree::LazyPoseidonTree;
+    use crate::protocol::{generate_nullifier_hash, generate_proof, verify_proof};
+    use crate::{hash_to_field, protocol, Field};
 
     #[test]
     fn test_field_serde() {
