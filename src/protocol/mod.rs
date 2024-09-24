@@ -10,18 +10,18 @@ use ark_std::UniformRand;
 use color_eyre::Result;
 use ethers_core::types::U256;
 use once_cell::sync::Lazy;
+use poseidon::Poseidon;
 use rand::{thread_rng, Rng};
 use semaphore_depth_config::{get_depth_index, get_supported_depth_count};
 use semaphore_depth_macros::array_for_depths;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use trees::Branch;
 use witness::Graph;
 
 use crate::circuit::zkey;
 use crate::identity::Identity;
-use crate::merkle_tree::{self, Branch};
-use crate::poseidon_tree::PoseidonHash;
-use crate::{poseidon, Field};
+use crate::Field;
 
 pub mod authentication;
 
@@ -73,7 +73,7 @@ impl From<Proof> for ArkProof<Bn<Config>> {
 
 /// Helper to merkle proof into a bigint vector
 /// TODO: we should create a From trait for this
-fn merkle_proof_to_vec(proof: &merkle_tree::Proof<PoseidonHash>) -> Vec<Field> {
+fn merkle_proof_to_vec(proof: &trees::Proof<Poseidon>) -> Vec<Field> {
     proof
         .0
         .iter()
@@ -86,7 +86,7 @@ fn merkle_proof_to_vec(proof: &merkle_tree::Proof<PoseidonHash>) -> Vec<Field> {
 /// Generates the nullifier hash
 #[must_use]
 pub fn generate_nullifier_hash(identity: &Identity, external_nullifier: Field) -> Field {
-    poseidon::hash2(external_nullifier, identity.nullifier)
+    poseidon::poseidon::hash2(external_nullifier, identity.nullifier)
 }
 
 #[derive(Error, Debug)]
@@ -108,7 +108,7 @@ pub enum ProofError {
 /// Returns a [`ProofError`] if proving fails.
 pub fn generate_proof(
     identity: &Identity,
-    merkle_proof: &merkle_tree::Proof<PoseidonHash>,
+    merkle_proof: &trees::Proof<Poseidon>,
     external_nullifier_hash: Field,
     signal_hash: Field,
 ) -> Result<Proof, ProofError> {
@@ -128,7 +128,7 @@ pub fn generate_proof(
 /// Returns a [`ProofError`] if proving fails.
 pub fn generate_proof_rng(
     identity: &Identity,
-    merkle_proof: &merkle_tree::Proof<PoseidonHash>,
+    merkle_proof: &trees::Proof<Poseidon>,
     external_nullifier_hash: Field,
     signal_hash: Field,
     rng: &mut impl Rng,
@@ -145,7 +145,7 @@ pub fn generate_proof_rng(
 
 fn generate_proof_rs(
     identity: &Identity,
-    merkle_proof: &merkle_tree::Proof<PoseidonHash>,
+    merkle_proof: &trees::Proof<Poseidon>,
     external_nullifier_hash: Field,
     signal_hash: Field,
     r: ark_bn254::Fr,
@@ -172,7 +172,7 @@ fn generate_proof_rs(
 
 pub fn generate_witness(
     identity: &Identity,
-    merkle_proof: &merkle_tree::Proof<PoseidonHash>,
+    merkle_proof: &trees::Proof<Poseidon>,
     external_nullifier_hash: Field,
     signal_hash: Field,
 ) -> Vec<Fr> {
@@ -180,7 +180,7 @@ pub fn generate_witness(
     let inputs = HashMap::from([
         ("identityNullifier".to_owned(), vec![identity.nullifier]),
         ("identityTrapdoor".to_owned(), vec![identity.trapdoor]),
-        ("treePathIndices".to_owned(), merkle_proof.path_index()),
+        ("treePathIndices".to_owned(), path_index(merkle_proof)),
         ("treeSiblings".to_owned(), merkle_proof_to_vec(merkle_proof)),
         (
             "externalNullifier".to_owned(),
@@ -197,6 +197,19 @@ pub fn generate_witness(
         .into_iter()
         .map(|x| Fr::from_bigint(x.into()).expect("Couldn't cast U256 to BigInteger"))
         .collect::<Vec<_>>()
+}
+
+/// Compute path index (TODO: do we want to keep this here?)
+#[must_use]
+pub fn path_index(proof: &trees::Proof<Poseidon>) -> Vec<Field> {
+    proof
+        .0
+        .iter()
+        .map(|branch| match branch {
+            Branch::Left(_) => Field::from(0),
+            Branch::Right(_) => Field::from(1),
+        })
+        .collect()
 }
 
 /// Verifies a given semaphore proof
