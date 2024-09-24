@@ -1,4 +1,5 @@
-use ruint::{aliases::U256, uint};
+use ruint::aliases::U256;
+use ruint::uint;
 
 uint! {
 
