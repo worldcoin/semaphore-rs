@@ -119,6 +119,7 @@ poseidon = { workspace = true }
 hasher = { workspace = true }
 keccak = { workspace = true }
 trees = { workspace = true }
+storage = { workspace = true }
 semaphore-depth-config = { workspace = true }
 semaphore-depth-macros = { workspace = true }
 
