@@ -195,12 +195,13 @@ pub mod test {
     use keccak::keccak::Keccak256;
 
     #[test_case(0 => None)]
-    #[test_case(1 => Some(0))]
-    #[test_case(2 => Some(0))]
+    #[test_case(1 => None)]
+    #[test_case(2 => Some(1))]
     #[test_case(3 => Some(1))]
-    #[test_case(4 => Some(1))]
+    #[test_case(4 => Some(2))]
     #[test_case(5 => Some(2))]
-    #[test_case(6 => Some(2))]
+    #[test_case(6 => Some(3))]
+    #[test_case(27 => Some(13))]
     fn parent_of(index: usize) -> Option<usize> {
         parent(index)
     }
