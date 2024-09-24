@@ -4,8 +4,8 @@ use std::fmt::Debug;
 use std::iter::{once, repeat, successors};
 
 use bytemuck::Pod;
+use hasher::Hasher;
 
-use crate::hasher::Hasher;
 use crate::proof::{Branch, Proof};
 
 /// Merkle tree with all leaf and intermediate hashes stored
@@ -192,7 +192,7 @@ pub mod test {
     use test_case::test_case;
 
     use super::*;
-    use crate::hashes::tiny_keccak::Keccak256;
+    use keccak::keccak::Keccak256;
 
     #[test_case(0 => None)]
     #[test_case(1 => Some(0))]

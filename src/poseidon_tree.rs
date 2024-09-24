@@ -1,30 +1,16 @@
 use crate::{
     lazy_merkle_tree::LazyMerkleTree,
     merkle_tree::{self, Hasher, MerkleTree},
-    poseidon, Field,
+    Field,
 };
+use poseidon::Poseidon;
 use serde::{Deserialize, Serialize};
+// use trees::trees::
 
-#[allow(dead_code)]
-pub type PoseidonTree = MerkleTree<PoseidonHash>;
-#[allow(dead_code)]
-#[allow(clippy::module_name_repetitions)]
-pub type LazyPoseidonTree = LazyMerkleTree<PoseidonHash>;
-#[allow(dead_code)]
-pub type Branch = merkle_tree::Branch<<PoseidonHash as Hasher>::Hash>;
-#[allow(dead_code)]
-pub type Proof = merkle_tree::Proof<PoseidonHash>;
-
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PoseidonHash;
-
-impl Hasher for PoseidonHash {
-    type Hash = Field;
-
-    fn hash_node(left: &Self::Hash, right: &Self::Hash) -> Self::Hash {
-        poseidon::hash2(*left, *right)
-    }
-}
+pub type PoseidonTree = MerkleTree<Poseidon>;
+pub type LazyPoseidonTree = LazyMerkleTree<Poseidon>;
+pub type Branch = merkle_tree::Branch<<Poseidon as Hasher>::Hash>;
+pub type Proof = merkle_tree::Proof<Poseidon>;
 
 #[cfg(test)]
 pub mod test {

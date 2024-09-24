@@ -1,12 +1,22 @@
 use serde::{Deserialize, Serialize};
 
-use crate::hasher::Hasher;
+use hasher::Hasher;
 
 /// Merkle proof path, bottom to top.
 #[derive(Clone, PartialEq, Eq)]
 pub struct Proof<H>(pub Vec<Branch<H::Hash>>)
 where
     H: Hasher;
+
+/// Element of a Merkle proof
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Branch<T> {
+    /// Left branch taken, value is the right sibling hash.
+    Left(T),
+
+    /// Right branch taken, value is the left sibling hash.
+    Right(T),
+}
 
 impl<H> Serialize for Proof<H>
 where
@@ -33,16 +43,6 @@ where
         let branches = Vec::deserialize(deserializer)?;
         Ok(Proof(branches))
     }
-}
-
-/// Element of a Merkle proof
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Branch<T> {
-    /// Left branch taken, value is the right sibling hash.
-    Left(T),
-
-    /// Right branch taken, value is the left sibling hash.
-    Right(T),
 }
 
 impl<T> Branch<T> {

@@ -1,10 +1,7 @@
-pub mod generic_storage;
-pub mod trees;
-pub mod hasher;
-pub mod hashes;
+pub mod cascading;
+pub mod imt;
+pub mod lazy;
 
-// TODO: Reintroduce
-// pub mod lazy_merkle_tree;
 
 pub mod proof;
 

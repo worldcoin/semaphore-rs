@@ -30,6 +30,7 @@ poseidon = { path = "crates/poseidon" }
 hasher = { path = "crates/hasher" }
 keccak = { path = "crates/keccak" }
 trees = { path = "crates/trees" }
+storage = { path = "crates/storage" }
 semaphore-depth-config = { path = "crates/semaphore-depth-config" }
 semaphore-depth-macros = { path = "crates/semaphore-depth-macros" }
 
@@ -112,6 +113,16 @@ name = "cascading_merkle_tree"
 harness = false
 
 [dependencies]
+# Internal
+ark-zkey = { workspace = true }
+poseidon = { workspace = true }
+hasher = { workspace = true }
+keccak = { workspace = true }
+trees = { workspace = true }
+semaphore-depth-config = { workspace = true }
+semaphore-depth-macros = { workspace = true }
+
+# 3rd Party
 bincode = { workspace = true }
 bytemuck = { workspace = true }
 color-eyre = { workspace = true }
@@ -126,8 +137,6 @@ once_cell = { workspace = true }
 rand = { workspace = true }
 rayon = { workspace = true }
 ruint = { workspace = true }
-semaphore-depth-config = { workspace = true }
-semaphore-depth-macros = { workspace = true }
 serde = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
@@ -143,7 +152,6 @@ ark-ff = { workspace = true }
 ark-groth16 = { workspace = true }
 ark-relations = { workspace = true }
 ark-std = { workspace = true }
-ark-zkey = { workspace = true }
 
 [dev-dependencies]
 serial_test = { workspace = true }

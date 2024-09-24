@@ -3,10 +3,10 @@ use std::ops::{Deref, DerefMut, Range};
 use bytemuck::Pod;
 use color_eyre::eyre::{bail, ensure};
 use color_eyre::Result;
+use hasher::Hasher;
 use rayon::prelude::*;
+use storage::GenericStorage;
 
-use crate::generic_storage::GenericStorage;
-use crate::hasher::Hasher;
 use crate::proof::Branch;
 
 pub trait StorageOps<H>:
@@ -491,10 +491,11 @@ pub fn subtree_depth_width<H>(storage_slice: &[H]) -> (usize, usize) {
 
 #[cfg(test)]
 mod tests {
+    use keccak::keccak::Keccak256;
+    use storage::MmapVec;
+
+    use super::super::tests::TestHasher;
     use super::*;
-    use crate::generic_storage::MmapVec;
-    use crate::hashes::tiny_keccak::Keccak256;
-    use crate::trees::cascading::tests::TestHasher;
 
     fn test_is_storage_ops<S>(_s: &S)
     where

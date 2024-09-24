@@ -1,0 +1,13 @@
+[package]
+name = "storage"
+version = "0.1.0"
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+bytemuck = { workspace = true }
+color-eyre = { workspace = true }
+mmap-rs = { workspace = true }
+tempfile = { workspace = true }

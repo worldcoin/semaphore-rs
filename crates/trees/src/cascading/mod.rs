@@ -2,8 +2,8 @@ use std::fmt::Debug;
 
 use bytemuck::Pod;
 use color_eyre::eyre::{ensure, Result};
+use hasher::Hasher;
 
-use crate::hasher::Hasher;
 use crate::proof::{Branch, Proof};
 
 mod storage_ops;
@@ -457,13 +457,13 @@ where
 #[cfg(test)]
 mod tests {
 
+    use hasher::Hasher;
+    use keccak::keccak::Keccak256;
     use rand::{thread_rng, Rng};
     use serial_test::serial;
+    use storage::{GenericStorage, MmapVec};
 
     use super::*;
-    use crate::generic_storage::{GenericStorage, MmapVec};
-    use crate::hasher::Hasher;
-    use crate::hashes::tiny_keccak::Keccak256;
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct TestHasher;
