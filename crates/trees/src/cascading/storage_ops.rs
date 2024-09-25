@@ -1,15 +1,13 @@
 use std::ops::{Deref, DerefMut, Range};
 
-use color_eyre::{
-    eyre::{bail, ensure},
-    Result,
-};
+use bytemuck::Pod;
+use color_eyre::eyre::{bail, ensure};
+use color_eyre::Result;
+use hasher::Hasher;
 use rayon::prelude::*;
+use storage::GenericStorage;
 
-use crate::{
-    generic_storage::GenericStorage,
-    merkle_tree::{Branch, Hasher},
-};
+use crate::proof::Branch;
 
 pub trait StorageOps<H>:
     GenericStorage<H::Hash>
@@ -20,6 +18,7 @@ pub trait StorageOps<H>:
     + Sized
 where
     H: Hasher,
+    <H as Hasher>::Hash: Copy + Pod + Eq + Send + Sync,
 {
     /// Clears the current storage and initializes it with the given leaves.
     fn populate_with_leaves(
@@ -174,6 +173,7 @@ impl<H, S> StorageOps<H> for S
 where
     H: Hasher,
     S: GenericStorage<H::Hash>,
+    <H as Hasher>::Hash: Copy + Pod + Eq + Send + Sync,
 {
 }
 
@@ -282,11 +282,15 @@ pub fn children(i: usize) -> Option<(usize, usize)> {
 ///   2     5   [  10    11 ]
 /// 1  3  6  7  [12 13 14 15]
 ///  ```
-pub fn init_subtree_with_leaves<H: Hasher>(
+pub fn init_subtree_with_leaves<H>(
     subtree: &mut [H::Hash],
     sparse_column: &[H::Hash],
     leaves: &[H::Hash],
-) -> H::Hash {
+) -> H::Hash
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Copy + Pod + Eq + Send + Sync,
+{
     let (_depth, width) = subtree_depth_width(subtree);
 
     // Set the leaves
@@ -330,11 +334,15 @@ pub fn init_subtree_with_leaves<H: Hasher>(
 ///   2     5   [  10    11 ]
 /// 1  3  6  7  [12 13 14 15]
 ///  ```
-pub fn extend_subtree_with_leaves<H: Hasher>(
+pub fn extend_subtree_with_leaves<H>(
     subtree: &mut [H::Hash],
     start: usize,
     leaves: &[H::Hash],
-) -> H::Hash {
+) -> H::Hash
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Copy + Pod + Eq + Send + Sync,
+{
     let (_depth, width) = subtree_depth_width(subtree);
 
     // Set the leaves
@@ -371,10 +379,11 @@ pub fn extend_subtree_with_leaves<H: Hasher>(
 ///   2     5   [  10    11 ]
 /// 1  3  6  7  [12 13 14 15]
 ///  ```
-pub fn propagate_partial_subtree<H: Hasher>(
-    subtree: &mut [H::Hash],
-    mut range: Range<usize>,
-) -> H::Hash {
+pub fn propagate_partial_subtree<H>(subtree: &mut [H::Hash], mut range: Range<usize>) -> H::Hash
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Copy + Pod + Eq + Send + Sync,
+{
     let depth = subtree_depth(subtree);
 
     // Iterate over mutable layers of the tree
@@ -421,11 +430,15 @@ pub fn propagate_partial_subtree<H: Hasher>(
 ///   2     5   [  10    11 ]
 /// 1  3  6  7  [12 13 14 15]
 ///  ```
-pub fn sparse_fill_partial_subtree<H: Hasher>(
+pub fn sparse_fill_partial_subtree<H>(
     subtree: &mut [H::Hash],
     sparse_column: &[H::Hash],
     mut range: Range<usize>,
-) -> H::Hash {
+) -> H::Hash
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Copy + Pod + Eq + Send + Sync,
+{
     let depth = subtree_depth(subtree);
 
     // Iterate over mutable layers of the tree
@@ -478,21 +491,21 @@ pub fn subtree_depth_width<H>(storage_slice: &[H]) -> (usize, usize) {
 
 #[cfg(test)]
 mod tests {
+    use keccak::keccak::Keccak256;
+    use storage::MmapVec;
+
+    use super::super::tests::TestHasher;
     use super::*;
-    use crate::{
-        cascading_merkle_tree::tests::TestHasher, generic_storage::MmapVec,
-        poseidon_tree::PoseidonHash,
-    };
 
     fn test_is_storage_ops<S>(_s: &S)
     where
-        S: StorageOps<PoseidonHash>,
+        S: StorageOps<Keccak256>,
     {
     }
 
     // A compile time test to verify that MmapVec is StorageOps
     #[allow(unused)]
-    fn test_mmap_vec_is_storage_ops(s: MmapVec<<PoseidonHash as Hasher>::Hash>) {
+    fn test_mmap_vec_is_storage_ops(s: MmapVec<<Keccak256 as Hasher>::Hash>) {
         test_is_storage_ops(&s);
     }
 

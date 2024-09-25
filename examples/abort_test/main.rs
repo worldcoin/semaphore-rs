@@ -1,9 +1,10 @@
 use std::{env, process::Stdio};
 
 use color_eyre::Result;
-use semaphore::{
-    cascading_merkle_tree::CascadingMerkleTree, generic_storage::MmapVec, merkle_tree::Hasher,
-};
+
+use hasher::Hasher;
+use storage::MmapVec;
+use trees::cascading::CascadingMerkleTree;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct TestHasher;

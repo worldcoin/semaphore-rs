@@ -1,18 +1,17 @@
-use std::{
-    fs::OpenOptions,
-    io::Write,
-    iter::{once, repeat, successors},
-    ops::{Deref, DerefMut},
-    path::PathBuf,
-    str::FromStr,
-    sync::{Arc, Mutex},
-};
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::iter::{once, repeat, successors};
+use std::ops::{Deref, DerefMut};
+use std::path::PathBuf;
+use std::str::FromStr;
+use std::sync::{Arc, Mutex};
 
+use hasher::{Hash, Hasher};
 use mmap_rs::{MmapFlags, MmapMut, MmapOptions};
 use rayon::prelude::*;
 use thiserror::Error;
 
-use crate::merkle_tree::{Branch, Hasher, Proof};
+use crate::{Branch, Proof};
 
 pub trait VersionMarker {}
 #[derive(Debug)]
@@ -41,7 +40,12 @@ pub struct LazyMerkleTree<H: Hasher, V: VersionMarker = Derived> {
     _version: V,
 }
 
-impl<H: Hasher, Version: VersionMarker> LazyMerkleTree<H, Version> {
+impl<H, Version> LazyMerkleTree<H, Version>
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Hash,
+    Version: VersionMarker,
+{
     /// Creates a new, fully lazy (without any dense prefix) tree.
     #[must_use]
     pub fn new(depth: usize, empty_value: H::Hash) -> LazyMerkleTree<H, Canonical> {
@@ -179,7 +183,11 @@ impl<H: Hasher, Version: VersionMarker> LazyMerkleTree<H, Version> {
     }
 }
 
-impl<H: Hasher> LazyMerkleTree<H, Canonical> {
+impl<H> LazyMerkleTree<H, Canonical>
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Hash,
+{
     /// Sets the value at the given index to the given value. This is a mutable
     /// operation, that will modify any dense subtrees in place.
     ///
@@ -214,7 +222,11 @@ impl<H: Hasher> LazyMerkleTree<H, Canonical> {
     }
 }
 
-impl<H: Hasher> Clone for LazyMerkleTree<H, Derived> {
+impl<H> Clone for LazyMerkleTree<H, Derived>
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Hash,
+{
     fn clone(&self) -> Self {
         Self {
             tree: self.tree.clone(),
@@ -230,7 +242,11 @@ enum AnyTree<H: Hasher> {
     DenseMMap(DenseMMapTree<H>),
 }
 
-impl<H: Hasher> AnyTree<H> {
+impl<H> AnyTree<H>
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Hash,
+{
     fn new(depth: usize, empty_value: H::Hash) -> Self {
         Self::Empty(EmptyTree::new(depth, empty_value))
     }
@@ -379,7 +395,11 @@ impl<H: Hasher> AnyTree<H> {
     }
 }
 
-impl<H: Hasher> Clone for AnyTree<H> {
+impl<H> Clone for AnyTree<H>
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Hash,
+{
     fn clone(&self) -> Self {
         match self {
             Self::Empty(t) => t.clone().into(),
@@ -428,7 +448,11 @@ impl<H: Hasher> Clone for EmptyTree<H> {
     }
 }
 
-impl<H: Hasher> EmptyTree<H> {
+impl<H> EmptyTree<H>
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Hash,
+{
     #[must_use]
     fn new(depth: usize, empty_value: H::Hash) -> Self {
         let empty_tree_values = {
@@ -546,7 +570,11 @@ const fn clear_turn_at_depth(index: usize, depth: usize) -> usize {
     index & !(1 << (depth - 1))
 }
 
-impl<H: Hasher> From<Children<H>> for SparseTree<H> {
+impl<H> From<Children<H>> for SparseTree<H>
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Hash,
+{
     fn from(children: Children<H>) -> Self {
         assert_eq!(children.left.depth(), children.right.depth());
         let (depth, root) = {
@@ -564,7 +592,11 @@ impl<H: Hasher> From<Children<H>> for SparseTree<H> {
     }
 }
 
-impl<H: Hasher> Clone for SparseTree<H> {
+impl<H> Clone for SparseTree<H>
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Hash,
+{
     fn clone(&self) -> Self {
         Self {
             depth: self.depth,
@@ -574,7 +606,11 @@ impl<H: Hasher> Clone for SparseTree<H> {
     }
 }
 
-impl<H: Hasher> SparseTree<H> {
+impl<H> SparseTree<H>
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Hash,
+{
     fn new(left: AnyTree<H>, right: AnyTree<H>) -> Self {
         assert_eq!(left.depth(), right.depth());
         let children = Children {
@@ -675,7 +711,11 @@ impl<H: Hasher> Clone for DenseTree<H> {
     }
 }
 
-impl<H: Hasher> DenseTree<H> {
+impl<H> DenseTree<H>
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Hash,
+{
     fn vec_from_values(values: &[H::Hash], empty_value: &H::Hash, depth: usize) -> Vec<H::Hash> {
         let leaf_count = 1 << depth;
         let storage_size = 1 << (depth + 1);
@@ -797,7 +837,11 @@ impl<H: Hasher> From<DenseTreeRef<'_, H>> for AnyTree<H> {
     }
 }
 
-impl<'a, H: Hasher> DenseTreeRef<'a, H> {
+impl<'a, H> DenseTreeRef<'a, H>
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Hash,
+{
     fn root(&self) -> H::Hash {
         self.storage[self.root_index]
     }
@@ -885,7 +929,11 @@ impl<H: Hasher> Clone for DenseMMapTree<H> {
     }
 }
 
-impl<H: Hasher> DenseMMapTree<H> {
+impl<H> DenseMMapTree<H>
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Hash,
+{
     /// Creates a new `DenseMMapTree` with initial values and depth
     ///
     /// # Errors
@@ -1024,7 +1072,11 @@ impl<'a, H: Hasher> From<DenseTreeMMapRef<'a, H>> for AnyTree<H> {
     }
 }
 
-impl<'a, H: Hasher> DenseTreeMMapRef<'a, H> {
+impl<'a, H> DenseTreeMMapRef<'a, H>
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Hash,
+{
     fn root(&self) -> H::Hash {
         self.storage[self.root_index]
     }
@@ -1101,7 +1153,11 @@ pub struct MmapMutWrapper<H: Hasher> {
     phantom: std::marker::PhantomData<H>,
 }
 
-impl<H: Hasher> MmapMutWrapper<H> {
+impl<H> MmapMutWrapper<H>
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Hash,
+{
     /// Creates a new memory map backed with file with provided size
     /// and fills the entire map with initial value
     ///
@@ -1204,7 +1260,11 @@ impl<H: Hasher> MmapMutWrapper<H> {
     }
 }
 
-impl<H: Hasher> Deref for MmapMutWrapper<H> {
+impl<H> Deref for MmapMutWrapper<H>
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Hash,
+{
     type Target = [H::Hash];
 
     fn deref(&self) -> &Self::Target {
@@ -1212,7 +1272,11 @@ impl<H: Hasher> Deref for MmapMutWrapper<H> {
     }
 }
 
-impl<H: Hasher> DerefMut for MmapMutWrapper<H> {
+impl<H> DerefMut for MmapMutWrapper<H>
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Hash,
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         bytemuck::cast_slice_mut(self.mmap.as_mut_slice())
     }
@@ -1234,10 +1298,11 @@ pub enum DenseMMapError {
 
 #[cfg(test)]
 mod tests {
+    use hasher::Hasher;
     use hex_literal::hex;
+    use keccak::keccak::Keccak256;
 
     use super::*;
-    use crate::merkle_tree::{test::Keccak256, Hasher};
 
     struct TestHasher;
 
