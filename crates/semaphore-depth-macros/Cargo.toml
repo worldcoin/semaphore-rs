@@ -1,8 +1,6 @@
 [package]
 name = "semaphore-depth-macros"
 version = "0.1.0"
-publish = false
-
 edition.workspace = true
 homepage.workspace = true
 license.workspace = true

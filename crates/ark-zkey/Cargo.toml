@@ -1,8 +1,10 @@
 [package]
 name = "ark-zkey"
 version = "0.1.0"
-edition = "2021"
-publish = false
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 color-eyre = "0.6"
