@@ -69,6 +69,9 @@ tiny-keccak = { version = "2.0.2" }
 tracing-test = "0.2"
 witness = { git = "https://github.com/philsippl/circom-witness-rs" }
 zeroize = "1.6.0"
+memmap2 = "0.9"
+flame = "0.2"
+flamer = "0.5"
 
 # Proc macros
 syn = { version = "2.0.9", features = ["full", "visit-mut", "extra-traits"] }
@@ -77,13 +80,13 @@ quote = "1.0.26"
 
 # Ark
 ark-bn254 = { version = "=0.4.0" }
-ark-circom = { git = "https://github.com/arkworks-rs/circom-compat.git", rev = "f97ac2b", features = [
+ark-circom = { git = "https://github.com/Dzejkop/circom-compat.git", rev = "625633e", features = [
     "circom-2",
 ] }
-ark-ec = { version = "0.4.1", default-features = false, features = [
+ark-ec = { version = "0.4.2", default-features = false, features = [
     "parallel",
 ] }
-ark-ff = { version = "0.4.1", default-features = false, features = [
+ark-ff = { version = "0.4.2", default-features = false, features = [
     "parallel",
     "asm",
 ] }
@@ -92,6 +95,7 @@ ark-relations = { version = "=0.4.0", default-features = false }
 ark-std = { version = "0.4.0", default-features = false, features = [
     "parallel",
 ] }
+ark-serialize = { version = "0.4.2", features = ["derive"] }
 
 [features]
 default = []

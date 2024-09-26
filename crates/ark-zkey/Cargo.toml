@@ -7,15 +7,15 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-color-eyre = "0.6"
-memmap2 = "0.9"
-flame = "0.2"
-flamer = "0.5"
+color-eyre = { workspace = true }
+memmap2 = { workspace = true }
+flame = { workspace = true }
+flamer = { workspace = true }
 
-ark-serialize = { version = "=0.4.1", features = ["derive"] }
-ark-bn254 = { version = "=0.4.0" }
-ark-groth16 = { version = "=0.4.0" }
-ark-circom = { git = "https://github.com/arkworks-rs/circom-compat.git", rev="f97ac2b", features = ["circom-2"] }
-ark-relations = { version = "=0.4.0" }
-ark-ff = { version = "=0.4.1" }
-ark-ec = { version = "=0.4.1" }
+ark-serialize = { workspace = true }
+ark-bn254 = { workspace = true }
+ark-groth16 = { workspace = true }
+ark-circom = { workspace = true }
+ark-relations = { workspace = true }
+ark-ff = { workspace = true }
+ark-ec = { workspace = true }
