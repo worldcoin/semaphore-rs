@@ -7,15 +7,15 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-color-eyre = { workspace = true }
-memmap2 = { workspace = true }
-flame = { workspace = true }
-flamer = { workspace = true }
+color-eyre.workspace = true
+memmap2.workspace = true
+flame.workspace = true
+flamer.workspace = true
 
-ark-serialize = { workspace = true }
-ark-bn254 = { workspace = true }
-ark-groth16 = { workspace = true }
-ark-circom = { workspace = true }
-ark-relations = { workspace = true }
-ark-ff = { workspace = true }
-ark-ec = { workspace = true }
+ark-serialize.workspace = true
+ark-bn254.workspace = true
+ark-groth16.workspace = true
+ark-circom.workspace = true
+ark-relations.workspace = true
+ark-ff.workspace = true
+ark-ec.workspace = true

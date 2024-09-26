@@ -15,8 +15,8 @@ depth_30 = ["semaphore-depth-config/depth_30"]
 proc-macro = true
 
 [dependencies]
-semaphore-depth-config = { workspace = true }
+semaphore-depth-config.workspace = true
 itertools ={ workspace = true }
-syn = { workspace = true }
-proc-macro2 = { workspace = true }
-quote = { workspace = true }
+syn.workspace = true
+proc-macro2.workspace = true
+quote.workspace = true
