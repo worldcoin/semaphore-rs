@@ -5,6 +5,17 @@ env:
   RUST_VERSION: 1.81.0
 
 jobs:
+  dependabot-dependency-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout Repository"
+        uses: actions/checkout@v4
+      - name: "Dependency Review"
+        uses: actions/dependency-review-action@v4
+        with:
+          base-ref: ${{ inputs.base-ref || github.event.pull_request.base.sha || 'main' }}
+          head-ref: ${{ inputs.head-ref || github.event.pull_request.head.sha || github.ref }}
+
   test:
     name: Test
     runs-on: ubuntu-latest

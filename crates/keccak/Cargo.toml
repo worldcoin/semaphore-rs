@@ -7,8 +7,8 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-hasher = { workspace = true }
-tiny-keccak = { workspace = true }
+hasher.workspace = true
+tiny-keccak.workspace = true
 
 [features]
 default = ["sha3"]

@@ -7,7 +7,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-bytemuck = { workspace = true }
-color-eyre = { workspace = true }
-mmap-rs = { workspace = true }
-tempfile = { workspace = true }
+bytemuck.workspace = true
+color-eyre.workspace = true
+mmap-rs.workspace = true
+tempfile.workspace = true
