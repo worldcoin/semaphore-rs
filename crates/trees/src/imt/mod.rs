@@ -4,12 +4,16 @@ use std::fmt::Debug;
 use std::iter::{once, repeat, successors};
 
 use bytemuck::Pod;
+use derive_where::derive_where;
 use hasher::Hasher;
 
 use crate::proof::{Branch, Proof};
 
 /// Merkle tree with all leaf and intermediate hashes stored
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive_where(Clone; <H as Hasher>::Hash: Clone)]
+#[derive_where(PartialEq; <H as Hasher>::Hash: PartialEq)]
+#[derive_where(Eq; <H as Hasher>::Hash: Eq)]
+#[derive_where(Debug; <H as Hasher>::Hash: Debug)]
 pub struct MerkleTree<H>
 where
     H: Hasher,

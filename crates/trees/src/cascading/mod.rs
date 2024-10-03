@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use bytemuck::Pod;
 use color_eyre::eyre::{ensure, Result};
+use derive_where::derive_where;
 use hasher::Hasher;
 
 use crate::proof::{Branch, Proof};
@@ -33,7 +34,10 @@ use self::storage_ops::{sparse_fill_partial_subtree, StorageOps};
 /// Leaves are 0 indexed
 /// 0  1  2  3  4  5  6  7
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive_where(Clone; <H as Hasher>::Hash: Clone, S: Clone)]
+#[derive_where(PartialEq; <H as Hasher>::Hash: PartialEq, S: PartialEq)]
+#[derive_where(Eq; <H as Hasher>::Hash: Eq, S: Eq)]
+#[derive_where(Debug; <H as Hasher>::Hash: Debug, S: Debug)]
 pub struct CascadingMerkleTree<H, S = Vec<<H as Hasher>::Hash>>
 where
     H: Hasher,
@@ -477,7 +481,7 @@ mod tests {
 
     pub fn debug_tree<H, S>(tree: &CascadingMerkleTree<H, S>)
     where
-        H: Hasher + std::fmt::Debug,
+        H: Hasher,
         <H as Hasher>::Hash: Debug + Copy,
         S: GenericStorage<H::Hash> + std::fmt::Debug,
     {
@@ -487,7 +491,7 @@ mod tests {
 
     pub fn debug_storage<H, S>(storage: &S)
     where
-        H: Hasher + std::fmt::Debug,
+        H: Hasher,
         <H as Hasher>::Hash: Debug + Copy,
         S: std::ops::Deref<Target = [<H as Hasher>::Hash]> + std::fmt::Debug,
     {
