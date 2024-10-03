@@ -4,7 +4,6 @@ use hasher::Hasher;
 use serde::{Deserialize, Serialize};
 
 /// Merkle proof path, bottom to top.
-#[derive(Clone)]
 pub struct Proof<H>(pub Vec<Branch<H::Hash>>)
 where
     H: Hasher;
@@ -16,6 +15,16 @@ where
 {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
+    }
+}
+
+impl<H> Clone for Proof<H>
+where
+    H: Hasher,
+    <H as Hasher>::Hash: Clone,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
     }
 }
 
