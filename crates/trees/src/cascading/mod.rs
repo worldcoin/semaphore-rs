@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use bytemuck::Pod;
 use color_eyre::eyre::{ensure, Result};
+use derive_where::derive_where;
 use hasher::Hasher;
 
 use crate::proof::{Branch, Proof};
@@ -33,6 +34,10 @@ use self::storage_ops::{sparse_fill_partial_subtree, StorageOps};
 /// Leaves are 0 indexed
 /// 0  1  2  3  4  5  6  7
 /// ```
+#[derive_where(Clone; <H as Hasher>::Hash: Clone, S: Clone)]
+#[derive_where(PartialEq; <H as Hasher>::Hash: PartialEq, S: PartialEq)]
+#[derive_where(Eq; <H as Hasher>::Hash: Eq, S: Eq)]
+#[derive_where(Debug; <H as Hasher>::Hash: Debug, S: Debug)]
 pub struct CascadingMerkleTree<H, S = Vec<<H as Hasher>::Hash>>
 where
     H: Hasher,
@@ -43,64 +48,6 @@ where
     sparse_column: Vec<H::Hash>,
     storage: S,
     _marker: std::marker::PhantomData<H>,
-}
-
-impl<H, S> Debug for CascadingMerkleTree<H, S>
-where
-    H: Hasher,
-    <H as Hasher>::Hash: Debug,
-    S: Debug,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CascadingMerkleTree")
-            .field("depth", &self.depth)
-            .field("root", &self.root)
-            .field("empty_value", &self.empty_value)
-            .field("sparse_column", &self.sparse_column)
-            .field("storage", &self.storage)
-            .finish()
-    }
-}
-
-impl<H, S> Clone for CascadingMerkleTree<H, S>
-where
-    H: Hasher,
-    <H as Hasher>::Hash: Clone,
-    S: Clone,
-{
-    fn clone(&self) -> Self {
-        Self {
-            depth: self.depth,
-            root: self.root.clone(),
-            empty_value: self.empty_value.clone(),
-            sparse_column: self.sparse_column.clone(),
-            storage: self.storage.clone(),
-            _marker: std::marker::PhantomData,
-        }
-    }
-}
-
-impl<H, S> PartialEq for CascadingMerkleTree<H, S>
-where
-    H: Hasher,
-    <H as Hasher>::Hash: PartialEq,
-    S: PartialEq,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.depth == other.depth
-            && self.root == other.root
-            && self.empty_value == other.empty_value
-            && self.sparse_column == other.sparse_column
-            && self.storage == other.storage
-    }
-}
-
-impl<H, S> Eq for CascadingMerkleTree<H, S>
-where
-    H: Hasher,
-    <H as Hasher>::Hash: Eq,
-    S: Eq,
-{
 }
 
 impl<H, S> CascadingMerkleTree<H, S>

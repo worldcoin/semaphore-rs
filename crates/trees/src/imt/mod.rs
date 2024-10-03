@@ -4,11 +4,16 @@ use std::fmt::Debug;
 use std::iter::{once, repeat, successors};
 
 use bytemuck::Pod;
+use derive_where::derive_where;
 use hasher::Hasher;
 
 use crate::proof::{Branch, Proof};
 
 /// Merkle tree with all leaf and intermediate hashes stored
+#[derive_where(Clone; <H as Hasher>::Hash: Clone)]
+#[derive_where(PartialEq; <H as Hasher>::Hash: PartialEq)]
+#[derive_where(Eq; <H as Hasher>::Hash: Eq)]
+#[derive_where(Debug; <H as Hasher>::Hash: Debug)]
 pub struct MerkleTree<H>
 where
     H: Hasher,
@@ -21,51 +26,6 @@ where
 
     /// Hash values of tree nodes and leaves, breadth first order
     nodes: Vec<H::Hash>,
-}
-
-impl<H> Clone for MerkleTree<H>
-where
-    H: Hasher,
-    <H as Hasher>::Hash: Clone,
-{
-    fn clone(&self) -> Self {
-        Self {
-            depth: self.depth,
-            empty: self.empty.clone(),
-            nodes: self.nodes.clone(),
-        }
-    }
-}
-
-impl<H> PartialEq for MerkleTree<H>
-where
-    H: Hasher,
-    H::Hash: PartialEq,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.depth.eq(&other.depth) && self.empty.eq(&other.empty) && self.nodes.eq(&other.nodes)
-    }
-}
-
-impl<H> Eq for MerkleTree<H>
-where
-    H: Hasher,
-    H::Hash: Eq,
-{
-}
-
-impl<H> Debug for MerkleTree<H>
-where
-    H: Hasher,
-    H::Hash: Debug,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("MerkleTree")
-            .field("depth", &self.depth)
-            .field("empty", &self.empty)
-            .field("nodes", &self.nodes)
-            .finish()
-    }
 }
 
 /// For a given node index, return the parent node index
