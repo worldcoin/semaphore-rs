@@ -98,10 +98,6 @@ ark-std = { version = "0.4.0", default-features = false, features = [
 ] }
 ark-serialize = { version = "0.4.2", features = ["derive"] }
 
-# Necessary because there's an issue with dependencies in the workspace
-# this has something to do with `net` feature not being enabled in `mio`.
-tokio = "=1.38"
-
 [features]
 default = []
 depth_16 = [
@@ -153,7 +149,6 @@ thiserror.workspace = true
 tiny-keccak.workspace = true
 witness.workspace = true
 zeroize.workspace = true
-tokio.workspace = true
 
 # Ark
 ark-bn254.workspace = true
