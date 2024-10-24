@@ -405,7 +405,7 @@ where
         for subtree_power in first_subtree_power..=last_subtree_power {
             // We have a special case for subtree_power = 0
             // because the subtree is completely empty.
-            // This represents the very borrow left of the tree.
+            // This represents the very bottom left of the tree.
             // parent_index represents the index of the parent node of the subtree.
             // It is the power of two on the left most branch of the tree.
             let parent_index = if subtree_power == 0 {
