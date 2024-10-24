@@ -69,7 +69,7 @@ pub(crate) fn deserialize_bytes<'de, const N: usize, D: Deserializer<'de>>(
 ) -> Result<[u8; N], D::Error> {
     if deserializer.is_human_readable() {
         struct StrVisitor<const N: usize>;
-        impl<'de, const N: usize> Visitor<'de> for StrVisitor<N> {
+        impl<const N: usize> Visitor<'_> for StrVisitor<N> {
             type Value = [u8; N];
 
             fn expecting(&self, formatter: &mut Formatter) -> FmtResult {
@@ -86,7 +86,7 @@ pub(crate) fn deserialize_bytes<'de, const N: usize, D: Deserializer<'de>>(
         deserializer.deserialize_str(StrVisitor)
     } else {
         struct ByteVisitor<const N: usize>;
-        impl<'de, const N: usize> Visitor<'de> for ByteVisitor<N> {
+        impl<const N: usize> Visitor<'_> for ByteVisitor<N> {
             type Value = [u8; N];
 
             fn expecting(&self, formatter: &mut Formatter) -> FmtResult {
