@@ -4,7 +4,7 @@ use core::{
     str,
     str::FromStr,
 };
-use ethers_core::types::U256;
+use ethabi::ethereum_types::U256;
 use num_bigint::{BigInt, Sign};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 

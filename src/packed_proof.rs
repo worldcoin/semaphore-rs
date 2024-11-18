@@ -4,8 +4,7 @@ use std::{
 };
 
 use crate::protocol::Proof;
-use ethabi::{decode, encode, ParamType, Token};
-use ethers_core::types::U256;
+use ethabi::{decode, encode, ethereum_types::U256, ParamType, Token};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::util::{bytes_from_hex, bytes_to_hex, deserialize_bytes, serialize_bytes};

@@ -41,7 +41,6 @@ color-eyre = "0.6"
 criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
 derive-where = "1"
 ethabi = "18.0.0"
-ethers-core = { git = "https://github.com/gakonst/ethers-rs", default-features = false }
 hex = "0.4.0"
 hex-literal = "0.4"
 itertools = "0.13"
@@ -137,7 +136,6 @@ bincode.workspace = true
 bytemuck.workspace = true
 color-eyre.workspace = true
 ethabi.workspace = true
-ethers-core.workspace = true
 hex.workspace = true
 hex-literal.workspace = true
 itertools.workspace = true

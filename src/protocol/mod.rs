@@ -8,7 +8,7 @@ use ark_groth16::{prepare_verifying_key, Groth16, Proof as ArkProof};
 use ark_relations::r1cs::SynthesisError;
 use ark_std::UniformRand;
 use color_eyre::Result;
-use ethers_core::types::U256;
+use ethabi::ethereum_types::U256;
 use once_cell::sync::Lazy;
 use poseidon::Poseidon;
 use rand::{thread_rng, Rng};
