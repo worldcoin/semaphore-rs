@@ -8,7 +8,6 @@ use alloy_core::sol_types::{
     sol_data::{FixedArray, Uint},
     SolType, SolValue,
 };
-use ruint::aliases::U256;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -87,6 +86,7 @@ impl<'de> Deserialize<'de> for PackedProof {
 #[cfg(test)]
 pub mod test {
     use super::*;
+    use ruint::aliases::U256;
 
     #[test]
     fn test_serializing_proof_into_packed_proof() {
