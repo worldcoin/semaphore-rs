@@ -35,12 +35,12 @@ semaphore-depth-config = { path = "crates/semaphore-depth-config" }
 semaphore-depth-macros = { path = "crates/semaphore-depth-macros" }
 
 # 3rd Party
+alloy-core = { version = "0.8.12", default-features = false, features = ["sol-types"] }
 bincode = "1.3.3"
 bytemuck = "1.18"
 color-eyre = "0.6"
 criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
 derive-where = "1"
-ethabi = "18.0.0"
 hex = "0.4.0"
 hex-literal = "0.4"
 itertools = "0.13"
@@ -80,7 +80,8 @@ quote = "1.0.26"
 
 # Ark
 ark-bn254 = { version = "=0.4.0" }
-ark-circom = { git = "https://github.com/arkworks-rs/circom-compat.git", rev = "7f80002", features = [
+# TODO: Move to arkworks-rs/circom-compat once https://github.com/arkworks-rs/circom-compat/pull/80 is merged
+ark-circom = { git = "https://github.com/paolodamico/circom-compat.git", rev = "49729d3", features = [
     "circom-2",
 ] }
 ark-ec = { version = "0.4.2", default-features = false, features = [
@@ -130,10 +131,10 @@ semaphore-depth-config.workspace = true
 semaphore-depth-macros.workspace = true
 
 # 3rd Party
+alloy-core.workspace = true
 bincode.workspace = true
 bytemuck.workspace = true
 color-eyre.workspace = true
-ethabi.workspace = true
 hex.workspace = true
 hex-literal.workspace = true
 itertools.workspace = true
