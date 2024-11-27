@@ -20,7 +20,7 @@ fn derive_field(seed_hex: &[u8; 64], suffix: &[u8]) -> Field {
     Field::try_from_be_slice(hasher.finalize().as_ref()).unwrap() % MODULUS
 }
 
-fn seed_hex(seed: &[u8]) -> [u8; 64] {
+pub fn seed_hex(seed: &[u8]) -> [u8; 64] {
     let mut hasher = Sha256::new();
     hasher.update(seed);
     let bytes: [u8; 32] = hasher.finalize().into();
