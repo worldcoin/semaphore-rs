@@ -22,9 +22,6 @@ url = "https://raw.githubusercontent.com/mozilla/supply-chain/main/audits.toml"
 [policy.ark-groth16]
 audit-as-crates-io = true
 
-[policy.ethers-core]
-audit-as-crates-io = true
-
 [policy.semaphore]
 audit-as-crates-io = false
 
@@ -346,10 +343,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.ethereum-types]]
 version = "0.14.1"
-criteria = "safe-to-deploy"
-
-[[exemptions.ethers-core]]
-version = "2.0.14@git:5394d899adca736a602e316e6f0c06fdb5aa64b9"
 criteria = "safe-to-deploy"
 
 [[exemptions.eyre]]

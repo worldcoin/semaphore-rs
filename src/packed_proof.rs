@@ -4,8 +4,11 @@ use std::{
 };
 
 use crate::protocol::Proof;
-use ethabi::{decode, encode, ParamType, Token};
-use ethers_core::types::U256;
+use alloy_core::sol_types::{
+    sol_data::{FixedArray, Uint},
+    SolType, SolValue,
+};
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::util::{bytes_from_hex, bytes_to_hex, deserialize_bytes, serialize_bytes};
@@ -17,18 +20,18 @@ pub struct PackedProof(pub [u8; 256]);
 
 impl From<Proof> for PackedProof {
     fn from(proof: Proof) -> Self {
-        let tokens = Token::FixedArray(vec![
-            Token::Uint(proof.0 .0),
-            Token::Uint(proof.0 .1),
-            Token::Uint(proof.1 .0[0]),
-            Token::Uint(proof.1 .0[1]),
-            Token::Uint(proof.1 .1[0]),
-            Token::Uint(proof.1 .1[1]),
-            Token::Uint(proof.2 .0),
-            Token::Uint(proof.2 .1),
-        ]);
+        let flat_proof = [
+            proof.0 .0,
+            proof.0 .1,
+            proof.1 .0[0],
+            proof.1 .0[1],
+            proof.1 .1[0],
+            proof.1 .1[1],
+            proof.2 .0,
+            proof.2 .1,
+        ];
 
-        let bytes = encode(&[tokens]);
+        let bytes = flat_proof.abi_encode();
         let mut encoded = [0u8; 256];
         encoded.copy_from_slice(&bytes[..256]);
         Self(encoded)
@@ -37,18 +40,13 @@ impl From<Proof> for PackedProof {
 
 impl From<PackedProof> for Proof {
     fn from(proof: PackedProof) -> Self {
-        let decoded = decode(&vec![ParamType::Uint(256); 8], &proof.0).unwrap();
-        let decoded_uint_array = decoded
-            .into_iter()
-            .map(|x| x.into_uint().unwrap())
-            .collect::<Vec<U256>>();
+        type PackedProofSolType = FixedArray<Uint<256>, 8>;
 
-        let a = (decoded_uint_array[0], decoded_uint_array[1]);
-        let b = (
-            [decoded_uint_array[2], decoded_uint_array[3]],
-            [decoded_uint_array[4], decoded_uint_array[5]],
-        );
-        let c = (decoded_uint_array[6], decoded_uint_array[7]);
+        let decoded = PackedProofSolType::abi_decode(&proof.0, true).unwrap();
+
+        let a = (decoded[0], decoded[1]);
+        let b = ([decoded[2], decoded[3]], [decoded[4], decoded[5]]);
+        let c = (decoded[6], decoded[7]);
         Self(a, b, c)
     }
 }
@@ -88,6 +86,7 @@ impl<'de> Deserialize<'de> for PackedProof {
 #[cfg(test)]
 pub mod test {
     use super::*;
+    use ruint::aliases::U256;
 
     #[test]
     fn test_serializing_proof_into_packed_proof() {
