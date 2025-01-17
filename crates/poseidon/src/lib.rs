@@ -1,5 +1,5 @@
-use hasher::Hasher;
 use ruint::aliases::U256;
+use semaphore_rs_hasher::Hasher;
 
 pub mod constants;
 pub mod poseidon;

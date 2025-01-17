@@ -1,4 +1,4 @@
-use hasher::Hasher;
+use semaphore_rs_hasher::Hasher;
 use tiny_keccak::{Hasher as _, Sha3};
 
 pub struct Sha3_256;

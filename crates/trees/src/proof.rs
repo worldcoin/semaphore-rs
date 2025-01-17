@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use derive_where::derive_where;
-use hasher::Hasher;
+use semaphore_rs_hasher::Hasher;
 use serde::{Deserialize, Serialize};
 
 /// Merkle proof path, bottom to top.

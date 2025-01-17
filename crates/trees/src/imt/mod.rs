@@ -5,7 +5,7 @@ use std::iter::{once, repeat, successors};
 
 use bytemuck::Pod;
 use derive_where::derive_where;
-use hasher::Hasher;
+use semaphore_rs_hasher::Hasher;
 
 use crate::proof::{Branch, Proof};
 
@@ -178,9 +178,9 @@ impl<H: Hasher> Proof<H> {
 #[cfg(test)]
 pub mod test {
     use hex_literal::hex;
-    use keccak::keccak::Keccak256;
-    use poseidon::Poseidon;
     use ruint::aliases::U256;
+    use semaphore_rs_keccak::keccak::Keccak256;
+    use semaphore_rs_poseidon::Poseidon;
     use test_case::test_case;
 
     use super::*;

@@ -6,9 +6,9 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
-use hasher::{Hash, Hasher};
 use mmap_rs::{MmapFlags, MmapMut, MmapOptions};
 use rayon::prelude::*;
+use semaphore_rs_hasher::{Hash, Hasher};
 use thiserror::Error;
 
 use crate::{Branch, Proof};
@@ -1298,9 +1298,9 @@ pub enum DenseMMapError {
 
 #[cfg(test)]
 mod tests {
-    use hasher::Hasher;
     use hex_literal::hex;
-    use keccak::keccak::Keccak256;
+    use semaphore_rs_hasher::Hasher;
+    use semaphore_rs_keccak::keccak::Keccak256;
 
     use super::*;
 

@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use bytemuck::Pod;
 use color_eyre::eyre::{ensure, Result};
 use derive_where::derive_where;
-use hasher::Hasher;
+use semaphore_rs_hasher::Hasher;
 
 use crate::proof::{Branch, Proof};
 
@@ -461,11 +461,11 @@ where
 #[cfg(test)]
 mod tests {
 
-    use hasher::Hasher;
-    use keccak::keccak::Keccak256;
     use rand::{thread_rng, Rng};
+    use semaphore_rs_hasher::Hasher;
+    use semaphore_rs_keccak::keccak::Keccak256;
+    use semaphore_rs_storage::{GenericStorage, MmapVec};
     use serial_test::serial;
-    use storage::{GenericStorage, MmapVec};
 
     use super::*;
 
