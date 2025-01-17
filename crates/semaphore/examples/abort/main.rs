@@ -1,13 +1,13 @@
 use color_eyre::Result;
-use hasher::Hasher;
 use itertools::Itertools;
-use poseidon::Poseidon;
 use rand::Rng;
 use ruint::aliases::U256;
+use semaphore_rs_hasher::Hasher;
+use semaphore_rs_poseidon::Poseidon;
+use semaphore_rs_storage::MmapVec;
+use semaphore_rs_trees::cascading::CascadingMerkleTree;
+use semaphore_rs_trees::lazy::LazyMerkleTree;
 use std::{env, process::Stdio};
-use storage::MmapVec;
-use trees::cascading::CascadingMerkleTree;
-use trees::lazy::LazyMerkleTree;
 
 static FILE_PATH: &str = "target/debug/examples/abort.mmap";
 static BIN_PATH: &str = "target/debug/examples/abort";

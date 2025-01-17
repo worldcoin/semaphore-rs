@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[derive_where(PartialEq; <H as Hasher>::Hash: PartialEq)]
 #[derive_where(Eq; <H as Hasher>::Hash: Eq)]
 #[derive_where(Debug; <H as Hasher>::Hash: Debug)]
-pub struct Proof<H>(pub Vec<Branch<H::Hash>>)
+pub struct InclusionProof<H>(pub Vec<Branch<H::Hash>>)
 where
     H: Hasher;
 
@@ -23,7 +23,7 @@ pub enum Branch<T> {
     Right(T),
 }
 
-impl<H> Serialize for Proof<H>
+impl<H> Serialize for InclusionProof<H>
 where
     H: Hasher,
     H::Hash: Serialize,
@@ -36,7 +36,7 @@ where
     }
 }
 
-impl<'de, H> Deserialize<'de> for Proof<H>
+impl<'de, H> Deserialize<'de> for InclusionProof<H>
 where
     H: Hasher,
     H::Hash: Deserialize<'de>,
@@ -46,7 +46,7 @@ where
         D: serde::Deserializer<'de>,
     {
         let branches = Vec::deserialize(deserializer)?;
-        Ok(Proof(branches))
+        Ok(InclusionProof(branches))
     }
 }
 

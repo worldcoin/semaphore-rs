@@ -4,8 +4,8 @@ use ark_bn254::{Bn254, Fr};
 use ark_groth16::ProvingKey;
 use ark_relations::r1cs::ConstraintMatrices;
 use once_cell::sync::Lazy;
-use semaphore_depth_config::{get_depth_index, get_supported_depth_count};
-use semaphore_depth_macros::array_for_depths;
+use semaphore_rs_depth_config::{get_depth_index, get_supported_depth_count};
+use semaphore_rs_depth_macros::array_for_depths;
 
 const ZKEY_BYTES: [&[u8]; get_supported_depth_count()] =
     array_for_depths!(|depth| include_bytes!(env!(concat!("BUILD_RS_ARKZKEY_FILE_", depth))));

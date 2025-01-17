@@ -55,11 +55,11 @@ impl Identity {
 
     #[must_use]
     pub fn secret_hash(&self) -> Field {
-        poseidon::poseidon::hash2(self.nullifier, self.trapdoor)
+        semaphore_rs_poseidon::poseidon::hash2(self.nullifier, self.trapdoor)
     }
 
     #[must_use]
     pub fn commitment(&self) -> Field {
-        poseidon::poseidon::hash1(self.secret_hash())
+        semaphore_rs_poseidon::poseidon::hash1(self.secret_hash())
     }
 }

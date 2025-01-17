@@ -3,4 +3,4 @@ pub mod imt;
 pub mod lazy;
 pub mod proof;
 
-pub use proof::{Branch, Proof};
+pub use proof::{Branch, InclusionProof};

@@ -7,7 +7,7 @@ use bytemuck::Pod;
 use derive_where::derive_where;
 use semaphore_rs_hasher::Hasher;
 
-use crate::proof::{Branch, Proof};
+use crate::proof::{Branch, InclusionProof};
 
 /// Merkle tree with all leaf and intermediate hashes stored
 #[derive_where(Clone; <H as Hasher>::Hash: Clone)]
@@ -126,7 +126,7 @@ where
     }
 
     #[must_use]
-    pub fn proof(&self, leaf: usize) -> Option<Proof<H>> {
+    pub fn proof(&self, leaf: usize) -> Option<InclusionProof<H>> {
         if leaf >= self.num_leaves() {
             return None;
         }
@@ -141,11 +141,11 @@ where
             });
             index = parent;
         }
-        Some(Proof(path))
+        Some(InclusionProof(path))
     }
 
     #[must_use]
-    pub fn verify(&self, hash: H::Hash, proof: &Proof<H>) -> bool {
+    pub fn verify(&self, hash: H::Hash, proof: &InclusionProof<H>) -> bool {
         proof.root(hash) == self.root()
     }
 
@@ -155,7 +155,7 @@ where
     }
 }
 
-impl<H: Hasher> Proof<H> {
+impl<H: Hasher> InclusionProof<H> {
     /// Compute the leaf index for this proof
     #[must_use]
     pub fn leaf_index(&self) -> usize {

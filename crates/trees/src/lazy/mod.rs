@@ -11,7 +11,7 @@ use rayon::prelude::*;
 use semaphore_rs_hasher::{Hash, Hasher};
 use thiserror::Error;
 
-use crate::{Branch, Proof};
+use crate::{Branch, InclusionProof};
 
 pub trait VersionMarker {}
 #[derive(Debug)]
@@ -160,13 +160,13 @@ where
 
     /// Returns the Merkle proof for the given index.
     #[must_use]
-    pub fn proof(&self, index: usize) -> Proof<H> {
+    pub fn proof(&self, index: usize) -> InclusionProof<H> {
         self.tree.proof(index)
     }
 
     /// Verifies the given proof for the given value.
     #[must_use]
-    pub fn verify(&self, value: H::Hash, proof: &Proof<H>) -> bool {
+    pub fn verify(&self, value: H::Hash, proof: &InclusionProof<H>) -> bool {
         proof.root(value) == self.root()
     }
 
@@ -341,7 +341,7 @@ where
         }
     }
 
-    fn proof(&self, index: usize) -> Proof<H> {
+    fn proof(&self, index: usize) -> InclusionProof<H> {
         assert!(index < (1 << self.depth()));
         let mut path = Vec::with_capacity(self.depth());
         match self {
@@ -351,7 +351,7 @@ where
             Self::DenseMMap(tree) => tree.write_proof(index, &mut path),
         }
         path.reverse();
-        Proof(path)
+        InclusionProof(path)
     }
 
     fn write_proof(&self, index: usize, path: &mut Vec<Branch<H::Hash>>) {
