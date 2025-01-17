@@ -120,15 +120,12 @@ where
         file_path: &str,
     ) -> Result<LazyMerkleTree<H, Canonical>, DenseMMapError> {
         Ok(LazyMerkleTree {
-            tree: match AnyTree::try_restore_dense_mmap_tree_state(
+            tree: AnyTree::try_restore_dense_mmap_tree_state(
                 depth,
                 prefix_depth,
                 empty_leaf,
                 file_path,
-            ) {
-                Ok(tree) => tree,
-                Err(e) => return Err(e),
-            },
+            )?,
             _version: Canonical,
         })
     }
@@ -837,7 +834,7 @@ impl<H: Hasher> From<DenseTreeRef<'_, H>> for AnyTree<H> {
     }
 }
 
-impl<'a, H> DenseTreeRef<'a, H>
+impl<H> DenseTreeRef<'_, H>
 where
     H: Hasher,
     <H as Hasher>::Hash: Hash,
@@ -1056,7 +1053,7 @@ struct DenseTreeMMapRef<'a, H: Hasher> {
     locked_storage: &'a Arc<Mutex<MmapMutWrapper<H>>>,
 }
 
-impl<'a, H: Hasher> From<DenseTreeMMapRef<'a, H>> for DenseMMapTree<H> {
+impl<H: Hasher> From<DenseTreeMMapRef<'_, H>> for DenseMMapTree<H> {
     fn from(value: DenseTreeMMapRef<H>) -> Self {
         Self {
             depth: value.depth,
@@ -1066,13 +1063,13 @@ impl<'a, H: Hasher> From<DenseTreeMMapRef<'a, H>> for DenseMMapTree<H> {
     }
 }
 
-impl<'a, H: Hasher> From<DenseTreeMMapRef<'a, H>> for AnyTree<H> {
+impl<H: Hasher> From<DenseTreeMMapRef<'_, H>> for AnyTree<H> {
     fn from(value: DenseTreeMMapRef<H>) -> Self {
         Self::DenseMMap(value.into())
     }
 }
 
-impl<'a, H> DenseTreeMMapRef<'a, H>
+impl<H> DenseTreeMMapRef<'_, H>
 where
     H: Hasher,
     <H as Hasher>::Hash: Hash,
