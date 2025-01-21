@@ -1,0 +1,90 @@
+[package]
+name = "semaphore-rs"
+version.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+# Internal
+semaphore-rs-ark-zkey.workspace = true
+semaphore-rs-poseidon.workspace = true
+semaphore-rs-hasher.workspace = true
+semaphore-rs-keccak.workspace = true
+semaphore-rs-trees.workspace = true
+semaphore-rs-storage.workspace = true
+semaphore-rs-depth-config.workspace = true
+semaphore-rs-depth-macros.workspace = true
+
+# 3rd Party
+bincode.workspace = true
+bytemuck.workspace = true
+color-eyre.workspace = true
+ethabi.workspace = true
+ethers-core.workspace = true
+hex.workspace = true
+hex-literal.workspace = true
+itertools.workspace = true
+mmap-rs.workspace = true
+num-bigint.workspace = true
+once_cell.workspace = true
+rand.workspace = true
+rayon.workspace = true
+ruint.workspace = true
+serde.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tiny-keccak.workspace = true
+witness.workspace = true
+zeroize.workspace = true
+tokio.workspace = true
+
+# Ark
+ark-bn254.workspace = true
+ark-circom.workspace = true
+ark-ec.workspace = true
+ark-ff.workspace = true
+ark-groth16.workspace = true
+ark-relations.workspace = true
+ark-std.workspace = true
+
+[dev-dependencies]
+serial_test.workspace = true
+criterion.workspace = true
+bincode.workspace = true
+proptest.workspace = true
+rand_chacha.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+tiny-keccak.workspace = true
+tracing-test.workspace = true
+
+[build-dependencies]
+semaphore-rs-ark-zkey.workspace = true
+color-eyre.workspace = true
+reqwest.workspace = true
+semaphore-rs-depth-config.workspace = true
+
+[[bench]]
+name = "cascading_merkle_tree"
+harness = false
+
+[features]
+default = []
+depth_16 = [
+    "semaphore-rs-depth-config/depth_16",
+    "semaphore-rs-depth-macros/depth_16",
+]
+depth_20 = [
+    "semaphore-rs-depth-config/depth_20",
+    "semaphore-rs-depth-macros/depth_20",
+]
+depth_30 = [
+    "semaphore-rs-depth-config/depth_30",
+    "semaphore-rs-depth-macros/depth_30",
+]

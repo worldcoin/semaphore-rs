@@ -1,21 +1,25 @@
 [package]
-name = "semaphore-depth-macros"
-version = "0.1.0"
+name = "semaphore-rs-depth-macros"
+version.workspace = true
 edition.workspace = true
 homepage.workspace = true
 license.workspace = true
 repository.workspace = true
+authors.workspace = true
+description.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [features]
-depth_16 = ["semaphore-depth-config/depth_16"]
-depth_20 = ["semaphore-depth-config/depth_20"]
-depth_30 = ["semaphore-depth-config/depth_30"]
+depth_16 = ["semaphore-rs-depth-config/depth_16"]
+depth_20 = ["semaphore-rs-depth-config/depth_20"]
+depth_30 = ["semaphore-rs-depth-config/depth_30"]
 
 [lib]
 proc-macro = true
 
 [dependencies]
-semaphore-depth-config.workspace = true
+semaphore-rs-depth-config.workspace = true
 itertools ={ workspace = true }
 syn.workspace = true
 proc-macro2.workspace = true

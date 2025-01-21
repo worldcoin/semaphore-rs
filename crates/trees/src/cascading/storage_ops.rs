@@ -3,9 +3,9 @@ use std::ops::{Deref, DerefMut, Range};
 use bytemuck::Pod;
 use color_eyre::eyre::{bail, ensure};
 use color_eyre::Result;
-use hasher::Hasher;
 use rayon::prelude::*;
-use storage::GenericStorage;
+use semaphore_rs_hasher::Hasher;
+use semaphore_rs_storage::GenericStorage;
 
 use crate::proof::Branch;
 
@@ -491,8 +491,8 @@ pub fn subtree_depth_width<H>(storage_slice: &[H]) -> (usize, usize) {
 
 #[cfg(test)]
 mod tests {
-    use keccak::keccak::Keccak256;
-    use storage::MmapVec;
+    use semaphore_rs_keccak::keccak::Keccak256;
+    use semaphore_rs_storage::MmapVec;
 
     use super::super::tests::TestHasher;
     use super::*;

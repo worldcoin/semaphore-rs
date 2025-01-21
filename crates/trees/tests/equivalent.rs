@@ -1,9 +1,9 @@
-use poseidon::Poseidon;
 use rand::{thread_rng, Rng};
 use ruint::aliases::U256;
-use trees::cascading::CascadingMerkleTree;
-use trees::imt::MerkleTree;
-use trees::lazy::{Canonical, LazyMerkleTree};
+use semaphore_rs_poseidon::Poseidon;
+use semaphore_rs_trees::cascading::CascadingMerkleTree;
+use semaphore_rs_trees::imt::MerkleTree;
+use semaphore_rs_trees::lazy::{Canonical, LazyMerkleTree};
 
 const DEPTH: usize = 20;
 const DENSE_PREFIX: usize = 16;

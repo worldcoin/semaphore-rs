@@ -1,8 +1,8 @@
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
-use hasher::Hasher;
-use poseidon::Poseidon;
-use semaphore::poseidon_tree::LazyPoseidonTree;
-use semaphore::Field;
+use semaphore_rs::poseidon_tree::LazyPoseidonTree;
+use semaphore_rs::Field;
+use semaphore_rs_hasher::Hasher;
+use semaphore_rs_poseidon::Poseidon;
 
 criterion_main!(lazy_merkle_tree);
 criterion_group!(

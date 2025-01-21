@@ -11,7 +11,7 @@ pub mod util;
 
 use ark_bn254::Config;
 use ark_ec::bn::Bn;
-pub use semaphore_depth_config::get_supported_depths;
+pub use semaphore_rs_depth_config::get_supported_depths;
 
 // Export types
 pub use crate::field::{hash_to_field, Field};
@@ -24,7 +24,7 @@ pub type EthereumGroth16Proof = ark_circom::ethereum::Proof;
 mod test {
     use std::thread::spawn;
 
-    use semaphore_depth_macros::test_all_depths;
+    use semaphore_rs_depth_macros::test_all_depths;
 
     use crate::identity::Identity;
     use crate::poseidon_tree::LazyPoseidonTree;

@@ -1,9 +1,9 @@
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
-use hasher::Hasher;
-use poseidon::Poseidon;
-use semaphore::Field;
-use storage::MmapVec;
-use trees::cascading::CascadingMerkleTree;
+use semaphore_rs::Field;
+use semaphore_rs_hasher::Hasher;
+use semaphore_rs_poseidon::Poseidon;
+use semaphore_rs_storage::MmapVec;
+use semaphore_rs_trees::cascading::CascadingMerkleTree;
 
 criterion_main!(cascading_merkle_tree);
 criterion_group!(

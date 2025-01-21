@@ -3,9 +3,9 @@ use std::fmt::Debug;
 use bytemuck::Pod;
 use color_eyre::eyre::{ensure, Result};
 use derive_where::derive_where;
-use hasher::Hasher;
+use semaphore_rs_hasher::Hasher;
 
-use crate::proof::{Branch, Proof};
+use crate::proof::{Branch, InclusionProof};
 
 mod storage_ops;
 
@@ -215,7 +215,7 @@ where
     /// Panics if the leaf index is not less than the current
     /// number of leaves.
     #[must_use]
-    pub fn proof(&self, leaf: usize) -> Proof<H> {
+    pub fn proof(&self, leaf: usize) -> InclusionProof<H> {
         assert!(leaf < self.num_leaves(), "Leaf index out of bounds");
         let mut proof = Vec::with_capacity(self.depth);
         let storage_depth = storage_ops::subtree_depth(&self.storage);
@@ -238,21 +238,21 @@ where
             .map(|&val| Branch::Left(val));
         proof.extend(remainder);
 
-        Proof(proof)
+        InclusionProof(proof)
     }
 
     /// Returns the Merkle proof for the given leaf hash.
     /// Leaves are scanned from right to left.
     /// This is a slow operation and `proof` should be used when possible.
     #[must_use]
-    pub fn proof_from_hash(&self, leaf: H::Hash) -> Option<Proof<H>> {
+    pub fn proof_from_hash(&self, leaf: H::Hash) -> Option<InclusionProof<H>> {
         let leaf = self.get_leaf_from_hash(leaf)?;
         Some(self.proof(leaf))
     }
 
     /// Verifies the given proof for the given value.
     #[must_use]
-    pub fn verify(&self, value: H::Hash, proof: &Proof<H>) -> bool {
+    pub fn verify(&self, value: H::Hash, proof: &InclusionProof<H>) -> bool {
         proof.root(value) == self.root()
     }
 
@@ -461,11 +461,11 @@ where
 #[cfg(test)]
 mod tests {
 
-    use hasher::Hasher;
-    use keccak::keccak::Keccak256;
     use rand::{thread_rng, Rng};
+    use semaphore_rs_hasher::Hasher;
+    use semaphore_rs_keccak::keccak::Keccak256;
+    use semaphore_rs_storage::{GenericStorage, MmapVec};
     use serial_test::serial;
-    use storage::{GenericStorage, MmapVec};
 
     use super::*;
 

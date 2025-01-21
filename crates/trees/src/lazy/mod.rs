@@ -6,12 +6,12 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
-use hasher::{Hash, Hasher};
 use mmap_rs::{MmapFlags, MmapMut, MmapOptions};
 use rayon::prelude::*;
+use semaphore_rs_hasher::{Hash, Hasher};
 use thiserror::Error;
 
-use crate::{Branch, Proof};
+use crate::{Branch, InclusionProof};
 
 pub trait VersionMarker {}
 #[derive(Debug)]
@@ -120,15 +120,12 @@ where
         file_path: &str,
     ) -> Result<LazyMerkleTree<H, Canonical>, DenseMMapError> {
         Ok(LazyMerkleTree {
-            tree: match AnyTree::try_restore_dense_mmap_tree_state(
+            tree: AnyTree::try_restore_dense_mmap_tree_state(
                 depth,
                 prefix_depth,
                 empty_leaf,
                 file_path,
-            ) {
-                Ok(tree) => tree,
-                Err(e) => return Err(e),
-            },
+            )?,
             _version: Canonical,
         })
     }
@@ -160,13 +157,13 @@ where
 
     /// Returns the Merkle proof for the given index.
     #[must_use]
-    pub fn proof(&self, index: usize) -> Proof<H> {
+    pub fn proof(&self, index: usize) -> InclusionProof<H> {
         self.tree.proof(index)
     }
 
     /// Verifies the given proof for the given value.
     #[must_use]
-    pub fn verify(&self, value: H::Hash, proof: &Proof<H>) -> bool {
+    pub fn verify(&self, value: H::Hash, proof: &InclusionProof<H>) -> bool {
         proof.root(value) == self.root()
     }
 
@@ -341,7 +338,7 @@ where
         }
     }
 
-    fn proof(&self, index: usize) -> Proof<H> {
+    fn proof(&self, index: usize) -> InclusionProof<H> {
         assert!(index < (1 << self.depth()));
         let mut path = Vec::with_capacity(self.depth());
         match self {
@@ -351,7 +348,7 @@ where
             Self::DenseMMap(tree) => tree.write_proof(index, &mut path),
         }
         path.reverse();
-        Proof(path)
+        InclusionProof(path)
     }
 
     fn write_proof(&self, index: usize, path: &mut Vec<Branch<H::Hash>>) {
@@ -837,7 +834,7 @@ impl<H: Hasher> From<DenseTreeRef<'_, H>> for AnyTree<H> {
     }
 }
 
-impl<'a, H> DenseTreeRef<'a, H>
+impl<H> DenseTreeRef<'_, H>
 where
     H: Hasher,
     <H as Hasher>::Hash: Hash,
@@ -1056,7 +1053,7 @@ struct DenseTreeMMapRef<'a, H: Hasher> {
     locked_storage: &'a Arc<Mutex<MmapMutWrapper<H>>>,
 }
 
-impl<'a, H: Hasher> From<DenseTreeMMapRef<'a, H>> for DenseMMapTree<H> {
+impl<H: Hasher> From<DenseTreeMMapRef<'_, H>> for DenseMMapTree<H> {
     fn from(value: DenseTreeMMapRef<H>) -> Self {
         Self {
             depth: value.depth,
@@ -1066,13 +1063,13 @@ impl<'a, H: Hasher> From<DenseTreeMMapRef<'a, H>> for DenseMMapTree<H> {
     }
 }
 
-impl<'a, H: Hasher> From<DenseTreeMMapRef<'a, H>> for AnyTree<H> {
+impl<H: Hasher> From<DenseTreeMMapRef<'_, H>> for AnyTree<H> {
     fn from(value: DenseTreeMMapRef<H>) -> Self {
         Self::DenseMMap(value.into())
     }
 }
 
-impl<'a, H> DenseTreeMMapRef<'a, H>
+impl<H> DenseTreeMMapRef<'_, H>
 where
     H: Hasher,
     <H as Hasher>::Hash: Hash,
@@ -1298,9 +1295,9 @@ pub enum DenseMMapError {
 
 #[cfg(test)]
 mod tests {
-    use hasher::Hasher;
     use hex_literal::hex;
-    use keccak::keccak::Keccak256;
+    use semaphore_rs_hasher::Hasher;
+    use semaphore_rs_keccak::keccak::Keccak256;
 
     use super::*;
 

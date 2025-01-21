@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
-use semaphore_depth_config::get_supported_depths;
+use semaphore_rs_depth_config::get_supported_depths;
 use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
@@ -16,7 +16,7 @@ use syn::{
 ///
 /// For example,
 /// ```
-/// use semaphore_depth_macros::test_all_depths;
+/// use semaphore_rs_depth_macros::test_all_depths;
 /// #[test_all_depths]
 /// fn test_depth_non_zero(depth: usize) {
 ///     assert!(depth > 0);

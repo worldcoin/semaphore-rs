@@ -1,6 +1,5 @@
-use hasher::Hasher;
+use semaphore_rs_hasher::Hasher;
 use tiny_keccak::{Hasher as _, Keccak};
-
 pub struct Keccak256;
 
 impl Hasher for Keccak256 {
