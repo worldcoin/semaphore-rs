@@ -28,13 +28,12 @@ semaphore-rs-depth-config = { path = "crates/semaphore-depth-config" }
 semaphore-rs-depth-macros = { path = "crates/semaphore-depth-macros" }
 
 # 3rd Party
+alloy-core = { version = "0.8.12", default-features = false, features = ["sol-types"] }
 bincode = "1.3.3"
 bytemuck = "1.18"
 color-eyre = "0.6"
 criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
 derive-where = "1"
-ethabi = "18.0.0"
-ethers-core = { git = "https://github.com/gakonst/ethers-rs", default-features = false }
 hex = "0.4.0"
 hex-literal = "0.4"
 itertools = "0.13"
@@ -74,7 +73,7 @@ quote = "1.0.26"
 
 # Ark
 ark-bn254 = { version = "=0.4.0" }
-ark-circom = { git = "https://github.com/Dzejkop/circom-compat.git", rev = "3b19f79", features = [
+ark-circom = { git = "https://github.com/worldcoin/circom-compat.git", rev = "28109f7", features = [
     "circom-2",
 ] }
 ark-ec = { version = "0.4.2", default-features = false, features = [
@@ -93,7 +92,7 @@ ark-serialize = { version = "0.4.2", features = ["derive"] }
 
 # Necessary because there's an issue with dependencies in the workspace
 # this has something to do with `net` feature not being enabled in `mio`.
-tokio = "=1.38"
+tokio = "1"
 
 [profile.release]
 codegen-units = 1

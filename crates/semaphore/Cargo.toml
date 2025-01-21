@@ -22,11 +22,10 @@ semaphore-rs-depth-config.workspace = true
 semaphore-rs-depth-macros.workspace = true
 
 # 3rd Party
+alloy-core.workspace = true
 bincode.workspace = true
 bytemuck.workspace = true
 color-eyre.workspace = true
-ethabi.workspace = true
-ethers-core.workspace = true
 hex.workspace = true
 hex-literal.workspace = true
 itertools.workspace = true
