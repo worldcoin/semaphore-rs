@@ -51,8 +51,8 @@ impl Identity {
     #[must_use]
     pub fn from_hashed_secret(secret_hex: &mut [u8; 64], trapdoor_seed: Option<&[u8]>) -> Self {
         let identity = Self {
-            trapdoor: derive_field(&secret_hex, trapdoor_seed.unwrap_or(b"identity_trapdoor")),
-            nullifier: derive_field(&secret_hex, b"identity_nullifier"),
+            trapdoor: derive_field(secret_hex, trapdoor_seed.unwrap_or(b"identity_trapdoor")),
+            nullifier: derive_field(secret_hex, b"identity_nullifier"),
         };
         secret_hex.zeroize();
         identity
