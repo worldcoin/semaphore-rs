@@ -20,7 +20,7 @@ fn derive_field(seed_hex: &[u8; 64], suffix: &[u8]) -> Field {
     Field::try_from_be_slice(hasher.finalize().as_ref()).unwrap() % MODULUS
 }
 
-fn seed_hex(seed: &[u8]) -> [u8; 64] {
+pub fn seed_hex(seed: &[u8]) -> [u8; 64] {
     let mut hasher = Sha256::new();
     hasher.update(seed);
     let bytes: [u8; 32] = hasher.finalize().into();
@@ -45,9 +45,14 @@ impl Identity {
         let mut secret_hex = seed_hex(secret);
         secret.zeroize();
 
+        Self::from_hashed_secret(&mut secret_hex, trapdoor_seed)
+    }
+
+    #[must_use]
+    pub fn from_hashed_secret(secret_hex: &mut [u8; 64], trapdoor_seed: Option<&[u8]>) -> Self {
         let identity = Self {
-            trapdoor: derive_field(&secret_hex, trapdoor_seed.unwrap_or(b"identity_trapdoor")),
-            nullifier: derive_field(&secret_hex, b"identity_nullifier"),
+            trapdoor: derive_field(secret_hex, trapdoor_seed.unwrap_or(b"identity_trapdoor")),
+            nullifier: derive_field(secret_hex, b"identity_nullifier"),
         };
         secret_hex.zeroize();
         identity

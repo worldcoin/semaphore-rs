@@ -25,11 +25,11 @@ fn create_arkzkey(path: PathBuf) -> Result<PathBuf> {
     ark_zkey_path.set_extension("arkzkey");
 
     let (original_proving_key, original_constraint_matrices) =
-        ark_zkey::read_proving_key_and_matrices_from_zkey(
+        semaphore_rs_ark_zkey::read_proving_key_and_matrices_from_zkey(
             path.to_str().expect("Failed to convert path."),
         )?;
 
-    ark_zkey::convert_zkey(
+    semaphore_rs_ark_zkey::convert_zkey(
         original_proving_key,
         original_constraint_matrices,
         ark_zkey_path.to_str().unwrap(),
@@ -68,6 +68,8 @@ fn build_circuit(depth: usize) -> Result<()> {
             .join("graph.bin"),
     )?;
 
+    println!("graph_file = {}", graph_file.display());
+
     assert!(arkzkey_file.exists());
     assert!(graph_file.exists());
 
@@ -87,7 +89,7 @@ fn build_circuit(depth: usize) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    for depth in semaphore_depth_config::get_supported_depths() {
+    for depth in semaphore_rs_depth_config::get_supported_depths() {
         build_circuit(*depth)?;
     }
     Ok(())

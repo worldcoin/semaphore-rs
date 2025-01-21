@@ -4,8 +4,8 @@ use core::{
     str,
     str::FromStr,
 };
-use ethers_core::types::U256;
 use num_bigint::{BigInt, Sign};
+use ruint::aliases::U256;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// Container for 256-bit hash values.
@@ -24,19 +24,17 @@ impl Hash {
     }
 }
 
-/// Conversion from Ether U256
+/// Conversion from U256
 impl From<&Hash> for U256 {
     fn from(hash: &Hash) -> Self {
-        Self::from_big_endian(hash.as_bytes_be())
+        Self::from_be_bytes(*hash.as_bytes_be())
     }
 }
 
-/// Conversion to Ether U256
+/// Conversion to U256
 impl From<U256> for Hash {
     fn from(u256: U256) -> Self {
-        let mut bytes = [0_u8; 32];
-        u256.to_big_endian(&mut bytes);
-        Self::from_bytes_be(bytes)
+        Self::from_bytes_be(u256.to_be_bytes::<32>())
     }
 }
 
