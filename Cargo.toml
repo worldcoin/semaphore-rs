@@ -37,6 +37,7 @@ derive-where = "1"
 hex = "0.4.0"
 hex-literal = "0.4"
 itertools = "0.13"
+lazy_static = "1"
 mmap-rs = "0.6.1"
 num-bigint = { version = "0.4", default-features = false, features = ["rand"] }
 once_cell = "1.8"

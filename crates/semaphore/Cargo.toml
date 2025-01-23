@@ -29,6 +29,7 @@ color-eyre.workspace = true
 hex.workspace = true
 hex-literal.workspace = true
 itertools.workspace = true
+lazy_static.workspace = true
 mmap-rs.workspace = true
 num-bigint.workspace = true
 once_cell.workspace = true

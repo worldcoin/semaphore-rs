@@ -7,25 +7,25 @@
 use ruint::aliases::U256;
 use ruint::uint;
 
-use super::Proof;
+use super::{Proof, G1, G2};
+use lazy_static::lazy_static;
 
+/// Base field Fp order P
 pub const P: U256 =
     uint! { 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47_U256 };
 
-/// Exponent for the square root in Fp
-/// (P + 1) / 4
-pub const EXP_SQRT_FP: U256 =
-    uint! { 0xC19139CB84C680A6E14116DA060561765E05AA45A1C72A34F082305B61F3F52_U256 };
+// A helper for a frequently used constants
+pub const ONE: U256 = uint! { 1_U256 };
+pub const TWO: U256 = uint! { 2_U256 };
+pub const THREE: U256 = uint! { 3_U256 };
 
-/// Exponent for the inverse in Fp
-/// P - 2
-pub const EXP_INVERSE_FP: U256 =
-    uint! { 0x30644E72E131A029B85045B68181585D97816A916871CA8D3C208C16D87CFD45_U256 };
+lazy_static! {
+    /// Exponent for the square root in Fp
+    pub static ref EXP_SQRT_FP: U256 = (P + ONE) / U256::from(4);
 
-pub const ONE: U256 = uint! { 0x1_U256 };
-
-pub type G1 = (U256, U256);
-pub type G2 = ([U256; 2], [U256; 2]);
+    /// Exponent for the inverse in Fp
+    pub static ref EXP_INVERSE_FP: U256 = P - TWO;
+}
 
 pub struct CompressedProof(pub U256, pub (U256, U256), pub U256);
 
@@ -77,7 +77,7 @@ pub fn compress_g1((x, y): G1) -> Option<U256> {
     if x == U256::ZERO && y == U256::ZERO {
         return Some(U256::ZERO); // Point at infinity
     }
-    let y_pos = sqrt_fp(x.pow_mod(U256::from(3u64), P).add_mod(U256::from(3), P))?;
+    let y_pos = sqrt_fp(x.pow_mod(THREE, P).add_mod(THREE, P))?;
     if y == y_pos {
         Some(x.wrapping_shl(1))
     } else if y == neg_fp(y_pos) {
@@ -98,7 +98,7 @@ pub fn decompress_g1(c: U256) -> Option<G1> {
         return None;
     }
 
-    let y2 = x.pow_mod(U256::from(3u64), P).add_mod(U256::from(3), P);
+    let y2 = x.pow_mod(THREE, P).add_mod(THREE, P);
     let mut y = sqrt_fp(y2)?;
 
     if negate {
@@ -117,16 +117,16 @@ pub fn compress_g2(([x0, x1], [y0, y1]): G2) -> Option<(U256, U256)> {
     }
 
     // Compute y^2
-    let n3ab = x0.mul_mod(x1, P).mul_mod(P - U256::from(3), P);
-    let a_3 = x0.pow_mod(U256::from(3), P);
-    let b_3 = x1.pow_mod(U256::from(3), P);
+    let n3ab = x0.mul_mod(x1, P).mul_mod(P - THREE, P);
+    let a_3 = x0.pow_mod(THREE, P);
+    let b_3 = x1.pow_mod(THREE, P);
 
     let y0_pos = U256::from(27)
         .mul_mod(U256::from(82).inv_mod(P).unwrap(), P)
         .add_mod(a_3.add_mod(n3ab.mul_mod(x1, P), P), P);
 
     let y1_pos = neg_fp(
-        U256::from(3)
+        THREE
             .mul_mod(U256::from(82).inv_mod(P).unwrap(), P)
             .add_mod(b_3.add_mod(n3ab.mul_mod(x0, P), P), P),
     );
@@ -137,16 +137,12 @@ pub fn compress_g2(([x0, x1], [y0, y1]): G2) -> Option<(U256, U256)> {
             .mul_mod(y0_pos, P)
             .add_mod(y1_pos.mul_mod(y1_pos, P), P),
     )?;
-    let hint = !is_square_fp(
-        y0_pos
-            .add_mod(d, P)
-            .mul_mod(U256::from(2).inv_mod(P).unwrap(), P),
-    );
+    let hint = !is_square_fp(y0_pos.add_mod(d, P).mul_mod(TWO.inv_mod(P).unwrap(), P));
 
     // Recover y
     let (new_y0_pos, new_y1_pos) = sqrt_fp2(y0_pos, y1_pos, hint)?;
 
-    let hint = if hint { U256::from(2) } else { U256::from(0) };
+    let hint = if hint { TWO } else { U256::from(0) };
     if y0 == new_y0_pos && y1 == new_y1_pos {
         Some(((x0 << 2) | hint, x1))
     } else if y0 == neg_fp(new_y0_pos) && y1 == neg_fp(new_y1_pos) {
@@ -162,7 +158,7 @@ pub fn decompress_g2((c0, c1): (U256, U256)) -> Option<G2> {
     }
 
     let negate = c0 & ONE == ONE;
-    let hint = c0 & U256::from(2) == U256::from(2);
+    let hint = c0 & TWO == TWO;
 
     let x0: U256 = c0 >> 2;
     let x1 = c1;
@@ -171,15 +167,15 @@ pub fn decompress_g2((c0, c1): (U256, U256)) -> Option<G2> {
         return None;
     }
 
-    let n3ab = x0.mul_mod(x1, P).mul_mod(P - U256::from(3), P);
-    let a_3 = x0.pow_mod(U256::from(3), P);
-    let b_3 = x1.pow_mod(U256::from(3), P);
+    let n3ab = x0.mul_mod(x1, P).mul_mod(P - THREE, P);
+    let a_3 = x0.pow_mod(THREE, P);
+    let b_3 = x1.pow_mod(THREE, P);
 
     let y0 = U256::from(27)
         .mul_mod(U256::from(82).inv_mod(P)?, P)
         .add_mod(a_3.add_mod(n3ab.mul_mod(x1, P), P), P);
     let y1 = neg_fp(
-        U256::from(3)
+        THREE
             .mul_mod(U256::from(82).inv_mod(P)?, P)
             .add_mod(b_3.add_mod(n3ab.mul_mod(x0, P), P), P),
     );
@@ -194,7 +190,7 @@ pub fn decompress_g2((c0, c1): (U256, U256)) -> Option<G2> {
 }
 
 fn sqrt_fp(a: U256) -> Option<U256> {
-    let x = a.pow_mod(EXP_SQRT_FP, P);
+    let x = a.pow_mod(*EXP_SQRT_FP, P);
     if x.mul_mod(x, P) == a {
         Some(x)
     } else {
@@ -203,24 +199,18 @@ fn sqrt_fp(a: U256) -> Option<U256> {
 }
 
 fn sqrt_fp2(a0: U256, a1: U256, hint: bool) -> Option<(U256, U256)> {
-    let mut d = sqrt_fp(
-        a0.pow_mod(U256::from(2), P)
-            .add_mod(a1.pow_mod(U256::from(2), P), P),
-    )?;
+    let mut d = sqrt_fp(a0.pow_mod(TWO, P).add_mod(a1.pow_mod(TWO, P), P))?;
 
     if hint {
         d = neg_fp(d);
     }
 
-    let frac_1_2 = ONE.mul_mod(U256::from(2).inv_mod(P)?, P);
+    let frac_1_2 = ONE.mul_mod(TWO.inv_mod(P)?, P);
     let x0 = sqrt_fp(a0.add_mod(d, P).mul_mod(frac_1_2, P))?;
-    let x1 = a1.mul_mod(invert_fp(x0.mul_mod(U256::from(2), P))?, P);
+    let x1 = a1.mul_mod(invert_fp(x0.mul_mod(TWO, P))?, P);
 
-    if a0
-        != x0
-            .pow_mod(U256::from(2), P)
-            .add_mod(neg_fp(x1.pow_mod(U256::from(2), P)), P)
-        || a1 != U256::from(2).mul_mod(x0.mul_mod(x1, P), P)
+    if a0 != x0.pow_mod(TWO, P).add_mod(neg_fp(x1.pow_mod(TWO, P)), P)
+        || a1 != TWO.mul_mod(x0.mul_mod(x1, P), P)
     {
         return None;
     }
@@ -229,7 +219,7 @@ fn sqrt_fp2(a0: U256, a1: U256, hint: bool) -> Option<(U256, U256)> {
 }
 
 fn is_square_fp(a: U256) -> bool {
-    let x = a.pow_mod(EXP_SQRT_FP, P);
+    let x = a.pow_mod(*EXP_SQRT_FP, P);
     x.mul_mod(x, P) == a
 }
 
@@ -238,7 +228,7 @@ fn is_square_fp(a: U256) -> bool {
 /// Returns a number x such that a * x = 1 in Fp
 /// Returns None if the inverse does not exist
 fn invert_fp(a: U256) -> Option<U256> {
-    let x = a.pow_mod(EXP_INVERSE_FP, P);
+    let x = a.pow_mod(*EXP_INVERSE_FP, P);
 
     if a.mul_mod(x, P) != ONE {
         return None;
