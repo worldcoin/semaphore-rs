@@ -24,6 +24,7 @@ use crate::identity::Identity;
 use crate::Field;
 
 pub mod authentication;
+pub mod compression;
 
 // Matches the private G1Tup type in ark-circom.
 pub type G1 = (U256, U256);
