@@ -3,8 +3,11 @@
 //! Ported from https://github.com/worldcoin/world-id-state-bridge/blob/main/src/SemaphoreVerifier.sol
 //!
 //! Based upon work in https://xn--2-umb.com/23/bn254-compression/
+
 use ruint::aliases::U256;
 use ruint::uint;
+
+use super::Proof;
 
 pub const P: U256 =
     uint! { 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47_U256 };
@@ -23,6 +26,36 @@ pub const ONE: U256 = uint! { 0x1_U256 };
 
 pub type G1 = (U256, U256);
 pub type G2 = ([U256; 2], [U256; 2]);
+
+pub struct CompressedProof(pub U256, pub (U256, U256), pub U256);
+
+pub fn compress_proof(proof: Proof) -> Option<CompressedProof> {
+    let Proof(g1a, g2, g1b) = proof;
+
+    // NOTE: Order of real and imaginary parts in the proof data is flipped
+    let ([x0, x1], [y0, y1]) = g2;
+    let g2 = ([x1, x0], [y1, y0]);
+
+    let a = compress_g1(g1a)?;
+    let c = compress_g2(g2)?;
+    let b = compress_g1(g1b)?;
+
+    Some(CompressedProof(a, c, b))
+}
+
+pub fn decompress_proof(compressed: CompressedProof) -> Option<Proof> {
+    let CompressedProof(a, c, b) = compressed;
+
+    let g1a = decompress_g1(a)?;
+    let g2 = decompress_g2(c)?;
+    let g1b = decompress_g1(b)?;
+
+    // Unswap
+    let ([x1, x0], [y1, y0]) = g2;
+    let g2 = ([x0, x1], [y0, y1]);
+
+    Some(Proof(g1a, g2, g1b))
+}
 
 pub fn compress_g1((x, y): G1) -> Option<U256> {
     if x >= P || y >= P {
@@ -250,6 +283,34 @@ mod tests {
     // 8256141885907329266852096557308020923997215847794048916749940281741155521604
     //
     // Note that for the G2 compression test the order of real and imaginary is flipped
+
+    #[test]
+    fn proof_compression() {
+        let flat_proof: [U256; 8] = uint! { [
+            20565048055856194013099208963146657799256893353279242520150547463020687826541_U256,
+            16286013012747852737396822706018267259565592188907848191354824303311847109059_U256,
+            4348608846293503080802796983494208797681981448804902149317789801083784587558_U256,
+            6172488348732750834133346196464201580503416389945891763609808290085997580078_U256,
+            3229429189805934086496276224876305383924675874777054942516982958483565949767_U256,
+            944252930093106871283598150477854448876343937304805759422971930315581301659_U256,
+            18318130744212307125672524358864792312717149086464333958791498157127232409959_U256,
+            8256141885907329266852096557308020923997215847794048916749940281741155521604_U256,
+        ]};
+
+        let proof = Proof(
+            (flat_proof[0], flat_proof[1]),
+            (
+                [flat_proof[2], flat_proof[3]],
+                [flat_proof[4], flat_proof[5]],
+            ),
+            (flat_proof[6], flat_proof[7]),
+        );
+
+        let compressed = compress_proof(proof).unwrap();
+        let decompressed = decompress_proof(compressed).unwrap();
+
+        assert_eq!(proof, decompressed);
+    }
 
     #[test]
     fn g1_compression() {
