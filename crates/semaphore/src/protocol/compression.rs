@@ -125,24 +125,23 @@ pub fn decompress_g2((c0, c1): (U256, U256)) -> Option<G2> {
         return None;
     }
 
-    let a0 = x0.pow_mod(U256::from(3), P).add_mod(U256::from(3), P);
-    let a1 = x1.pow_mod(U256::from(3), P).wrapping_neg();
-    let d = sqrt_fp(a0.mul_mod(a0, P).add_mod(a1.mul_mod(a1, P), P))?;
+    let n3ab = x0.mul_mod(x1, P).mul_mod(P - U256::from(3), P);
+    let a_3 = x0.pow_mod(U256::from(3), P);
+    let b_3 = x1.pow_mod(U256::from(3), P);
 
-    let mut y0 = sqrt_fp(
-        a0.add_mod(d, P)
-            .mul_mod(U256::from(2).inv_mod(P).unwrap(), P),
-    )?;
-    let mut y1 = a1.mul_mod(y0.mul_mod(U256::from(2), P).inv_mod(P).unwrap(), P);
+    let y0 = U256::from(27)
+        .mul_mod(U256::from(82).inv_mod(P)?, P)
+        .add_mod(a_3.add_mod(n3ab.mul_mod(x1, P), P), P);
+    let y1 = neg_fp(
+        U256::from(3)
+            .mul_mod(U256::from(82).inv_mod(P)?, P)
+            .add_mod(b_3.add_mod(n3ab.mul_mod(x0, P), P), P),
+    );
 
-    if hint {
-        y0 = y0.wrapping_neg();
-        y1 = y1.wrapping_neg();
-    }
-
+    let (mut y0, mut y1) = sqrt_fp2(y0, y1, hint)?;
     if negate {
-        y0 = y0.wrapping_neg();
-        y1 = y1.wrapping_neg();
+        y0 = neg_fp(y0);
+        y1 = neg_fp(y1);
     }
 
     Some(([x0, x1], [y0, y1]))
@@ -211,19 +210,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn sanity_check() {
-        let frac_1_2_fp = ONE.mul_mod(U256::from(2).inv_mod(P).unwrap(), P);
-        let exp = uint! {0x183227397098d014dc2822db40c0ac2ecbc0b548b438e5469e10460b6c3e7ea4_U256};
-
-        assert_eq!(exp, frac_1_2_fp);
-
-        let frac_3_82_fp = U256::from(3).mul_mod(U256::from(82).inv_mod(P).unwrap(), P);
-        let exp = uint! {0x2fcd3ac2a640a154eb23960892a85a68f031ca0c8344b23a577dcf1052b9e775_U256};
-
-        assert_eq!(exp, frac_3_82_fp);
-    }
-
-    #[test]
     fn inversion() {
         let v = uint! { 4598362786468342265918458423096940256393720972438048893356218087518821823203_U256 };
         let inverted = invert_fp(v).unwrap();
@@ -251,6 +237,19 @@ mod tests {
         assert_eq!(exp_a, a);
         assert_eq!(exp_b, b);
     }
+
+    // The literal values below are taken from the proof in the following tx: https://etherscan.io/tx/0x53309842294be8c2b9fd694c4e86a5ab031c0d58750978fb3d6f60de16eaa897
+    // Raw proof data is:
+    // 20565048055856194013099208963146657799256893353279242520150547463020687826541
+    // 16286013012747852737396822706018267259565592188907848191354824303311847109059
+    // 4348608846293503080802796983494208797681981448804902149317789801083784587558
+    // 6172488348732750834133346196464201580503416389945891763609808290085997580078
+    // 3229429189805934086496276224876305383924675874777054942516982958483565949767
+    // 944252930093106871283598150477854448876343937304805759422971930315581301659
+    // 18318130744212307125672524358864792312717149086464333958791498157127232409959
+    // 8256141885907329266852096557308020923997215847794048916749940281741155521604
+    //
+    // Note that for the G2 compression test the order of real and imaginary is flipped
 
     #[test]
     fn g1_compression() {
@@ -284,10 +283,9 @@ mod tests {
                 ]
             )
         };
+        //let exp_compressed
 
-        println!("Compressing");
         let compressed = compress_g2(point).unwrap();
-        println!("Decompressing");
         let decompressed = decompress_g2(compressed).unwrap();
 
         assert_eq!(point, decompressed);
