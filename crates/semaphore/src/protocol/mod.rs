@@ -42,6 +42,18 @@ static WITHESS_GRAPH: [Lazy<Graph>; get_supported_depth_count()] = array_for_dep
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Proof(pub G1, pub G2, pub G1);
 
+impl Proof {
+    pub const fn from_flat(flat: [U256; 8]) -> Self {
+        let [x0, x1, x2, x3, x4, x5, x6, x7] = flat;
+        Self((x0, x1), ([x2, x3], [x4, x5]), (x6, x7))
+    }
+
+    pub const fn flatten(self) -> [U256; 8] {
+        let Self((a0, a1), ([bx0, bx1], [by0, by1]), (c0, c1)) = self;
+        [a0, a1, bx0, bx1, by0, by1, c0, c1]
+    }
+}
+
 impl From<ArkProof<Bn<Config>>> for Proof {
     fn from(proof: ArkProof<Bn<Config>>) -> Self {
         let proof = ark_circom::ethereum::Proof::from(proof);

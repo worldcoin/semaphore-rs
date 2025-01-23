@@ -29,6 +29,19 @@ pub type G2 = ([U256; 2], [U256; 2]);
 
 pub struct CompressedProof(pub U256, pub (U256, U256), pub U256);
 
+impl CompressedProof {
+    pub const fn from_flat(flat: [U256; 4]) -> Self {
+        let [a, b0, b1, c] = flat;
+
+        Self(a, (b0, b1), c)
+    }
+
+    pub const fn flatten(self) -> [U256; 4] {
+        let Self(a, (b0, b1), c) = self;
+        [a, b0, b1, c]
+    }
+}
+
 pub fn compress_proof(proof: Proof) -> Option<CompressedProof> {
     let Proof(g1a, g2, g1b) = proof;
 
@@ -296,15 +309,7 @@ mod tests {
             18318130744212307125672524358864792312717149086464333958791498157127232409959_U256,
             8256141885907329266852096557308020923997215847794048916749940281741155521604_U256,
         ]};
-
-        let proof = Proof(
-            (flat_proof[0], flat_proof[1]),
-            (
-                [flat_proof[2], flat_proof[3]],
-                [flat_proof[4], flat_proof[5]],
-            ),
-            (flat_proof[6], flat_proof[7]),
-        );
+        let proof = Proof::from_flat(flat_proof);
 
         let compressed = compress_proof(proof).unwrap();
         let decompressed = decompress_proof(compressed).unwrap();
@@ -344,7 +349,6 @@ mod tests {
                 ]
             )
         };
-        //let exp_compressed
 
         let compressed = compress_g2(point).unwrap();
         let decompressed = decompress_g2(compressed).unwrap();
