@@ -152,52 +152,6 @@ pub fn compress_g2(([x0, x1], [y0, y1]): G2) -> Option<(U256, U256)> {
     }
 }
 
-// TODO: Remove this
-pub fn compress_g21(x0: U256, x1: U256, y0: U256, y1: U256) -> (U256, U256) {
-    let a0 = U256::from(27)
-        .mul_mod(U256::from(82).inv_mod(P).unwrap(), P)
-        .add_mod(x0.pow_mod(U256::from(3), P), P)
-        .add_mod(
-            P - U256::from(3).mul_mod(x0, P).mul_mod(x1, P).mul_mod(x1, P),
-            P,
-        );
-    let a1 = (P - U256::from(3)
-        .mul_mod(U256::from(82).inv_mod(P).unwrap(), P)
-        .add_mod(x1.pow_mod(U256::from(3), P), P)
-        .add_mod(
-            P - U256::from(3).mul_mod(x0, P).mul_mod(x0, P).mul_mod(x1, P),
-            P,
-        ))
-    .reduce_mod(P);
-    let d = sqrt(a0.mul_mod(a0, P).add_mod(a1.mul_mod(a1, P), P));
-    // Trial and error find the signs.
-    for bits in 0..4 {
-        let d = if bits & 1 == 0 {
-            d
-        } else {
-            (P - d).reduce_mod(P)
-        };
-        let mut b0 = sqrt(
-            a0.add_mod(d, P)
-                .mul_mod(U256::from(2).inv_mod(P).unwrap(), P),
-        );
-        let mut b1 = a1.mul_mod(b0.mul_mod(U256::from(2), P).inv_mod(P).unwrap(), P);
-        if bits & 2 != 0 {
-            b0 = (P - b0).reduce_mod(P);
-            b1 = (P - b1).reduce_mod(P);
-        }
-        if (b0, b1) == (y0, y1) {
-            return ((x0 << 2) | U256::from(bits), x1);
-        }
-    }
-    panic!("No solution found");
-}
-
-// TODO: Remove this
-pub fn sqrt(x: U256) -> U256 {
-    x.pow_mod((P + U256::from(1)) / U256::from(4), P)
-}
-
 pub fn decompress_g2((c0, c1): (U256, U256)) -> Option<G2> {
     if c0 == U256::ZERO && c1 == U256::ZERO {
         return Some(([U256::ZERO, U256::ZERO], [U256::ZERO, U256::ZERO])); // Point at infinity
@@ -332,6 +286,33 @@ mod tests {
     // 8256141885907329266852096557308020923997215847794048916749940281741155521604
     //
     // Note that for the G2 compression test the order of real and imaginary is flipped
+    //
+    // The expected compressed data is generated with the SemaphoreVerifier implementation
+    // in world-id-state-bridge using chisel.
+    //
+    // Unfortunately the `compress_g1` and `compress_g2` methods are set to `internal` so
+    // the approach is a little hacky, but steps to regenerate these values are as follows:
+    // 1. Change `internal` to `public` in `SemaphoreVerifier.sol`
+    // 2. Start `chisel`
+    // 3. Execute the following in chisel repl
+    //    ```
+    //    > import {SemaphoreVerifier} from "src/SemaphoreVerifier.sol";
+    //    > SemaphoreVerifier ve = new SemaphoreVerifier();
+    //    ```
+    // 4. Now you can generate the expected data fixtures using e.g.
+    //    ```
+    //    > ve.compress_g1(0x19ded61ab5c58fdb12367526c6bc04b9186d0980c4b6fd48a44093e80f9b4206, 0x2e619a034be10e9aab294f1c77a480378e84782c8519449aef0c8f6952382bda)
+    //    ```
+    // Note that for some reason chisel doesn't handle multiple return values that well, so you
+    // might have to pattern match the return types, e.g.
+    // ```
+    // > (uint256 a, uint256 b) = ve.compress_g2(...);
+    // > a;
+    // Type: uint256
+    // ├ Hex: 0x1dd212f101a320736a9662cac57929556777fad3e7882b022d4ba3261cf14db6
+    // ├ Hex (full word): 0x1dd212f101a320736a9662cac57929556777fad3e7882b022d4ba3261cf14db6
+    // └ Decimal: 13488241221471993734368286196608381596836013455766665997449768358320614231478
+    // ```
 
     #[test]
     fn proof_compression() {
@@ -387,28 +368,11 @@ mod tests {
         };
 
         let compressed = compress_g2(point).unwrap();
+        let exp_compressed = uint! { (0x1dd212f101a320736a9662cac57929556777fad3e7882b022d4ba3261cf14db6_U256, 0x25e744163329aabfb40086c09e0b54d09dfbd302ce975e71150133e46e75f0aa_U256) };
+
+        assert_eq!(exp_compressed, compressed);
         let decompressed = decompress_g2(compressed).unwrap();
 
         assert_eq!(point, decompressed);
-    }
-
-    #[test]
-    fn g2_compression_2() {
-        let point: G2 = uint! {
-            (
-                [
-                    0x077484BC4068C81CDAA598B2B15E4A5559DDFEB4F9E20AC08B52E8C9873C536D_U256,
-                    0x25E744163329AABFB40086C09E0B54D09DFBD302CE975E71150133E46E75F0AA_U256,
-                ],
-                [
-                    0x20AF3E3AFED950A86937F4319100B19A1141FF59DA42B9670CFA57E5D83BE618_U256,
-                    0x089C901AA5603652F8CC748F04907233C63A75302244D67FF974B05AF09948D2_U256,
-                ]
-            )
-        };
-
-        let compressed = compress_g2(point).unwrap();
-        let compressed1 = compress_g21(point.0[0], point.0[1], point.1[0], point.1[1]);
-        assert_eq!(compressed, compressed1);
     }
 }
