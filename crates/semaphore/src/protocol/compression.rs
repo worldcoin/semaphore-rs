@@ -18,10 +18,11 @@ pub const P: U256 =
 pub const ONE: U256 = uint! { 1_U256 };
 pub const TWO: U256 = uint! { 2_U256 };
 pub const THREE: U256 = uint! { 3_U256 };
+pub const FOUR: U256 = uint! { 4_U256 };
 
 lazy_static! {
     /// Exponent for the square root in Fp
-    pub static ref EXP_SQRT_FP: U256 = (P + ONE) / U256::from(4);
+    pub static ref EXP_SQRT_FP: U256 = (P + ONE) / FOUR;
 
     /// Exponent for the inverse in Fp
     pub static ref EXP_INVERSE_FP: U256 = P - TWO;
@@ -79,9 +80,9 @@ pub fn compress_g1((x, y): G1) -> Option<U256> {
     }
     let y_pos = sqrt_fp(x.pow_mod(THREE, P).add_mod(THREE, P))?;
     if y == y_pos {
-        Some(x.wrapping_shl(1))
+        Some(x << 1)
     } else if y == neg_fp(y_pos) {
-        Some(x.wrapping_shl(1) | ONE)
+        Some(x << 1 | ONE)
     } else {
         None
     }
@@ -142,7 +143,7 @@ pub fn compress_g2(([x0, x1], [y0, y1]): G2) -> Option<(U256, U256)> {
     // Recover y
     let (new_y0_pos, new_y1_pos) = sqrt_fp2(y0_pos, y1_pos, hint)?;
 
-    let hint = if hint { TWO } else { U256::from(0) };
+    let hint = if hint { TWO } else { U256::ZERO };
     if y0 == new_y0_pos && y1 == new_y1_pos {
         Some(((x0 << 2) | hint, x1))
     } else if y0 == neg_fp(new_y0_pos) && y1 == neg_fp(new_y1_pos) {
