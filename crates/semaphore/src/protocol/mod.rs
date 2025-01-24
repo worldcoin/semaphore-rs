@@ -33,7 +33,8 @@ pub type G2 = ([U256; 2], [U256; 2]);
 
 static WITHESS_GRAPH: [Lazy<Graph>; get_supported_depth_count()] = array_for_depths!(|depth| {
     Lazy::new(|| {
-        witness::init_graph(crate::circuit::graph(depth)).expect("Failed to initialize Graph")
+        semaphore_rs_witness::init_graph(crate::circuit::graph(depth))
+            .expect("Failed to initialize Graph")
     })
 });
 
