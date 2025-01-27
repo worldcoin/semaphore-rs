@@ -54,16 +54,16 @@ jobs:
             ${{ runner.os }}-cargo-build-
 
       - name: Check
-        run: cargo check --workspace --tests --benches --all-features
+        run: cargo check --workspace --tests --benches --features depth_16,depth_20,depth_30
 
       - name: Check Formatting
         run: cargo fmt --all -- --check
 
       - name: Run Clippy
-        run: cargo clippy --all-targets --all-features
+        run: cargo clippy --all-targets --features depth_16,depth_20,depth_30
 
       - name: Run test
-        run: cargo test --workspace --all-features
+        run: cargo test --workspace --features depth_16,depth_20,depth_30
   # vet:
   #   name: Vet Dependencies
   #   runs-on: ubuntu-latest

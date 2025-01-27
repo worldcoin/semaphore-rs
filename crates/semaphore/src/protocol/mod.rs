@@ -15,9 +15,9 @@ use semaphore_rs_depth_config::{get_depth_index, get_supported_depth_count};
 use semaphore_rs_depth_macros::array_for_depths;
 use semaphore_rs_poseidon::Poseidon;
 use semaphore_rs_trees::{Branch, InclusionProof};
+use semaphore_rs_witness::Graph;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use witness::Graph;
 
 use crate::circuit::zkey;
 use crate::identity::Identity;
@@ -34,7 +34,8 @@ pub type G2 = ([U256; 2], [U256; 2]);
 
 static WITHESS_GRAPH: [Lazy<Graph>; get_supported_depth_count()] = array_for_depths!(|depth| {
     Lazy::new(|| {
-        witness::init_graph(crate::circuit::graph(depth)).expect("Failed to initialize Graph")
+        semaphore_rs_witness::init_graph(crate::circuit::graph(depth))
+            .expect("Failed to initialize Graph")
     })
 });
 
@@ -205,7 +206,7 @@ pub fn generate_witness(
     let graph = &WITHESS_GRAPH
         [get_depth_index(depth).unwrap_or_else(|| panic!("Depth {depth} not supported"))];
 
-    let witness = witness::calculate_witness(inputs, graph).unwrap();
+    let witness = semaphore_rs_witness::calculate_witness(inputs, graph).unwrap();
     witness
         .into_iter()
         .map(|x| Fr::from_bigint(x.into()).expect("Couldn't cast U256 to BigInteger"))

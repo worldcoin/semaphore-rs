@@ -20,6 +20,7 @@ semaphore-rs-trees.workspace = true
 semaphore-rs-storage.workspace = true
 semaphore-rs-depth-config.workspace = true
 semaphore-rs-depth-macros.workspace = true
+semaphore-rs-witness.workspace = true
 
 # 3rd Party
 alloy-core.workspace = true
@@ -40,7 +41,6 @@ serde.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
 tiny-keccak.workspace = true
-witness.workspace = true
 zeroize.workspace = true
 tokio.workspace = true
 
