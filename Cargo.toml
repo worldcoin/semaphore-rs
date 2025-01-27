@@ -18,15 +18,15 @@ categories = ["cryptography"]
 
 [workspace.dependencies]
 # Internal
-semaphore-rs-ark-zkey = { path = "crates/ark-zkey" }
-semaphore-rs-poseidon = { path = "crates/poseidon" }
-semaphore-rs-hasher = { path = "crates/hasher" }
-semaphore-rs-keccak = { path = "crates/keccak" }
-semaphore-rs-trees = { path = "crates/trees" }
-semaphore-rs-storage = { path = "crates/storage" }
-semaphore-rs-depth-config = { path = "crates/semaphore-depth-config" }
-semaphore-rs-depth-macros = { path = "crates/semaphore-depth-macros" }
-semaphore-rs-witness = { path = "crates/circom-witness-rs" }
+semaphore-rs-ark-zkey = { version = "0.1.0", path = "crates/ark-zkey" }
+semaphore-rs-poseidon = { version = "0.1.0", path = "crates/poseidon" }
+semaphore-rs-hasher = { version = "0.1.0", path = "crates/hasher" }
+semaphore-rs-keccak = { version = "0.1.0", path = "crates/keccak" }
+semaphore-rs-trees = { version = "0.1.0", path = "crates/trees" }
+semaphore-rs-storage = { version = "0.1.0", path = "crates/storage" }
+semaphore-rs-depth-config = { version = "0.1.0", path = "crates/semaphore-depth-config" }
+semaphore-rs-depth-macros = { version = "0.1.0", path = "crates/semaphore-depth-macros" }
+semaphore-rs-witness = { version = "0.1.0", path = "crates/circom-witness-rs" }
 
 # 3rd Party
 alloy-core = { version = "0.8.12", default-features = false, features = ["sol-types"] }

@@ -12,7 +12,7 @@ categories.workspace = true
 
 [dependencies]
 semaphore-rs-hasher.workspace = true
-tiny-keccak.workspace = true
+tiny-keccak = { workspace = true, features = ["keccak"] }
 
 [features]
 default = ["sha3"]
