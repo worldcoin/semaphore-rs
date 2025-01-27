@@ -79,7 +79,7 @@ quote = "1.0.26"
 
 # Ark
 ark-bn254 = { version = "=0.4.0" }
-ark-circom = { git = "https://github.com/worldcoin/circom-compat.git", tag = "2.0.0", features = [
+ark-circom = { package = "worldcoin-ark-circom", version = "0.2.0", features = [
     "circom-2",
 ] }
 ark-ec = { version = "0.4.2", default-features = false, features = [
