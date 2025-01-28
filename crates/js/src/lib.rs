@@ -22,7 +22,7 @@ pub fn compress_proof(proof: js_sys::Array) -> Result<js_sys::Array, JsError> {
 /// Decompresses a Groth16 proof
 /// Input data must be an array of 4 hex encoded strings representing a valid compressed proof
 /// 0x prefixes are optional
-/// 
+///
 /// Returns an array of 8 hex encoded (0x prefixed) strings
 #[wasm_bindgen]
 pub fn decompress_proof(proof: js_sys::Array) -> Result<js_sys::Array, JsError> {
@@ -60,7 +60,7 @@ fn from_array<const N: usize>(proof: js_sys::Array) -> Result<[U256; N], JsError
 }
 
 fn to_array<const N: usize>(arr: [U256; N]) -> js_sys::Array {
-    let ret = js_sys::Array::new_with_length(N as u32);
+    let ret = js_sys::Array::new();
     for v in arr {
         let bytes: [u8; 32] = v.to_be_bytes();
         let s = hex::encode(&bytes);
