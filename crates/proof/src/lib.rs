@@ -1,5 +1,5 @@
 use ruint::aliases::U256;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "ark")]
 mod ark;
@@ -28,5 +28,3 @@ impl Proof {
         [a0, a1, bx0, bx1, by0, by1, c0, c1]
     }
 }
-
-
