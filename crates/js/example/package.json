@@ -9,6 +9,6 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "semaphore-rs-js": "^0.1.2"
+    "semaphore-rs-js": "0.1.3"
   }
 }

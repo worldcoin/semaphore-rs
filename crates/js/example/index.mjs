@@ -1,4 +1,4 @@
-import {compress_proof, decompress_proof} from "semaphore-rs-js";
+import {compressProof, decompressProof} from "semaphore-rs-js";
 
 const proof = [
   "0x2d77679b613036865f4518894c80691cf65338fe7834fe3dd5f98c4f0f5a9e6d",
@@ -11,8 +11,8 @@ const proof = [
   "0x1240cf8aa43cf4ea4a2d8dffac653a6467cefd0f19e129cffad85299d6705444",
 ]
 
-const compressed = compress_proof(proof);
-const decompressed = decompress_proof(compressed);
+const compressed = compressProof(proof);
+const decompressed = decompressProof(compressed);
 
 for (let i = 0; i < 8; i++) {
   if (proof[i] !== decompressed[i]) {

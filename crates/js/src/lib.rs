@@ -7,7 +7,7 @@ use wasm_bindgen::prelude::*;
 /// 0x prefixes are optional
 ///
 /// Returns an array of 8 hex encoded (0x prefixed) strings representing a compressed proof
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = "compressProof")]
 pub fn compress_proof(proof: js_sys::Array) -> Result<js_sys::Array, JsError> {
     let proof = from_array(proof)?;
     let proof = Proof::from_flat(proof);
@@ -24,7 +24,7 @@ pub fn compress_proof(proof: js_sys::Array) -> Result<js_sys::Array, JsError> {
 /// 0x prefixes are optional
 ///
 /// Returns an array of 8 hex encoded (0x prefixed) strings
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = "decompressProof")]
 pub fn decompress_proof(proof: js_sys::Array) -> Result<js_sys::Array, JsError> {
     let proof = from_array(proof)?;
     let proof = CompressedProof::from_flat(proof);
