@@ -12,7 +12,9 @@ categories.workspace = true
 
 [dependencies]
 # Internal
+semaphore-rs-utils.workspace = true
 semaphore-rs-ark-zkey.workspace = true
+semaphore-rs-proof = { workspace = true, features = ["ark"] }
 semaphore-rs-poseidon.workspace = true
 semaphore-rs-hasher.workspace = true
 semaphore-rs-keccak.workspace = true
@@ -42,7 +44,6 @@ sha2.workspace = true
 thiserror.workspace = true
 tiny-keccak.workspace = true
 zeroize.workspace = true
-tokio.workspace = true
 
 # Ark
 ark-bn254.workspace = true

@@ -1,5 +1,5 @@
-use crate::util::keccak256;
 use ruint::{aliases::U256, uint};
+use semaphore_rs_utils::keccak256;
 
 /// An element of the BN254 scalar field Fr.
 ///

@@ -1,4 +1,3 @@
-use crate::util::{bytes_from_hex, bytes_to_hex, deserialize_bytes, serialize_bytes};
 use core::{
     fmt::{Debug, Display},
     str,
@@ -6,6 +5,7 @@ use core::{
 };
 use num_bigint::{BigInt, Sign};
 use ruint::aliases::U256;
+use semaphore_rs_utils::{bytes_from_hex, bytes_to_hex, deserialize_bytes, serialize_bytes};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// Container for 256-bit hash values.

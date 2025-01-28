@@ -13,8 +13,6 @@ categories.workspace = true
 [dependencies]
 color-eyre.workspace = true
 memmap2.workspace = true
-flame.workspace = true
-flamer.workspace = true
 
 ark-serialize.workspace = true
 ark-bn254.workspace = true

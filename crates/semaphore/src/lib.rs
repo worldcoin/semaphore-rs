@@ -7,7 +7,6 @@ pub mod identity;
 pub mod packed_proof;
 pub mod poseidon_tree;
 pub mod protocol;
-pub mod util;
 
 use ark_bn254::Config;
 use ark_ec::bn::Bn;

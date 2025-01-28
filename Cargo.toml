@@ -18,7 +18,9 @@ categories = ["cryptography"]
 
 [workspace.dependencies]
 # Internal
+semaphore-rs-utils = { path = "crates/utils" }
 semaphore-rs-ark-zkey = { version = "0.1.0", path = "crates/ark-zkey" }
+semaphore-rs-proof = { path = "crates/proof", default-features = false }
 semaphore-rs-poseidon = { version = "0.1.0", path = "crates/poseidon" }
 semaphore-rs-hasher = { version = "0.1.0", path = "crates/hasher" }
 semaphore-rs-keccak = { version = "0.1.0", path = "crates/keccak" }
@@ -58,19 +60,26 @@ ruint = { version = "1.12.3", features = [
     "num-bigint",
     "ark-ff-04",
 ] }
-serde = "1.0"
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.79"
 serial_test = "3"
 sha2 = "0.10.1"
 test-case = "3.3.1"
 tempfile = "3.0"
 thiserror = "1.0.0"
-tiny-keccak = { version = "2.0.2" }
+tiny-keccak = { version = "2.0.2", features = ["sha3", "keccak"] }
 tracing-test = "0.2"
 zeroize = "1.6.0"
 memmap2 = "0.9"
 flame = "0.2"
 flamer = "0.5"
+
+# WASM
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+# Required if we're compiling to WASM
+getrandom = { version = "0.2.15", features = ["js"] }
+wasm-bindgen-test = "0.3"
 
 # Proc macros
 syn = { version = "2.0.9", features = ["full", "visit-mut", "extra-traits"] }

@@ -1,36 +1,29 @@
 use std::collections::HashMap;
 
-use ark_bn254::{Config, Fr};
+use ark_bn254::Fr;
 use ark_circom::CircomReduction;
-use ark_ec::bn::Bn;
 use ark_ff::PrimeField;
-use ark_groth16::{prepare_verifying_key, Groth16, Proof as ArkProof};
+use ark_groth16::{prepare_verifying_key, Groth16};
 use ark_relations::r1cs::SynthesisError;
 use ark_std::UniformRand;
 use color_eyre::Result;
 use once_cell::sync::Lazy;
 use rand::{thread_rng, Rng};
-use ruint::aliases::U256;
 use semaphore_rs_depth_config::{get_depth_index, get_supported_depth_count};
 use semaphore_rs_depth_macros::array_for_depths;
 use semaphore_rs_poseidon::Poseidon;
 use semaphore_rs_trees::{Branch, InclusionProof};
 use semaphore_rs_witness::Graph;
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::circuit::zkey;
 use crate::identity::Identity;
 use crate::Field;
 
+pub use semaphore_rs_proof::compression;
+pub use semaphore_rs_proof::Proof;
+
 pub mod authentication;
-pub mod compression;
-
-// Matches the private G1Tup type in ark-circom.
-pub type G1 = (U256, U256);
-
-// Matches the private G2Tup type in ark-circom.
-pub type G2 = ([U256; 2], [U256; 2]);
 
 static WITHESS_GRAPH: [Lazy<Graph>; get_supported_depth_count()] = array_for_depths!(|depth| {
     Lazy::new(|| {
@@ -38,52 +31,6 @@ static WITHESS_GRAPH: [Lazy<Graph>; get_supported_depth_count()] = array_for_dep
             .expect("Failed to initialize Graph")
     })
 });
-
-/// Wrap a proof object so we have serde support
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Proof(pub G1, pub G2, pub G1);
-
-impl Proof {
-    pub const fn from_flat(flat: [U256; 8]) -> Self {
-        let [x0, x1, x2, x3, x4, x5, x6, x7] = flat;
-        Self((x0, x1), ([x2, x3], [x4, x5]), (x6, x7))
-    }
-
-    pub const fn flatten(self) -> [U256; 8] {
-        let Self((a0, a1), ([bx0, bx1], [by0, by1]), (c0, c1)) = self;
-        [a0, a1, bx0, bx1, by0, by1, c0, c1]
-    }
-}
-
-impl From<ArkProof<Bn<Config>>> for Proof {
-    fn from(proof: ArkProof<Bn<Config>>) -> Self {
-        let proof = ark_circom::ethereum::Proof::from(proof);
-        let (a, b, c) = proof.as_tuple();
-        Self(a, b, c)
-    }
-}
-
-impl From<Proof> for ArkProof<Bn<Config>> {
-    fn from(proof: Proof) -> Self {
-        let eth_proof = ark_circom::ethereum::Proof {
-            a: ark_circom::ethereum::G1 {
-                x: proof.0 .0,
-                y: proof.0 .1,
-            },
-            #[rustfmt::skip] // Rustfmt inserts some confusing spaces
-            b: ark_circom::ethereum::G2 {
-                // The order of coefficients is flipped.
-                x: [proof.1.0[1], proof.1.0[0]],
-                y: [proof.1.1[1], proof.1.1[0]],
-            },
-            c: ark_circom::ethereum::G1 {
-                x: proof.2 .0,
-                y: proof.2 .1,
-            },
-        };
-        eth_proof.into()
-    }
-}
 
 /// Helper to merkle proof into a bigint vector
 /// TODO: we should create a From trait for this
@@ -256,6 +203,9 @@ pub fn verify_proof(
 #[cfg(test)]
 #[allow(dead_code)]
 mod test {
+    use ark_bn254::Config;
+    use ark_ec::bn::Bn;
+    use ark_groth16::Proof as ArkProof;
     use rand::SeedableRng as _;
     use rand_chacha::ChaChaRng;
     use semaphore_rs_depth_macros::test_all_depths;
