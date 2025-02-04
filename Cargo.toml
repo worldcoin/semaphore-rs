@@ -19,6 +19,7 @@ categories = ["cryptography"]
 [workspace.dependencies]
 # Internal
 semaphore-rs-utils = { version = "0.2.0", path = "crates/utils" }
+semaphore-rs-ark-circom = { version = "0.2.0", path = "crates/ark-circom" }
 semaphore-rs-ark-zkey = { version = "0.2.0", path = "crates/ark-zkey" }
 semaphore-rs-proof = { version = "0.2.0", path = "crates/proof", default-features = false }
 semaphore-rs-poseidon = { version = "0.2.0", path = "crates/poseidon" }
@@ -89,9 +90,6 @@ quote = "1.0.26"
 
 # Ark
 ark-bn254 = { version = "=0.4.0" }
-ark-circom = { package = "worldcoin-ark-circom", version = "0.2.0", features = [
-    "circom-2",
-] }
 ark-ec = { version = "0.4.2", default-features = false, features = [
     "parallel",
 ] }
@@ -105,6 +103,7 @@ ark-std = { version = "0.4.0", default-features = false, features = [
     "parallel",
 ] }
 ark-serialize = { version = "0.4.2", features = ["derive"] }
+ark-poly = { version = "0.4.2" }
 ark-crypto-primitives = { version = "0.4.0" }
 
 # Necessary because there's an issue with dependencies in the workspace

@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use ark_bn254::Fr;
-use ark_circom::CircomReduction;
 use ark_ff::PrimeField;
 use ark_groth16::{prepare_verifying_key, Groth16};
 use ark_relations::r1cs::SynthesisError;
@@ -9,6 +8,7 @@ use ark_std::UniformRand;
 use color_eyre::Result;
 use once_cell::sync::Lazy;
 use rand::{thread_rng, Rng};
+use semaphore_rs_ark_circom::CircomReduction;
 use semaphore_rs_depth_config::{get_depth_index, get_supported_depth_count};
 use semaphore_rs_depth_macros::array_for_depths;
 use semaphore_rs_poseidon::Poseidon;

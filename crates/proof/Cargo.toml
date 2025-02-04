@@ -12,11 +12,11 @@ categories.workspace = true
 
 [dependencies]
 semaphore-rs-utils.workspace = true
+semaphore-rs-ark-circom = { workspace = true, optional = true }
 
 ruint.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-ark-circom = { workspace = true, optional = true }
 ark-ec = { workspace = true, optional = true }
 ark-groth16 = { workspace = true, optional = true }
 ark-bn254 = { workspace = true, optional = true }
@@ -27,5 +27,5 @@ hex.workspace = true
 
 [features]
 default = ["ark"]
-ark = ["dep:ark-circom", "dep:ark-ec", "dep:ark-groth16", "dep:ark-bn254"]
+ark = ["dep:semaphore-rs-ark-circom", "dep:ark-ec", "dep:ark-groth16", "dep:ark-bn254"]
 
