@@ -8,15 +8,10 @@ pub mod packed_proof;
 pub mod poseidon_tree;
 pub mod protocol;
 
-use ark_bn254::Config;
-use ark_ec::bn::Bn;
 pub use semaphore_rs_depth_config::get_supported_depths;
 
 // Export types
 pub use crate::field::{hash_to_field, Field};
-
-pub type Groth16Proof = ark_groth16::Proof<Bn<Config>>;
-pub type EthereumGroth16Proof = ark_circom::ethereum::Proof;
 
 #[allow(dead_code)]
 #[cfg(test)]

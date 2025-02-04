@@ -62,9 +62,7 @@ fn from_array<const N: usize>(proof: js_sys::Array) -> Result<[U256; N], JsError
 fn to_array<const N: usize>(arr: [U256; N]) -> js_sys::Array {
     let ret = js_sys::Array::new();
     for v in arr {
-        let bytes: [u8; 32] = v.to_be_bytes();
-        let s = hex::encode(bytes);
-        let s = format!("0x{s}");
+        let s = format!("{v:#066x}");
         ret.push(&JsValue::from_str(&s));
     }
     ret
