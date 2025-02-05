@@ -1,6 +1,6 @@
 import {compressProof, decompressProof} from "semaphore-rs-js-nodejs";
 
-const proof = [
+const proof: [string, string, string, string, string, string, string, string] = [
   "0x2d77679b613036865f4518894c80691cf65338fe7834fe3dd5f98c4f0f5a9e6d",
   "0x24018e845edf74d69528a63eed053296a397df13a1d08873e2b2d673837b31c3",
   "0x099d39b2cbca524b5916ac97dbc4afc1b8a5f59d65ba583fc49ec2677226e926",
