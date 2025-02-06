@@ -3,12 +3,12 @@ use std::io::BufReader;
 use std::path::PathBuf;
 
 use ark_bn254::{Bn254, Fr};
-use ark_circom::read_zkey;
 use ark_ff::Field;
 use ark_groth16::ProvingKey;
 use ark_relations::r1cs::ConstraintMatrices;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use color_eyre::eyre::{Result, WrapErr};
+use semaphore_rs_ark_circom::read_zkey;
 
 #[derive(CanonicalSerialize, CanonicalDeserialize, Clone, Debug, PartialEq)]
 pub struct SerializableProvingKey(pub ProvingKey<Bn254>);

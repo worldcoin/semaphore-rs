@@ -1,0 +1,27 @@
+[package]
+name = "semaphore-rs-js"
+version = "0.1.3"
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+semaphore-rs-proof = { workspace = true, default-features = false }
+ruint.workspace = true
+hex.workspace = true
+
+wasm-bindgen.workspace = true
+js-sys.workspace = true
+getrandom.workspace = true
+
+[dev-dependencies]
+wasm-bindgen-test.workspace = true
+

@@ -12,7 +12,10 @@ categories.workspace = true
 
 [dependencies]
 # Internal
+semaphore-rs-utils.workspace = true
 semaphore-rs-ark-zkey.workspace = true
+semaphore-rs-ark-circom.workspace = true
+semaphore-rs-proof = { workspace = true, features = ["ark"] }
 semaphore-rs-poseidon.workspace = true
 semaphore-rs-hasher.workspace = true
 semaphore-rs-keccak.workspace = true
@@ -42,11 +45,9 @@ sha2.workspace = true
 thiserror.workspace = true
 tiny-keccak.workspace = true
 zeroize.workspace = true
-tokio.workspace = true
 
 # Ark
 ark-bn254.workspace = true
-ark-circom.workspace = true
 ark-ec.workspace = true
 ark-ff.workspace = true
 ark-groth16.workspace = true
@@ -55,6 +56,7 @@ ark-std.workspace = true
 
 [dev-dependencies]
 serial_test.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 criterion.workspace = true
 bincode.workspace = true
 proptest.workspace = true

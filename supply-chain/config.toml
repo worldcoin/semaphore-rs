@@ -1133,54 +1133,6 @@ criteria = "safe-to-deploy"
 version = "0.202.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.wasmer]]
-version = "2.3.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.wasmer-artifact]]
-version = "2.3.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.wasmer-compiler]]
-version = "2.3.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.wasmer-compiler-cranelift]]
-version = "2.3.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.wasmer-derive]]
-version = "2.3.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.wasmer-engine]]
-version = "2.3.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.wasmer-engine-dylib]]
-version = "2.3.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.wasmer-engine-universal]]
-version = "2.3.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.wasmer-engine-universal-artifact]]
-version = "2.3.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.wasmer-object]]
-version = "2.3.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.wasmer-types]]
-version = "2.3.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.wasmer-vm]]
-version = "2.3.0"
-criteria = "safe-to-deploy"
-
 [[exemptions.wasmparser]]
 version = "0.83.0"
 criteria = "safe-to-deploy"
