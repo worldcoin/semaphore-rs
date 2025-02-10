@@ -28,3 +28,18 @@ impl Proof {
         [a0, a1, bx0, bx1, by0, by1, c0, c1]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deser() {
+        let s = r#"[["0x1","0x2"],[["0x3","0x4"],["0x5","0x6"]],["0x7","0x8"]]"#;
+
+        let deserialized: Proof = serde_json::from_str(s).unwrap();
+        let reserialized = serde_json::to_string(&deserialized).unwrap();
+
+        assert_eq!(s, reserialized);
+    }
+}

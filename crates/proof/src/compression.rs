@@ -6,6 +6,7 @@
 
 use ruint::aliases::U256;
 use ruint::uint;
+use serde::{Deserialize, Serialize};
 
 use super::{Proof, G1, G2};
 use lazy_static::lazy_static;
@@ -28,6 +29,7 @@ lazy_static! {
     pub static ref EXP_INVERSE_FP: U256 = P - TWO;
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompressedProof(pub U256, pub (U256, U256), pub U256);
 
 impl CompressedProof {
@@ -375,5 +377,15 @@ mod tests {
         let decompressed = decompress_g2(compressed).unwrap();
 
         assert_eq!(point, decompressed);
+    }
+
+    #[test]
+    fn deser() {
+        let s = r#"["0x1",["0x2","0x3"],"0x4"]"#;
+
+        let deserialized: CompressedProof = serde_json::from_str(s).unwrap();
+        let reserialized = serde_json::to_string(&deserialized).unwrap();
+
+        assert_eq!(s, reserialized);
     }
 }
