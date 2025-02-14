@@ -3,7 +3,7 @@ members = ["crates/*"]
 resolver = "2"
 
 [workspace.package]
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 homepage = "https://github.com/worldcoin/semaphore-rs"
 license = "MIT"
@@ -18,18 +18,18 @@ categories = ["cryptography"]
 
 [workspace.dependencies]
 # Internal
-semaphore-rs-utils = { version = "0.3.1", path = "crates/utils" }
-semaphore-rs-ark-circom = { version = "0.3.1", path = "crates/ark-circom" }
-semaphore-rs-ark-zkey = { version = "0.3.1", path = "crates/ark-zkey" }
-semaphore-rs-proof = { version = "0.3.1", path = "crates/proof", default-features = false }
-semaphore-rs-poseidon = { version = "0.3.1", path = "crates/poseidon" }
-semaphore-rs-hasher = { version = "0.3.1", path = "crates/hasher" }
-semaphore-rs-keccak = { version = "0.3.1", path = "crates/keccak" }
-semaphore-rs-trees = { version = "0.3.1", path = "crates/trees" }
-semaphore-rs-storage = { version = "0.3.1", path = "crates/storage" }
-semaphore-rs-depth-config = { version = "0.3.1", path = "crates/semaphore-depth-config" }
-semaphore-rs-depth-macros = { version = "0.3.1", path = "crates/semaphore-depth-macros" }
-semaphore-rs-witness = { version = "0.3.1", path = "crates/circom-witness-rs" }
+semaphore-rs-utils = { version = "0.3.2", path = "crates/utils" }
+semaphore-rs-ark-circom = { version = "0.3.2", path = "crates/ark-circom" }
+semaphore-rs-ark-zkey = { version = "0.3.2", path = "crates/ark-zkey" }
+semaphore-rs-proof = { version = "0.3.2", path = "crates/proof", default-features = false }
+semaphore-rs-poseidon = { version = "0.3.2", path = "crates/poseidon" }
+semaphore-rs-hasher = { version = "0.3.2", path = "crates/hasher" }
+semaphore-rs-keccak = { version = "0.3.2", path = "crates/keccak" }
+semaphore-rs-trees = { version = "0.3.2", path = "crates/trees" }
+semaphore-rs-storage = { version = "0.3.2", path = "crates/storage" }
+semaphore-rs-depth-config = { version = "0.3.2", path = "crates/semaphore-depth-config" }
+semaphore-rs-depth-macros = { version = "0.3.2", path = "crates/semaphore-depth-macros" }
+semaphore-rs-witness = { version = "0.3.2", path = "crates/circom-witness-rs" }
 
 # 3rd Party
 alloy-core = { version = "0.8.12", default-features = false, features = ["sol-types"] }
