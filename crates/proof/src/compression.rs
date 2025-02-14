@@ -53,7 +53,10 @@ pub fn compress_proof(proof: Proof) -> Option<CompressedProof> {
     let g2 = ([x1, x0], [y1, y0]);
 
     let a = compress_g1(g1a)?;
-    let c = compress_g2(g2)?;
+    // NOTE: G2 compressed repr is flipped
+    let (c0, c1) = compress_g2(g2)?;
+    let c = (c1, c0);
+
     let b = compress_g1(g1b)?;
 
     Some(CompressedProof(a, c, b))
@@ -63,7 +66,12 @@ pub fn decompress_proof(compressed: CompressedProof) -> Option<Proof> {
     let CompressedProof(a, c, b) = compressed;
 
     let g1a = decompress_g1(a)?;
+
+    // NOTE: G2 compressed repr is flipped
+    let (c1, c0) = c;
+    let c = (c0, c1);
     let g2 = decompress_g2(c)?;
+
     let g1b = decompress_g1(b)?;
 
     // Unswap
@@ -332,6 +340,15 @@ mod tests {
         let proof = Proof::from_flat(flat_proof);
 
         let compressed = compress_proof(proof).unwrap();
+        let exp_flat_compressed: [U256; 4] = uint! {[
+            41130096111712388026198417926293315598513786706558485040301094926041375653083_U256,
+            4348608846293503080802796983494208797681981448804902149317789801083784587558_U256,
+            24689953394931003336533384785856806322013665559783567054439233160343990320315_U256,
+            36636261488424614251345048717729584625434298172928667917582996314254464819918_U256,
+        ]};
+
+        assert_eq!(exp_flat_compressed, compressed.flatten());
+
         let decompressed = decompress_proof(compressed).unwrap();
 
         assert_eq!(proof, decompressed);
