@@ -15,7 +15,6 @@ ark-bn254 = { workspace = true, features = ["std"] }
 ark-ff = { workspace = true, features = ["std"] }
 ark-serialize.workspace = true
 byteorder.workspace = true
-cxx.workspace = true
 color-eyre.workspace = true
 hex.workspace = true
 postcard = { workspace = true, features = ["use-std"] } 
