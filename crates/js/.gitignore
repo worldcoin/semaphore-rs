@@ -5,4 +5,5 @@ bin/
 pkg/
 pkg-nodejs/
 pkg-bundler/
+pkg-web/
 wasm-pack.log

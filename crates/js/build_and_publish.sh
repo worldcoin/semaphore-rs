@@ -20,4 +20,5 @@ function build_and_publish_pkg() {
 
 build_and_publish_pkg nodejs
 build_and_publish_pkg bundler
+build_and_publish_pkg web
 
