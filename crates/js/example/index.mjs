@@ -1,4 +1,4 @@
-import {compressProof, decompressProof} from "semaphore-rs-js-nodejs";
+import { compressProof, decompressProof } from "semaphore-rs-js";
 
 const proof = [
   "0x2d77679b613036865f4518894c80691cf65338fe7834fe3dd5f98c4f0f5a9e6d",
