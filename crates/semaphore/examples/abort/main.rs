@@ -20,6 +20,7 @@ static INITIAL_LEAVES: usize = 10;
 ///
 /// Run this binary with no arguments to run the tests
 /// `RUSTFLAGS="-C panic=abort" cargo run --example abort`
+#[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
 async fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -159,4 +160,9 @@ fn lazy_restore() -> Result<()> {
     let leaves = tree.leaves().take(20).collect_vec();
     println!("tree length: {leaves:?}");
     Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn main() -> Result<()> {
+    panic!("This example is not supported in WASM");
 }
