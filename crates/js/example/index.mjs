@@ -9,7 +9,7 @@ const proof = [
   "0x02166d9fc2d4cf446b120e5663880e0927825aa36a02b896ac0f3a5ef6e0239b",
   "0x287fb1d0415a734ba76df9eb50ca6758bb806272f8fe40e3adbad3a850c05167",
   "0x1240cf8aa43cf4ea4a2d8dffac653a6467cefd0f19e129cffad85299d6705444",
-]
+];
 
 const compressed = compressProof(proof);
 const decompressed = decompressProof(compressed);
@@ -19,4 +19,3 @@ for (let i = 0; i < 8; i++) {
     console.log("Proof not equal after decompression");
   }
 }
-
