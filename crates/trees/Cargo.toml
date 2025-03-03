@@ -23,7 +23,6 @@ derive-where.workspace = true
 hex.workspace = true
 hex-literal.workspace = true
 itertools.workspace = true
-mmap-rs.workspace = true
 once_cell.workspace = true
 rayon.workspace = true
 ruint.workspace = true
@@ -38,6 +37,9 @@ ark-ff.workspace = true
 ark-groth16.workspace = true
 ark-relations.workspace = true
 ark-std.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+mmap-rs.workspace = true
 
 [dev-dependencies]
 semaphore-rs-poseidon.workspace = true
