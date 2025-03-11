@@ -32,6 +32,11 @@ static WITHESS_GRAPH: [Lazy<Graph>; get_supported_depth_count()] = array_for_dep
     })
 });
 
+/// Preloads the ZKEY in memory to skip the lazy loading at first verification
+pub fn warmup_for_verification(tree_depth: usize) {
+    let _zkey = zkey(tree_depth);
+}
+
 /// Helper to merkle proof into a bigint vector
 /// TODO: we should create a From trait for this
 fn merkle_proof_to_vec(proof: &InclusionProof<Poseidon>) -> Vec<Field> {
