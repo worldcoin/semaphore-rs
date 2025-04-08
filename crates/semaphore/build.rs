@@ -6,7 +6,8 @@ use color_eyre::eyre::Result;
 extern crate reqwest;
 
 const SEMAPHORE_FILES_PATH: &str = "semaphore_files";
-const SEMAPHORE_DOWNLOAD_URL: &str = "https://www.trusted-setup-pse.org/semaphore";
+const SEMAPHORE_DOWNLOAD_URL: &str =
+    "https://storage.googleapis.com/trustedsetup-a86f4.appspot.com/semaphore/semaphore";
 
 fn download_and_store_binary(url: &str, path: impl AsRef<Path>) -> Result<()> {
     let path = path.as_ref();
@@ -53,7 +54,9 @@ fn build_circuit(depth: usize) -> Result<()> {
     }
 
     let filename = "semaphore";
-    let download_url = format!("{SEMAPHORE_DOWNLOAD_URL}/{depth_str}/{filename}.zkey");
+    let download_url =
+        format!("{SEMAPHORE_DOWNLOAD_URL}{depth_str}/semaphore{depth_str}_final.zkey");
+    println!("Downloading from: {download_url}");
     let path = Path::new(&depth_subfolder).join(format!("{filename}.zkey"));
     download_and_store_binary(&download_url, &path)?;
     create_arkzkey(path)?;
