@@ -56,7 +56,6 @@ fn build_circuit(depth: usize) -> Result<()> {
     let filename = "semaphore";
     let download_url =
         format!("{SEMAPHORE_DOWNLOAD_URL}{depth_str}/semaphore{depth_str}_final.zkey");
-    println!("Downloading from: {download_url}");
     let path = Path::new(&depth_subfolder).join(format!("{filename}.zkey"));
     download_and_store_binary(&download_url, &path)?;
     create_arkzkey(path)?;
