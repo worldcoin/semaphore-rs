@@ -8,6 +8,7 @@ use ark_std::UniformRand;
 use color_eyre::Result;
 use once_cell::sync::Lazy;
 use rand::{thread_rng, Rng};
+use semaphore_rs_ark_circom::ethereum::AffineError;
 use semaphore_rs_ark_circom::CircomReduction;
 use semaphore_rs_depth_config::{get_depth_index, get_supported_depth_count};
 use semaphore_rs_depth_macros::array_for_depths;
@@ -65,6 +66,8 @@ pub enum ProofError {
     SynthesisError(#[from] SynthesisError),
     #[error("Error converting public input: {0}")]
     ToFieldError(#[from] ruint::ToFieldError),
+    #[error(transparent)]
+    G1AffineError(#[from] AffineError),
 }
 
 /// Generates a semaphore proof
@@ -200,7 +203,7 @@ pub fn verify_proof(
         .map(ark_bn254::Fr::try_from)
         .collect::<Result<Vec<_>, _>>()?;
 
-    let ark_proof = (*proof).into();
+    let ark_proof = (*proof).try_into()?;
     let result = Groth16::<_, CircomReduction>::verify_proof(&pvk, &ark_proof, &public_inputs[..])?;
     Ok(result)
 }
@@ -254,7 +257,7 @@ mod test {
     #[test_all_depths]
     fn test_proof_cast_roundtrip(depth: usize) {
         let proof = arb_proof(123, depth);
-        let ark_proof: ArkProof<Bn<Config>> = proof.into();
+        let ark_proof: ArkProof<Bn<Config>> = proof.try_into().unwrap();
         let result: Proof = ark_proof.into();
         assert_eq!(proof, result);
     }
