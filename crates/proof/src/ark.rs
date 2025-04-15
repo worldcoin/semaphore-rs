@@ -2,6 +2,7 @@ use super::Proof;
 use ark_bn254::Config;
 use ark_ec::bn::Bn;
 use ark_groth16::Proof as ArkProof;
+use semaphore_rs_ark_circom::ethereum::AffineError;
 
 impl From<ArkProof<Bn<Config>>> for Proof {
     fn from(proof: ArkProof<Bn<Config>>) -> Self {
@@ -11,8 +12,10 @@ impl From<ArkProof<Bn<Config>>> for Proof {
     }
 }
 
-impl From<Proof> for ArkProof<Bn<Config>> {
-    fn from(proof: Proof) -> Self {
+impl TryFrom<Proof> for ArkProof<Bn<Config>> {
+    type Error = AffineError;
+
+    fn try_from(proof: Proof) -> Result<Self, AffineError> {
         let eth_proof = semaphore_rs_ark_circom::ethereum::Proof {
             a: semaphore_rs_ark_circom::ethereum::G1 {
                 x: proof.0 .0,
@@ -29,6 +32,7 @@ impl From<Proof> for ArkProof<Bn<Config>> {
                 y: proof.2 .1,
             },
         };
-        eth_proof.into()
+        // This conversion can fail if points are not on the curve.
+        eth_proof.try_into()
     }
 }

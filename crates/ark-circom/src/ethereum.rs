@@ -6,6 +6,15 @@ use num_traits::Zero;
 use ark_bn254::{Bn254, Fq, Fq2, Fr, G1Affine, G2Affine};
 use ark_serialize::CanonicalDeserialize;
 use ruint::aliases::U256;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum AffineError {
+    #[error("point is not on curve")]
+    NotOnCurve,
+    #[error("point is not in correct subgroup")]
+    NotInCorrectSubgroup,
+}
 
 pub struct Inputs(pub Vec<U256>);
 
@@ -23,14 +32,27 @@ pub struct G1 {
     pub y: U256,
 }
 
-impl From<G1> for G1Affine {
-    fn from(src: G1) -> G1Affine {
-        let x: Fq = u256_to_point(src.x);
-        let y: Fq = u256_to_point(src.y);
+impl TryFrom<G1> for G1Affine {
+    type Error = AffineError;
+
+    fn try_from(value: G1) -> Result<Self, Self::Error> {
+        let x: Fq = u256_to_point(value.x);
+        let y: Fq = u256_to_point(value.y);
         if x.is_zero() && y.is_zero() {
-            G1Affine::identity()
+            Ok(G1Affine::identity())
         } else {
-            G1Affine::new(x, y)
+            let point = G1Affine {
+                x,
+                y,
+                infinity: false,
+            };
+            if !point.is_on_curve() {
+                return Err(AffineError::NotOnCurve);
+            }
+            if !point.is_in_correct_subgroup_assuming_on_curve() {
+                return Err(AffineError::NotInCorrectSubgroup);
+            }
+            Ok(point)
         }
     }
 }
@@ -58,8 +80,10 @@ pub struct G2 {
     pub y: [U256; 2],
 }
 
-impl From<G2> for G2Affine {
-    fn from(src: G2) -> G2Affine {
+impl TryFrom<G2> for G2Affine {
+    type Error = AffineError;
+
+    fn try_from(src: G2) -> Result<G2Affine, AffineError> {
         let c0 = u256_to_point(src.x[0]);
         let c1 = u256_to_point(src.x[1]);
         let x = Fq2::new(c0, c1);
@@ -69,9 +93,20 @@ impl From<G2> for G2Affine {
         let y = Fq2::new(c0, c1);
 
         if x.is_zero() && y.is_zero() {
-            G2Affine::identity()
+            Ok(G2Affine::identity())
         } else {
-            G2Affine::new(x, y)
+            let point = G2Affine {
+                x,
+                y,
+                infinity: false,
+            };
+            if !point.is_on_curve() {
+                return Err(AffineError::NotOnCurve);
+            }
+            if !point.is_in_correct_subgroup_assuming_on_curve() {
+                return Err(AffineError::NotInCorrectSubgroup);
+            }
+            Ok(point)
         }
     }
 }
@@ -117,13 +152,15 @@ impl From<ark_groth16::Proof<Bn254>> for Proof {
     }
 }
 
-impl From<Proof> for ark_groth16::Proof<Bn254> {
-    fn from(src: Proof) -> ark_groth16::Proof<Bn254> {
-        ark_groth16::Proof {
-            a: src.a.into(),
-            b: src.b.into(),
-            c: src.c.into(),
-        }
+impl TryFrom<Proof> for ark_groth16::Proof<Bn254> {
+    type Error = AffineError;
+
+    fn try_from(src: Proof) -> Result<ark_groth16::Proof<Bn254>, AffineError> {
+        Ok(ark_groth16::Proof {
+            a: src.a.try_into()?,
+            b: src.b.try_into()?,
+            c: src.c.try_into()?,
+        })
     }
 }
 
@@ -160,15 +197,21 @@ impl From<ark_groth16::VerifyingKey<Bn254>> for VerifyingKey {
     }
 }
 
-impl From<VerifyingKey> for ark_groth16::VerifyingKey<Bn254> {
-    fn from(src: VerifyingKey) -> ark_groth16::VerifyingKey<Bn254> {
-        ark_groth16::VerifyingKey {
-            alpha_g1: src.alpha1.into(),
-            beta_g2: src.beta2.into(),
-            gamma_g2: src.gamma2.into(),
-            delta_g2: src.delta2.into(),
-            gamma_abc_g1: src.ic.into_iter().map(Into::into).collect(),
-        }
+impl TryFrom<VerifyingKey> for ark_groth16::VerifyingKey<Bn254> {
+    type Error = AffineError;
+
+    fn try_from(src: VerifyingKey) -> Result<ark_groth16::VerifyingKey<Bn254>, AffineError> {
+        Ok(ark_groth16::VerifyingKey {
+            alpha_g1: src.alpha1.try_into()?,
+            beta_g2: src.beta2.try_into()?,
+            gamma_g2: src.gamma2.try_into()?,
+            delta_g2: src.delta2.try_into()?,
+            gamma_abc_g1: src
+                .ic
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<_, _>>()?,
+        })
     }
 }
 
@@ -235,7 +278,7 @@ mod tests {
     fn convert_g1() {
         let el = g1();
         let el2 = G1::from(&el);
-        let el3: G1Affine = el2.into();
+        let el3: G1Affine = el2.try_into().unwrap();
         let el4 = G1::from(&el3);
         assert_eq!(el, el3);
         assert_eq!(el2, el4);
@@ -245,7 +288,7 @@ mod tests {
     fn convert_g2() {
         let el = g2();
         let el2 = G2::from(&el);
-        let el3: G2Affine = el2.into();
+        let el3: G2Affine = el2.try_into().unwrap();
         let el4 = G2::from(&el3);
         assert_eq!(el, el3);
         assert_eq!(el2, el4);
@@ -261,7 +304,7 @@ mod tests {
             gamma_abc_g1: vec![g1(), g1(), g1()],
         };
         let vk_ethers = VerifyingKey::from(vk.clone());
-        let ark_vk: ark_groth16::VerifyingKey<Bn254> = vk_ethers.into();
+        let ark_vk: ark_groth16::VerifyingKey<Bn254> = vk_ethers.try_into().unwrap();
         assert_eq!(ark_vk, vk);
     }
 
@@ -273,7 +316,7 @@ mod tests {
             c: g1(),
         };
         let p2 = Proof::from(p.clone());
-        let p3 = ark_groth16::Proof::from(p2);
+        let p3 = ark_groth16::Proof::try_from(p2).unwrap();
         assert_eq!(p, p3);
     }
 }

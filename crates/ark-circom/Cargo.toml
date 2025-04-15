@@ -26,7 +26,8 @@ byteorder.workspace = true
 num-traits.workspace = true
 num-bigint.workspace = true
 
+thiserror.workspace = true
+
 [features]
 # This features does nothing but the ark_std::cfg_into_iter expectes it
 parallel = []
-

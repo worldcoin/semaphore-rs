@@ -32,7 +32,9 @@ semaphore-rs-depth-macros = { version = "0.3.2", path = "crates/semaphore-depth-
 semaphore-rs-witness = { version = "0.3.2", path = "crates/circom-witness-rs" }
 
 # 3rd Party
-alloy-core = { version = "0.8.12", default-features = false, features = ["sol-types"] }
+alloy-core = { version = "0.8.12", default-features = false, features = [
+    "sol-types",
+] }
 bincode = "1.3.3"
 bytemuck = "1.18"
 byteorder = "1"
