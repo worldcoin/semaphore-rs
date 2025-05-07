@@ -90,3 +90,6 @@ depth_30 = [
     "semaphore-rs-depth-config/depth_30",
     "semaphore-rs-depth-macros/depth_30",
 ]
+
+[package.metadata.docs.rs]
+rustc-args = ["--cfg", "docsrs"]
