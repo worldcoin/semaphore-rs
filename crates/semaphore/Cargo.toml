@@ -72,6 +72,9 @@ color-eyre.workspace = true
 reqwest.workspace = true
 semaphore-rs-depth-config.workspace = true
 
+[dependencies.backtrace]
+version = "<=0.3.74"
+
 [[bench]]
 name = "cascading_merkle_tree"
 harness = false
