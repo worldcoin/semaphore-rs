@@ -4,8 +4,18 @@ use semaphore_rs_proof::{compression::CompressedProof, Proof};
 use wasm_bindgen::prelude::*;
 
 /// Compresses a Groth16 proof
-#[wasm_bindgen(js_name = "compressProof")]
-pub fn compress_proof(proof: Array) -> Result<Array, JsError> {
+#[wasm_bindgen(
+    js_name = "compressProof",
+    unchecked_return_type = "[string, string, string, string]",
+    return_description = "An array of 4 0x prefixed, hex encoded strings representing a compressed proof"
+)]
+pub fn compress_proof(
+    #[wasm_bindgen(
+        unchecked_param_type = "[string, string, string, string, string, string, string, string]",
+        param_description = "An array of 8 hex encoded strings (with optional 0x prefixes) that represent an uncompressed proof"
+    )]
+    proof: Array,
+) -> Result<Array, JsError> {
     let proof: Vec<String> = proof
         .iter()
         .map(|v| v.as_string().unwrap_or_default())
@@ -22,8 +32,19 @@ pub fn compress_proof(proof: Array) -> Result<Array, JsError> {
 }
 
 /// Decompresses a Groth16 proof
-#[wasm_bindgen(js_name = "decompressProof")]
-pub fn decompress_proof(compressed_proof: Array) -> Result<Array, JsError> {
+#[wasm_bindgen(
+    js_name = "decompressProof",
+    unchecked_return_type = "[string, string, string, string, string, string, string, string]",
+    return_description = "An array of 8 0x prefixed, hex encoded strings representing an uncompressed proof"
+)]
+pub fn decompress_proof(
+    #[wasm_bindgen(
+        js_name = "compressedProof",
+        unchecked_param_type = "[string, string, string, string]",
+        param_description = "An array of 4 hex encoded strings (with optional 0x prefixes) that represent a compressed proof"
+    )]
+    compressed_proof: Array,
+) -> Result<Array, JsError> {
     let compressed_proof: Vec<String> = compressed_proof
         .iter()
         .map(|v| v.as_string().unwrap_or_default())
