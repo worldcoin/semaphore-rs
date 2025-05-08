@@ -31,7 +31,7 @@ where
         let base_len = num_leaves.next_power_of_two();
         let storage_size = base_len << 1;
         self.clear();
-        self.extend(std::iter::repeat(*empty_value).take(storage_size));
+        self.extend(std::iter::repeat_n(*empty_value, storage_size));
         let depth = base_len.ilog2();
 
         // We iterate over subsequently larger subtrees
