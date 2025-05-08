@@ -89,13 +89,14 @@ fn build_circuit(depth: usize) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    // We don't build the circuit for `docsrs`, as the docsrs build doesn't have network access.
+    // We don't build the circuit for `docs.rs`, as the docs.rs build doesn't have network access.
     if std::env::var("DOCS_RS").is_ok() {
-        println!("building for docsrs, skipping Semaphore circuit builds");
-    } else {
-        for depth in semaphore_rs_depth_config::get_supported_depths() {
-            build_circuit(*depth)?;
-        }
+        println!("building for docs.rs, skipping Semaphore circuit builds");
+        return Ok(());
+    }
+
+    for depth in semaphore_rs_depth_config::get_supported_depths() {
+        build_circuit(*depth)?;
     }
 
     Ok(())
