@@ -1,6 +1,6 @@
 use std::fs::OpenOptions;
 use std::io::Write;
-use std::iter::{once, repeat, successors};
+use std::iter::{once, repeat_n, successors};
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -507,7 +507,7 @@ where
             .iter()
             .rev()
             .enumerate()
-            .flat_map(|(depth, value)| repeat(value).take(1 << depth));
+            .flat_map(|(depth, value)| repeat_n(value, 1 << depth));
         let padded_values = once(&self.empty_tree_values[0])
             .chain(values)
             .cloned()
@@ -718,11 +718,11 @@ where
         let storage_size = 1 << (depth + 1);
         let mut storage = Vec::with_capacity(storage_size);
 
-        let empties = repeat(empty_value).take(leaf_count);
+        let empties = repeat_n(empty_value, leaf_count);
         storage.extend(empties);
         storage.extend_from_slice(values);
         if values.len() < leaf_count {
-            let empties = repeat(empty_value).take(leaf_count - values.len());
+            let empties = repeat_n(empty_value, leaf_count - values.len());
             storage.extend(empties);
         }
 

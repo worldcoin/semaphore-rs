@@ -1,7 +1,7 @@
 //! Implements basic binary Merkle trees
 
 use std::fmt::Debug;
-use std::iter::{once, repeat, successors};
+use std::iter::{once, repeat_n, successors};
 
 use bytemuck::Pod;
 use derive_where::derive_where;
@@ -73,7 +73,7 @@ where
             .iter()
             .rev()
             .enumerate()
-            .flat_map(|(depth, hash)| repeat(hash).take(1 << depth))
+            .flat_map(|(depth, hash)| repeat_n(hash, 1 << depth))
             .cloned();
 
         let nodes = first_node.chain(nodes).collect();

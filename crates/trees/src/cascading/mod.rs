@@ -189,7 +189,7 @@ where
         if index >= storage_len {
             debug_assert!(storage_len.is_power_of_two());
             self.storage
-                .extend(std::iter::repeat(self.empty_value).take(storage_len));
+                .extend(std::iter::repeat_n(self.empty_value, storage_len));
             let subtree = &mut self.storage[storage_len..(storage_len << 1)];
             sparse_fill_partial_subtree::<H>(subtree, &self.sparse_column, 0..(storage_len >> 1));
         }
@@ -390,7 +390,7 @@ where
             let diff = next_power_of_two - storage_len;
 
             self.storage
-                .extend(std::iter::repeat(self.empty_value).take(diff));
+                .extend(std::iter::repeat_n(self.empty_value, diff));
         }
 
         // Represense the power of the first subtree that has been modified

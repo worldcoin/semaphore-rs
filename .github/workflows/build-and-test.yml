@@ -2,7 +2,7 @@ name: Build and Test
 on: push
 
 env:
-  RUST_VERSION: 1.81.0
+  RUST_VERSION: 1.86.0
 
 jobs:
   dependabot-dependency-review:
