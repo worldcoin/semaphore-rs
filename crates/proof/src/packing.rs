@@ -39,7 +39,7 @@ impl From<Proof> for PackedProof {
 
 impl From<PackedProof> for Proof {
     fn from(proof: PackedProof) -> Self {
-        let decoded = FixedArray::<Uint<256>, 8>::abi_decode(&proof.0, true).unwrap();
+        let decoded = FixedArray::<Uint<256>, 8>::abi_decode(&proof.0).unwrap();
 
         let a = (decoded[0], decoded[1]);
         let b = ([decoded[2], decoded[3]], [decoded[4], decoded[5]]);
