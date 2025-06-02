@@ -26,6 +26,5 @@ getrandom.workspace = true
 hex.workspace = true
 
 [features]
-default = ["ark", "packing"]
+default = ["ark"]
 ark = ["dep:semaphore-rs-ark-circom", "dep:ark-ec", "dep:ark-groth16", "dep:ark-bn254"]
-packing = ["dep:alloy-core"]

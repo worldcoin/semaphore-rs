@@ -15,7 +15,7 @@ categories.workspace = true
 semaphore-rs-utils.workspace = true
 semaphore-rs-ark-zkey.workspace = true
 semaphore-rs-ark-circom.workspace = true
-semaphore-rs-proof = { workspace = true, features = ["ark", "packing"] }
+semaphore-rs-proof = { workspace = true, features = ["ark"] }
 semaphore-rs-poseidon.workspace = true
 semaphore-rs-hasher.workspace = true
 semaphore-rs-keccak.workspace = true

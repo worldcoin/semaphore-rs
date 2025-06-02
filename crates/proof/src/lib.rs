@@ -6,7 +6,6 @@ mod ark;
 
 pub mod compression;
 
-#[cfg(feature = "packing")]
 pub mod packing;
 
 // Matches the private G1Tup type in ark-circom.
