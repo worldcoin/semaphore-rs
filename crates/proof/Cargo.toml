@@ -20,12 +20,11 @@ serde_json.workspace = true
 ark-ec = { workspace = true, optional = true }
 ark-groth16 = { workspace = true, optional = true }
 ark-bn254 = { workspace = true, optional = true }
+alloy-core = { workspace = true }
 lazy_static.workspace = true
 getrandom.workspace = true
-alloy-core.workspace = true
 hex.workspace = true
 
 [features]
 default = ["ark"]
 ark = ["dep:semaphore-rs-ark-circom", "dep:ark-ec", "dep:ark-groth16", "dep:ark-bn254"]
-

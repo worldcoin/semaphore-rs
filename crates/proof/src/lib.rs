@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 mod ark;
 
 pub mod compression;
+
 pub mod packing;
 
 // Matches the private G1Tup type in ark-circom.
