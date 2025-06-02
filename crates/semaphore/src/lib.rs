@@ -11,7 +11,7 @@ pub mod protocol;
 pub use semaphore_rs_depth_config::get_supported_depths;
 
 // Export types
-pub use crate::field::{hash_to_field, Field};
+pub use crate::field::{hash_to_field, Field, MODULUS};
 
 #[allow(dead_code)]
 #[cfg(test)]
