@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    ops::{BitAnd, Shl, Shr},
+    ops::{Shl, Shr},
 };
 
 use crate::field::M;
