@@ -3,14 +3,14 @@ members = ["crates/*"]
 resolver = "2"
 
 [workspace.package]
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 homepage = "https://github.com/worldcoin/semaphore-rs"
 license = "MIT"
 repository = "https://github.com/worldcoin/semaphore-rs"
 authors = [
-    "Remco Bloemen <remco@worldcoin.org>",
-    "Philipp Sippl <philipp@worldcoin.org>",
+  "Remco Bloemen <remco@worldcoin.org>",
+  "Philipp Sippl <philipp@worldcoin.org>",
 ]
 description = "Rust support library for Semaphore"
 keywords = ["worldcoin", "protocol", "signup"]
@@ -18,21 +18,23 @@ categories = ["cryptography"]
 
 [workspace.dependencies]
 # Internal
-semaphore-rs-utils = { version = "0.4.0", path = "crates/utils" }
-semaphore-rs-ark-circom = { version = "0.4.0", path = "crates/ark-circom" }
-semaphore-rs-ark-zkey = { version = "0.4.0", path = "crates/ark-zkey" }
-semaphore-rs-proof = { version = "0.4.0", path = "crates/proof", default-features = false }
-semaphore-rs-poseidon = { version = "0.4.0", path = "crates/poseidon" }
-semaphore-rs-hasher = { version = "0.4.0", path = "crates/hasher" }
-semaphore-rs-keccak = { version = "0.4.0", path = "crates/keccak" }
-semaphore-rs-trees = { version = "0.4.0", path = "crates/trees" }
-semaphore-rs-storage = { version = "0.4.0", path = "crates/storage" }
-semaphore-rs-depth-config = { version = "0.4.0", path = "crates/semaphore-depth-config" }
-semaphore-rs-depth-macros = { version = "0.4.0", path = "crates/semaphore-depth-macros" }
-semaphore-rs-witness = { version = "0.4.0", path = "crates/circom-witness-rs" }
+semaphore-rs-utils = { version = "0.5.0", path = "crates/utils" }
+semaphore-rs-ark-circom = { version = "0.5.0", path = "crates/ark-circom" }
+semaphore-rs-ark-zkey = { version = "0.5.0", path = "crates/ark-zkey" }
+semaphore-rs-proof = { version = "0.5.0", path = "crates/proof", default-features = false }
+semaphore-rs-poseidon = { version = "0.5.0", path = "crates/poseidon" }
+semaphore-rs-hasher = { version = "0.5.0", path = "crates/hasher" }
+semaphore-rs-keccak = { version = "0.5.0", path = "crates/keccak" }
+semaphore-rs-trees = { version = "0.5.0", path = "crates/trees" }
+semaphore-rs-storage = { version = "0.5.0", path = "crates/storage" }
+semaphore-rs-depth-config = { version = "0.5.0", path = "crates/semaphore-depth-config" }
+semaphore-rs-depth-macros = { version = "0.5.0", path = "crates/semaphore-depth-macros" }
+semaphore-rs-witness = { version = "0.5.0", path = "crates/circom-witness-rs" }
 
 # 3rd Party
-alloy-core = { version = "1.0", default-features = false, features = ["sol-types"] }
+alloy-core = { version = "1.0", default-features = false, features = [
+  "sol-types",
+] }
 bincode = "1.3.3"
 bytemuck = "1.18"
 byteorder = "1"
@@ -54,13 +56,16 @@ proptest = "1.0"
 rand = { version = "0.8.4", features = ["small_rng"] }
 rand_chacha = "0.3.1"
 rayon = "1.5.1"
-reqwest = { version = "0.11", default-features = false, features = ["blocking", "rustls-tls"] }
+reqwest = { version = "0.11", default-features = false, features = [
+  "blocking",
+  "rustls-tls",
+] }
 ruint = { version = "1.12.3", features = [
-    "rand",
-    "bytemuck",
-    "serde",
-    "num-bigint",
-    "ark-ff-04",
+  "rand",
+  "bytemuck",
+  "serde",
+  "num-bigint",
+  "ark-ff-04",
 ] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.79"
@@ -92,16 +97,16 @@ quote = "1.0.26"
 # Ark
 ark-bn254 = { version = "=0.4.0" }
 ark-ec = { version = "0.4.2", default-features = false, features = [
-    "parallel",
+  "parallel",
 ] }
 ark-ff = { version = "0.4.2", default-features = false, features = [
-    "parallel",
-    "asm",
+  "parallel",
+  "asm",
 ] }
 ark-groth16 = { version = "=0.4.0", features = ["parallel"] }
 ark-relations = { version = "=0.4.0", default-features = false }
 ark-std = { version = "0.4.0", default-features = false, features = [
-    "parallel",
+  "parallel",
 ] }
 ark-serialize = { version = "0.4.2", features = ["derive"] }
 ark-poly = { version = "0.4.2" }
