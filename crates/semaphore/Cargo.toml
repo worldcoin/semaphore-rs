@@ -33,7 +33,6 @@ hex.workspace = true
 hex-literal.workspace = true
 itertools.workspace = true
 lazy_static.workspace = true
-mmap-rs.workspace = true
 num-bigint.workspace = true
 once_cell.workspace = true
 rand.workspace = true
@@ -55,7 +54,6 @@ ark-std.workspace = true
 
 [dev-dependencies]
 serial_test.workspace = true
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 criterion.workspace = true
 bincode.workspace = true
 proptest.workspace = true
@@ -64,6 +62,12 @@ serde_json.workspace = true
 tempfile.workspace = true
 tiny-keccak.workspace = true
 tracing-test.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+tokio = { workspace = true, features = ["sync", "macros", "rt", "time"] }
 
 [build-dependencies]
 semaphore-rs-ark-zkey.workspace = true
