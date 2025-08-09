@@ -7,7 +7,7 @@ Rust support library for using [semaphore](https://github.com/appliedzkp/semapho
 Add this line to your `cargo.toml`:
 
 ```toml
-semaphore = { git = "https://github.com/worldcoin/semaphore-rs" }
+semaphore-rs = { git = "https://github.com/worldcoin/semaphore-rs" }
 ```
 
 ## Building semaphore circuits
@@ -24,7 +24,6 @@ Example as in `src/lib.rs`, run with `cargo test`.
 ```rust,no_run
 use semaphore_rs::{get_supported_depths, hash_to_field, Field, identity::Identity,
                 poseidon_tree::LazyPoseidonTree, protocol::*};
-use num_bigint::BigInt;
 
 // generate identity
 let mut secret = *b"secret";
