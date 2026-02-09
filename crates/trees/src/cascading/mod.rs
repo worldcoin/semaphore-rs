@@ -49,7 +49,6 @@ where
     storage: S,
     _marker: std::marker::PhantomData<H>,
 }
-
 impl<H, S> CascadingMerkleTree<H, S>
 where
     H: Hasher,
@@ -128,6 +127,10 @@ where
         leaves: &[H::Hash],
     ) -> CascadingMerkleTree<H, S> {
         assert!(depth > 0, "Tree depth must be greater than 0");
+        assert!(
+            leaves.len() <= (1 << depth),
+            "Number of leaves must be less than or equal to the capacity of the tree"
+        );
 
         let sparse_column = Self::sparse_column(depth, empty_value);
         storage.populate_with_leaves(&sparse_column, empty_value, leaves);
@@ -180,8 +183,18 @@ where
         self.recompute_root();
     }
 
+    /// Pushes a new leaf to the tree, increasing the number of leaves by one.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the number of leaves exceeds the capacity of the tree.
     pub fn push(&mut self, leaf: H::Hash) -> Result<()> {
-        let index = storage_ops::index_from_leaf(self.num_leaves());
+        let num_leaves = self.num_leaves();
+        ensure!(
+            num_leaves < (1 << self.depth),
+            "Cannot push more leaves than the capacity of the tree"
+        );
+        let index = storage_ops::index_from_leaf(num_leaves);
         let storage_len = self.storage.len();
 
         // If the index is out of bounds, we need to reallocate the storage
@@ -381,6 +394,10 @@ where
         let storage_len = self.storage.len();
         let current_leaves = self.num_leaves();
         let total_leaves = current_leaves + num_new_leaves;
+        assert!(
+            total_leaves <= (1 << self.depth),
+            "Cannot extend more leaves than the capacity of the tree"
+        );
         let new_last_leaf_index = storage_ops::index_from_leaf(total_leaves - 1);
 
         // If the index is out of bounds, we need to resize the storage
@@ -823,7 +840,7 @@ mod tests {
         let num_leaves = 12;
         let leaves = vec![3; num_leaves];
         let empty = 1;
-        let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 3, &empty, &leaves);
+        let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 4, &empty, &leaves);
         tree.validate().unwrap();
         debug_tree(&tree);
         let expected = vec![
@@ -1000,6 +1017,29 @@ mod tests {
 
         assert_eq!(tree.root(), expected_tree.root());
         Ok(())
+    }
+
+    #[test]
+    fn test_push_beyond_depth() {
+        let mut tree = CascadingMerkleTree::<TestHasher>::new(vec![], 2, &1);
+        for _ in 0..4 {
+            tree.push(2).unwrap();
+        }
+        let _ = tree.push(2).unwrap_err();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_init_beyond_depth() {
+        let _tree = CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 2, &1, &[2; 5]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_extend_beyond_depth() {
+        let mut tree = CascadingMerkleTree::<TestHasher>::new(vec![], 2, &1);
+        tree.extend_from_slice(&[2; 4]);
+        tree.extend_from_slice(&[2; 1]);
     }
 
     #[test]
