@@ -843,7 +843,7 @@ where
         self.storage[self.root_index]
     }
 
-    const fn left(&self) -> DenseTreeRef<H> {
+    const fn left(&self) -> DenseTreeRef<'_, H> {
         Self {
             depth: self.depth - 1,
             root_index: 2 * self.root_index,
@@ -852,7 +852,7 @@ where
         }
     }
 
-    const fn right(&self) -> DenseTreeRef<H> {
+    const fn right(&self) -> DenseTreeRef<'_, H> {
         Self {
             depth: self.depth - 1,
             root_index: 2 * self.root_index + 1,
@@ -1078,7 +1078,7 @@ where
         self.storage[self.root_index]
     }
 
-    const fn left(&self) -> DenseTreeMMapRef<H> {
+    const fn left(&self) -> DenseTreeMMapRef<'_, H> {
         Self {
             depth: self.depth - 1,
             root_index: 2 * self.root_index,
@@ -1087,7 +1087,7 @@ where
         }
     }
 
-    const fn right(&self) -> DenseTreeMMapRef<H> {
+    const fn right(&self) -> DenseTreeMMapRef<'_, H> {
         Self {
             depth: self.depth - 1,
             root_index: 2 * self.root_index + 1,
