@@ -388,6 +388,10 @@ where
 
     // Iterate over mutable layers of the tree
     for current_depth in (1..=depth).rev() {
+        if range.is_empty() {
+            break;
+        }
+
         // Split the subtree into relavent layers
         let (top, child_layer) = subtree.split_at_mut(1 << current_depth);
         let parent_layer = &mut top[(1 << (current_depth - 1))..];
@@ -443,6 +447,10 @@ where
 
     // Iterate over mutable layers of the tree
     for current_depth in (1..=depth).rev() {
+        if range.is_empty() {
+            break;
+        }
+
         // Split the subtree into relavent layers
         let (top, _child_layer) = subtree.split_at_mut(1 << current_depth);
         let parent_layer = &mut top[(1 << (current_depth - 1))..];
@@ -516,5 +524,22 @@ mod tests {
         sparse_fill_partial_subtree::<TestHasher>(&mut storage, &sparse_column, 4..8);
         let expected = vec![1, 8, 1, 4, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1];
         assert_eq!(storage, expected);
+    }
+
+    #[test]
+    fn test_propagate_partial_subtree_noop_on_empty_range() {
+        let mut subtree = vec![0usize; 4]; // depth=1 subtree
+        let before = subtree.clone();
+        propagate_partial_subtree::<TestHasher>(&mut subtree, 0..0);
+        assert_eq!(subtree, before);
+    }
+
+    #[test]
+    fn test_sparse_fill_partial_subtree_noop_on_empty_range() {
+        let mut subtree = vec![0usize; 4];
+        let sparse_column = vec![0, 0, 0];
+        let before = subtree.clone();
+        sparse_fill_partial_subtree::<TestHasher>(&mut subtree, &sparse_column, 0..0);
+        assert_eq!(subtree, before);
     }
 }
