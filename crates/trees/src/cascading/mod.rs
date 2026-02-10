@@ -171,16 +171,22 @@ where
 
     /// Sets the value at the given index.
     ///
-    /// # Panics
-    ///
-    /// Panics if the leaf index is not less than the current
-    /// number of leaves.
+    /// If the leaf index is greater than the current number of leaves, the tree is extended with
+    /// empty values up to the given leaf index.
     pub fn set_leaf(&mut self, leaf: usize, value: H::Hash) {
-        assert!(leaf < self.num_leaves(), "Leaf index out of bounds");
-        let index = storage_ops::index_from_leaf(leaf);
-        self.storage[index] = value;
-        self.storage.propagate_up(index);
-        self.recompute_root();
+        let num_leaves = self.storage.num_leaves();
+        if leaf < num_leaves {
+            let index = storage_ops::index_from_leaf(leaf);
+            self.storage[index] = value;
+            self.storage.propagate_up(index);
+            self.recompute_root();
+        } else {
+            let num_zeros = leaf - num_leaves;
+            let mut new = Vec::with_capacity(num_zeros + 1);
+            new.resize(num_zeros, self.empty_value);
+            new.push(value);
+            self.extend_from_slice(&new);
+        }
     }
 
     /// Pushes a new leaf to the tree, increasing the number of leaves by one.
