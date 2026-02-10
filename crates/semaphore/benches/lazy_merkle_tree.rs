@@ -131,7 +131,6 @@ fn bench_restore_dense_mmap_tree(criterion: &mut Criterion) {
     group.finish();
 }
 
-#[allow(unused)]
 fn bench_dense_tree_reads(criterion: &mut Criterion) {
     let tree_value = create_values_for_tree(14);
 
@@ -152,7 +151,6 @@ fn bench_dense_tree_reads(criterion: &mut Criterion) {
     });
 }
 
-#[allow(unused)]
 fn bench_dense_mmap_tree_reads(criterion: &mut Criterion) {
     let tree_value = create_values_for_tree(14);
     let file = tempfile::NamedTempFile::new().unwrap();
