@@ -154,6 +154,12 @@ where
         self.depth
     }
 
+    /// Returns the empty value of the tree.
+    #[must_use]
+    pub const fn empty_value(&self) -> H::Hash {
+        self.empty_value
+    }
+
     /// Returns the root of the tree.
     #[must_use]
     pub const fn root(&self) -> H::Hash {
