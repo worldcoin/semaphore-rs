@@ -713,6 +713,21 @@ mod tests {
         assert_eq!(tree, expected);
     }
 
+    #[test]
+    fn test_set_leaf_extend() {
+        let num_leaves = 2;
+        let leaves = vec![1; num_leaves];
+        let empty = 0;
+        let mut tree =
+            CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 2, &empty, &leaves);
+        tree.set_leaf(3, 2);
+        tree.validate().unwrap();
+
+        let expected =
+            CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 2, &empty, &[1, 1, 0, 2]);
+        assert_eq!(tree, expected);
+    }
+
     #[should_panic]
     #[test]
     fn test_zero_depth_tree() {
