@@ -1,8 +1,11 @@
 use std::ops::{Deref, DerefMut};
 
+#[cfg(not(target_arch = "wasm32"))]
 mod mmap_vec;
 
+#[cfg(not(target_arch = "wasm32"))]
 use bytemuck::Pod;
+#[cfg(not(target_arch = "wasm32"))]
 pub use mmap_vec::MmapVec;
 
 pub trait GenericStorage<T>:
@@ -29,6 +32,7 @@ impl<T: Send + Sync + Copy> GenericStorage<T> for Vec<T> {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl<T: Send + Sync + Pod> GenericStorage<T> for MmapVec<T> {
     fn push(&mut self, value: T) {
         self.push(value);

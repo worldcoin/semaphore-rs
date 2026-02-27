@@ -24,6 +24,7 @@ use crate::Field;
 pub use semaphore_rs_proof::compression;
 pub use semaphore_rs_proof::Proof;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub mod authentication;
 
 static WITHESS_GRAPH: [Lazy<Graph>; get_supported_depth_count()] = array_for_depths!(|depth| {
