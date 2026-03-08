@@ -29,7 +29,7 @@ mod test {
     fn test_field_serde() {
         let value = Field::from(0x1234_5678);
         let serialized = serde_json::to_value(value).unwrap();
-        let deserialized = serde_json::from_value(serialized).unwrap();
+        let deserialized: Field = serde_json::from_value(serialized).unwrap();
         assert_eq!(value, deserialized);
     }
 
