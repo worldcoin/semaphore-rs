@@ -75,6 +75,10 @@ semaphore-rs-depth-config.workspace = true
 name = "cascading_merkle_tree"
 harness = false
 
+[[bench]]
+name = "lazy_merkle_tree"
+harness = false
+
 [features]
 default = []
 depth_16 = [

@@ -24,7 +24,7 @@ struct TreeValues<H: Hasher> {
 }
 
 fn bench_create_dense_tree(criterion: &mut Criterion) {
-    let tree_values = vec![
+    let tree_values = [
         create_values_for_tree(4),
         create_values_for_tree(10),
         create_values_for_tree(14),
@@ -53,7 +53,7 @@ fn bench_create_dense_tree(criterion: &mut Criterion) {
 }
 
 fn bench_create_dense_mmap_tree(criterion: &mut Criterion) {
-    let tree_values = vec![
+    let tree_values = [
         create_values_for_tree(4),
         create_values_for_tree(10),
         create_values_for_tree(14),
@@ -88,7 +88,7 @@ fn bench_create_dense_mmap_tree(criterion: &mut Criterion) {
 }
 
 fn bench_restore_dense_mmap_tree(criterion: &mut Criterion) {
-    let tree_values = vec![
+    let tree_values = [
         create_values_for_tree(4),
         create_values_for_tree(10),
         create_values_for_tree(14),
@@ -131,7 +131,6 @@ fn bench_restore_dense_mmap_tree(criterion: &mut Criterion) {
     group.finish();
 }
 
-#[allow(unused)]
 fn bench_dense_tree_reads(criterion: &mut Criterion) {
     let tree_value = create_values_for_tree(14);
 
@@ -152,7 +151,6 @@ fn bench_dense_tree_reads(criterion: &mut Criterion) {
     });
 }
 
-#[allow(unused)]
 fn bench_dense_mmap_tree_reads(criterion: &mut Criterion) {
     let tree_value = create_values_for_tree(14);
     let file = tempfile::NamedTempFile::new().unwrap();

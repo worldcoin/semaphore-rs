@@ -4,5 +4,6 @@ snarkfiles_tmp
 semaphore_files
 .idea
 lcov.info
+*.DS_Store
 
 Cargo.lock

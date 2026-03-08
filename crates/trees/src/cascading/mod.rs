@@ -154,6 +154,12 @@ where
         self.depth
     }
 
+    /// Returns the empty value of the tree.
+    #[must_use]
+    pub const fn empty_value(&self) -> H::Hash {
+        self.empty_value
+    }
+
     /// Returns the root of the tree.
     #[must_use]
     pub const fn root(&self) -> H::Hash {
@@ -171,16 +177,22 @@ where
 
     /// Sets the value at the given index.
     ///
-    /// # Panics
-    ///
-    /// Panics if the leaf index is not less than the current
-    /// number of leaves.
+    /// If the leaf index is greater than the current number of leaves, the tree is extended with
+    /// empty values up to the given leaf index.
     pub fn set_leaf(&mut self, leaf: usize, value: H::Hash) {
-        assert!(leaf < self.num_leaves(), "Leaf index out of bounds");
-        let index = storage_ops::index_from_leaf(leaf);
-        self.storage[index] = value;
-        self.storage.propagate_up(index);
-        self.recompute_root();
+        let num_leaves = self.storage.num_leaves();
+        if leaf < num_leaves {
+            let index = storage_ops::index_from_leaf(leaf);
+            self.storage[index] = value;
+            self.storage.propagate_up(index);
+            self.recompute_root();
+        } else {
+            let num_zeros = leaf - num_leaves;
+            let mut new = Vec::with_capacity(num_zeros + 1);
+            new.resize(num_zeros, self.empty_value);
+            new.push(value);
+            self.extend_from_slice(&new);
+        }
     }
 
     /// Pushes a new leaf to the tree, increasing the number of leaves by one.
@@ -684,6 +696,36 @@ mod tests {
         let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 1, &empty, &leaves);
         tree.validate().unwrap();
         debug_tree(&tree);
+    }
+
+    #[test]
+    fn test_set_leaf() {
+        let num_leaves = 4;
+        let leaves = vec![1; num_leaves];
+        let empty = 0;
+        let mut tree =
+            CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 2, &empty, &leaves);
+        tree.set_leaf(3, 2);
+        tree.validate().unwrap();
+
+        let expected =
+            CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 2, &empty, &[1, 1, 1, 2]);
+        assert_eq!(tree, expected);
+    }
+
+    #[test]
+    fn test_set_leaf_extend() {
+        let num_leaves = 2;
+        let leaves = vec![1; num_leaves];
+        let empty = 0;
+        let mut tree =
+            CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 2, &empty, &leaves);
+        tree.set_leaf(3, 2);
+        tree.validate().unwrap();
+
+        let expected =
+            CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 2, &empty, &[1, 1, 0, 2]);
+        assert_eq!(tree, expected);
     }
 
     #[should_panic]
