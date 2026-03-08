@@ -94,7 +94,7 @@ impl<T: Pod> MmapVec<T> {
 
         let data_len = byte_len.saturating_sub(META_SIZE);
         ensure!(
-            data_len % std::mem::size_of::<T>() == 0,
+            data_len.is_multiple_of(std::mem::size_of::<T>()),
             "data must be divisible by size of T"
         );
 
