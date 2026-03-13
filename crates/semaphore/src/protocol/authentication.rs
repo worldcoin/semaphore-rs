@@ -38,3 +38,37 @@ pub fn verify_proof(
         depth,
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use semaphore_rs_depth_macros::test_all_depths;
+
+    use crate::{hash_to_field, identity::Identity, protocol::generate_nullifier_hash};
+
+    use super::*;
+
+    #[test_all_depths]
+    fn test_round_trip(depth: usize) {
+        let mut secret = *b"test secret seed";
+        let id = Identity::from_secret(&mut secret, None);
+
+        let signal_hash = hash_to_field(b"signal");
+        let external_nullifier_hash = hash_to_field(b"app_id");
+        let nullifier_hash = generate_nullifier_hash(&id, external_nullifier_hash);
+
+        let proof = generate_proof(depth, &id, external_nullifier_hash, signal_hash)
+            .expect("proof generation should succeed");
+
+        let valid = verify_proof(
+            depth,
+            id.commitment(),
+            nullifier_hash,
+            signal_hash,
+            external_nullifier_hash,
+            &proof,
+        )
+        .expect("proof verification should succeed");
+
+        assert!(valid);
+    }
+}
