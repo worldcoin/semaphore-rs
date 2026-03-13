@@ -1,6 +1,6 @@
 use crate::{
     identity::Identity,
-    poseidon_tree::LazyPoseidonTree,
+    poseidon_tree::PoseidonTree,
     protocol::{Proof, ProofError},
     Field,
 };
@@ -11,9 +11,10 @@ pub fn generate_proof(
     ext_nullifier_hash: Field,
     signal_hash: Field,
 ) -> Result<Proof, ProofError> {
-    let merkle_proof = LazyPoseidonTree::new(depth, Field::from(0))
-        .update(0, &identity.commitment())
-        .proof(0);
+    let mut tree = PoseidonTree::new(depth, Field::from(0));
+    tree.set(0, identity.commitment());
+    // proof(0) always returns Some: leaf 0 < 2^depth for any usize depth
+    let merkle_proof = tree.proof(0).expect("leaf index 0 is always in-bounds");
     super::generate_proof(identity, &merkle_proof, ext_nullifier_hash, signal_hash)
 }
 
@@ -25,9 +26,9 @@ pub fn verify_proof(
     ext_nullifier_hash: Field,
     proof: &Proof,
 ) -> Result<bool, ProofError> {
-    let root = LazyPoseidonTree::new(depth, Field::from(0))
-        .update(0, &id_commitment)
-        .root();
+    let mut tree = PoseidonTree::new(depth, Field::from(0));
+    tree.set(0, id_commitment);
+    let root = tree.root();
     super::verify_proof(
         root,
         nullifier_hash,
