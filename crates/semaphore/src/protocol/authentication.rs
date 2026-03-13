@@ -1,5 +1,8 @@
 use crate::{
     identity::Identity,
+    // PoseidonTree = semaphore_rs_trees::imt::MerkleTree<Poseidon> — a plain
+    // Vec-backed incremental Merkle tree that works on all targets including
+    // wasm32 (no mmap dependency).
     poseidon_tree::PoseidonTree,
     protocol::{Proof, ProofError},
     Field,
