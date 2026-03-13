@@ -49,3 +49,8 @@ test-case.workspace = true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 mmap-rs.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# Enable the JS backend for getrandom (pulled in transitively via rand) so
+# that this crate compiles for wasm32-unknown-unknown.
+getrandom.workspace = true
