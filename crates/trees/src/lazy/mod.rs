@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
+#[cfg(not(target_arch = "wasm32"))]
 use mmap_rs::{MmapFlags, MmapMut, MmapOptions};
 use rayon::prelude::*;
 use semaphore_rs_hasher::{Hash, Hasher};
@@ -90,6 +91,7 @@ where
 
     /// Creates a new memory mapped file specified by path and creates a tree
     /// with dense prefix of the given depth with initial values
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new_mmapped_with_dense_prefix_with_init_values(
         depth: usize,
         prefix_depth: usize,
@@ -113,6 +115,7 @@ where
     ///
     /// # Errors
     /// - dense mmap tree restore failed
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn attempt_dense_mmap_restore(
         depth: usize,
         prefix_depth: usize,
@@ -236,6 +239,7 @@ enum AnyTree<H: Hasher> {
     Empty(EmptyTree<H>),
     Sparse(SparseTree<H>),
     Dense(DenseTree<H>),
+    #[cfg(not(target_arch = "wasm32"))]
     DenseMMap(DenseMMapTree<H>),
 }
 
@@ -280,6 +284,7 @@ where
         result
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn new_mmapped_with_dense_prefix_with_init_values(
         depth: usize,
         prefix_depth: usize,
@@ -300,6 +305,7 @@ where
         Ok(result)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn try_restore_dense_mmap_tree_state(
         depth: usize,
         prefix_depth: usize,
@@ -325,6 +331,7 @@ where
             Self::Empty(tree) => tree.depth,
             Self::Sparse(tree) => tree.depth,
             Self::Dense(tree) => tree.depth,
+            #[cfg(not(target_arch = "wasm32"))]
             Self::DenseMMap(tree) => tree.depth,
         }
     }
@@ -334,6 +341,7 @@ where
             Self::Empty(tree) => tree.root(),
             Self::Sparse(tree) => tree.root(),
             Self::Dense(tree) => tree.root(),
+            #[cfg(not(target_arch = "wasm32"))]
             Self::DenseMMap(tree) => tree.root(),
         }
     }
@@ -345,6 +353,7 @@ where
             Self::Empty(tree) => tree.write_proof(index, &mut path),
             Self::Sparse(tree) => tree.write_proof(index, &mut path),
             Self::Dense(tree) => tree.write_proof(index, &mut path),
+            #[cfg(not(target_arch = "wasm32"))]
             Self::DenseMMap(tree) => tree.write_proof(index, &mut path),
         }
         path.reverse();
@@ -356,6 +365,7 @@ where
             Self::Empty(tree) => tree.write_proof(index, path),
             Self::Sparse(tree) => tree.write_proof(index, path),
             Self::Dense(tree) => tree.write_proof(index, path),
+            #[cfg(not(target_arch = "wasm32"))]
             Self::DenseMMap(tree) => tree.write_proof(index, path),
         }
     }
@@ -376,6 +386,7 @@ where
             Self::Dense(tree) => {
                 tree.update_with_mutation_condition(index, value, is_mutation_allowed)
             }
+            #[cfg(not(target_arch = "wasm32"))]
             Self::DenseMMap(tree) => {
                 tree.update_with_mutation_condition(index, value, is_mutation_allowed)
             }
@@ -387,6 +398,7 @@ where
             Self::Empty(tree) => tree.get_leaf(),
             Self::Sparse(tree) => tree.get_leaf(index),
             Self::Dense(tree) => tree.get_leaf(index),
+            #[cfg(not(target_arch = "wasm32"))]
             Self::DenseMMap(tree) => tree.get_leaf(index),
         }
     }
@@ -402,6 +414,7 @@ where
             Self::Empty(t) => t.clone().into(),
             Self::Sparse(t) => t.clone().into(),
             Self::Dense(t) => t.clone().into(),
+            #[cfg(not(target_arch = "wasm32"))]
             Self::DenseMMap(t) => t.clone().into(),
         }
     }
@@ -425,7 +438,9 @@ impl<H: Hasher> From<DenseTree<H>> for AnyTree<H> {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl<H: Hasher> From<DenseMMapTree<H>> for AnyTree<H> {
+    #[cfg(not(target_arch = "wasm32"))]
     fn from(tree: DenseMMapTree<H>) -> Self {
         Self::DenseMMap(tree)
     }
@@ -910,12 +925,14 @@ where
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 struct DenseMMapTree<H: Hasher> {
     depth: usize,
     root_index: usize,
     storage: Arc<Mutex<MmapMutWrapper<H>>>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl<H: Hasher> Clone for DenseMMapTree<H> {
     fn clone(&self) -> Self {
         Self {
@@ -926,6 +943,7 @@ impl<H: Hasher> Clone for DenseMMapTree<H> {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl<H> DenseMMapTree<H>
 where
     H: Hasher,
@@ -1046,6 +1064,7 @@ where
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 struct DenseTreeMMapRef<'a, H: Hasher> {
     depth: usize,
     root_index: usize,
@@ -1053,6 +1072,7 @@ struct DenseTreeMMapRef<'a, H: Hasher> {
     locked_storage: &'a Arc<Mutex<MmapMutWrapper<H>>>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl<H: Hasher> From<DenseTreeMMapRef<'_, H>> for DenseMMapTree<H> {
     fn from(value: DenseTreeMMapRef<H>) -> Self {
         Self {
@@ -1063,12 +1083,14 @@ impl<H: Hasher> From<DenseTreeMMapRef<'_, H>> for DenseMMapTree<H> {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl<H: Hasher> From<DenseTreeMMapRef<'_, H>> for AnyTree<H> {
     fn from(value: DenseTreeMMapRef<H>) -> Self {
         Self::DenseMMap(value.into())
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl<H> DenseTreeMMapRef<'_, H>
 where
     H: Hasher,
@@ -1145,11 +1167,13 @@ where
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub struct MmapMutWrapper<H: Hasher> {
     mmap: MmapMut,
     phantom: std::marker::PhantomData<H>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl<H> MmapMutWrapper<H>
 where
     H: Hasher,
@@ -1257,6 +1281,7 @@ where
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl<H> Deref for MmapMutWrapper<H>
 where
     H: Hasher,
@@ -1269,6 +1294,7 @@ where
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl<H> DerefMut for MmapMutWrapper<H>
 where
     H: Hasher,
