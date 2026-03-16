@@ -64,6 +64,54 @@ jobs:
 
       - name: Run test
         run: cargo test --workspace --features depth_16,depth_20,depth_30
+
+  wasm:
+    name: WASM Check
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: "-D warnings"
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        run: |
+          rustup update ${{ env.RUST_VERSION }} && rustup default ${{ env.RUST_VERSION }}
+          rustup target add wasm32-unknown-unknown
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-wasm-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-wasm-cargo-registry-
+
+      - name: Cache Cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-wasm-cargo-index-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-wasm-cargo-index-
+
+      - name: Cache Cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-wasm-cargo-build-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-wasm-cargo-build-
+
+      - name: Check (storage)
+        run: cargo check --target wasm32-unknown-unknown -p semaphore-rs-storage
+
+      - name: Check (trees)
+        run: cargo check --target wasm32-unknown-unknown -p semaphore-rs-trees
+
+      - name: Check (semaphore-rs)
+        run: cargo check --target wasm32-unknown-unknown -p semaphore-rs --features depth_16
+
   # vet:
   #   name: Vet Dependencies
   #   runs-on: ubuntu-latest
