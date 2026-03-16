@@ -2,6 +2,7 @@
 name = "semaphore-rs-js"
 version = "0.3.0"
 edition.workspace = true
+publish = false # independently versioned; not part of the workspace release cycle
 homepage.workspace = true
 license.workspace = true
 repository.workspace = true
