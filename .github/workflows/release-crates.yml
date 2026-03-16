@@ -1,0 +1,36 @@
+name: Release Crates
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Prevent concurrent release runs — release-plz is not safe to run in parallel
+# against the same repo state. Keep in-progress runs; don't cancel them.
+concurrency:
+  group: release-plz
+  cancel-in-progress: false
+
+jobs:
+  release-crates:
+    name: Release Crates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run release-plz
+        uses: release-plz/action@1efcf74dfcd6e500990dad806e286899ae384064 # v0.5.119 (https://github.com/release-plz/action/releases/tag/v0.5.119)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

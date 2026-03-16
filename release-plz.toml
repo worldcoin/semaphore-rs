@@ -1,0 +1,111 @@
+[workspace]
+# Automatically create GitHub releases for each package.
+# This creates tags like: semaphore-rs-v0.5.1, semaphore-rs-hasher-v0.5.1, etc.
+git_release_enable = true
+git_release_type = "auto"
+pr_labels = ["release"]
+release = false # only process specifically defined packages
+publish = false # only process specifically defined packages
+changelog_update = false
+
+# Publish only specific packages to crates.io.
+# semaphore-rs-js is excluded — it carries its own independent version (0.3.0
+# vs workspace 0.5.0) and is managed separately.
+# release-plz resolves publish order automatically from the Cargo dependency graph.
+
+# semaphore-rs is the "primary" package that owns the root CHANGELOG.md.
+# changelog_include pulls in changes from every other published crate so that
+# we get a single, aggregated changelog at the repo root.  All other packages
+# have changelog_update = false to avoid overwriting the same file.
+[[package]]
+name = "semaphore-rs"
+release = true
+publish = true
+changelog_update = true
+changelog_path = "CHANGELOG.md"
+changelog_include = [
+  "semaphore-rs-utils",
+  "semaphore-rs-ark-circom",
+  "semaphore-rs-proof",
+  "semaphore-rs-ark-zkey",
+  "semaphore-rs-hasher",
+  "semaphore-rs-poseidon",
+  "semaphore-rs-keccak",
+  "semaphore-rs-storage",
+  "semaphore-rs-trees",
+  "semaphore-rs-depth-config",
+  "semaphore-rs-depth-macros",
+  "semaphore-rs-witness",
+]
+
+[[package]]
+name = "semaphore-rs-utils"
+release = true
+publish = true
+changelog_update = false
+
+[[package]]
+name = "semaphore-rs-ark-circom"
+release = true
+publish = true
+changelog_update = false
+
+[[package]]
+name = "semaphore-rs-proof"
+release = true
+publish = true
+changelog_update = false
+
+[[package]]
+name = "semaphore-rs-ark-zkey"
+release = true
+publish = true
+changelog_update = false
+
+[[package]]
+name = "semaphore-rs-hasher"
+release = true
+publish = true
+changelog_update = false
+
+[[package]]
+name = "semaphore-rs-poseidon"
+release = true
+publish = true
+changelog_update = false
+
+[[package]]
+name = "semaphore-rs-keccak"
+release = true
+publish = true
+changelog_update = false
+
+[[package]]
+name = "semaphore-rs-storage"
+release = true
+publish = true
+changelog_update = false
+
+[[package]]
+name = "semaphore-rs-trees"
+release = true
+publish = true
+changelog_update = false
+
+[[package]]
+name = "semaphore-rs-depth-config"
+release = true
+publish = true
+changelog_update = false
+
+[[package]]
+name = "semaphore-rs-depth-macros"
+release = true
+publish = true
+changelog_update = false
+
+[[package]]
+name = "semaphore-rs-witness"
+release = true
+publish = true
+changelog_update = false
