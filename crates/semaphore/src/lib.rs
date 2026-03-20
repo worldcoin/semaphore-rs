@@ -18,6 +18,8 @@ pub use crate::field::{hash_to_field, Field, MODULUS};
 mod test {
     use std::thread::spawn;
 
+    use semaphore_rs_depth_macros::test_all_depths;
+
     use crate::identity::Identity;
     use crate::poseidon_tree::LazyPoseidonTree;
     use crate::protocol::{generate_nullifier_hash, generate_proof, verify_proof};
@@ -70,6 +72,7 @@ mod test {
         }
     }
 
+    #[test_all_depths]
     fn test_auth_flow(depth: usize) {
         let mut secret = *b"oh so secret";
         let id = Identity::from_secret(&mut secret[..], None);
@@ -98,52 +101,14 @@ mod test {
         assert!(success);
     }
 
-    #[test]
-    #[cfg(feature = "depth_16")]
-    fn test_auth_flow_depth_16() {
-        test_auth_flow(16);
-    }
-
-    #[test]
-    #[cfg(feature = "depth_20")]
-    fn test_auth_flow_depth_20() {
-        test_auth_flow(20);
-    }
-
-    // depth_30 Groth16 proof generation takes >60 s on current CI runners;
-    // correctness at depth_30 is also exercised by test_single / test_parallel.
-    #[test]
-    #[cfg(feature = "depth_30")]
-    #[ignore = "depth_30 proof generation takes >60 s, too slow for unattended CI"]
-    fn test_auth_flow_depth_30() {
-        test_auth_flow(30);
-    }
-
+    #[test_all_depths]
     fn test_single_impl(depth: usize) {
         // Note that rust will still run tests in parallel
         let mut hello = *b"hello";
         test_end_to_end(&mut hello, b"appId", b"xxx", depth);
     }
 
-    #[test]
-    #[cfg(feature = "depth_16")]
-    fn test_single_depth_16() {
-        test_single_impl(16);
-    }
-
-    #[test]
-    #[cfg(feature = "depth_20")]
-    fn test_single_depth_20() {
-        test_single_impl(20);
-    }
-
-    #[test]
-    #[cfg(feature = "depth_30")]
-    #[ignore = "depth_30 proof generation takes >60 s, too slow for unattended CI"]
-    fn test_single_depth_30() {
-        test_single_impl(30);
-    }
-
+    #[test_all_depths]
     fn test_parallel_impl(depth: usize) {
         // Note that this does not guarantee a concurrency issue will be detected.
         // For that we need much more sophisticated static analysis tooling like
@@ -154,24 +119,5 @@ mod test {
         let b = spawn(move || test_end_to_end(&mut b_id, b"test", b"signal", depth));
         a.join().unwrap();
         b.join().unwrap();
-    }
-
-    #[test]
-    #[cfg(feature = "depth_16")]
-    fn test_parallel_depth_16() {
-        test_parallel_impl(16);
-    }
-
-    #[test]
-    #[cfg(feature = "depth_20")]
-    fn test_parallel_depth_20() {
-        test_parallel_impl(20);
-    }
-
-    #[test]
-    #[cfg(feature = "depth_30")]
-    #[ignore = "depth_30 proof generation takes >60 s, too slow for unattended CI"]
-    fn test_parallel_depth_30() {
-        test_parallel_impl(30);
     }
 }
