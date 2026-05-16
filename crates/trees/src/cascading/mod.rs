@@ -43,9 +43,9 @@ where
     H: Hasher,
 {
     depth: usize,
-    root: H::Hash,
     empty_value: H::Hash,
     sparse_column: Vec<H::Hash>,
+    tip_column: Vec<H::Hash>,
     storage: S,
     _marker: std::marker::PhantomData<H>,
 }
@@ -91,9 +91,9 @@ where
 
         let mut tree = CascadingMerkleTree {
             depth,
-            root: *empty_value,
             empty_value: *empty_value,
             sparse_column,
+            tip_column: Vec::new(),
             storage,
             _marker: std::marker::PhantomData,
         };
@@ -137,9 +137,9 @@ where
 
         let mut tree = CascadingMerkleTree {
             depth,
-            root: *empty_value,
             empty_value: *empty_value,
             sparse_column,
+            tip_column: Vec::new(),
             storage,
             _marker: std::marker::PhantomData,
         };
@@ -162,8 +162,8 @@ where
 
     /// Returns the root of the tree.
     #[must_use]
-    pub const fn root(&self) -> H::Hash {
-        self.root
+    pub fn root(&self) -> H::Hash {
+        self.tip_column[self.depth]
     }
 
     /// Returns the the total number of leaves that have been inserted into the
@@ -229,12 +229,6 @@ where
 
     /// Returns the Merkle proof for the given leaf.
     ///
-    /// # TODO:
-    /// Currently the branch which connects the storage tip to the root
-    /// is not stored persistenetly. Repeated requests for proofs in between
-    /// tree updates result in recomputing the same hashes when this could be
-    /// avoided.
-    ///
     /// # Panics
     ///
     /// Panics if the leaf index is not less than the current
@@ -294,7 +288,7 @@ where
             Some(hash) => *hash,
             None => {
                 if offset == 0 {
-                    self.compute_from_storage_tip(depth)
+                    self.tip_column[height]
                 } else {
                     self.sparse_column[height]
                 }
@@ -357,34 +351,31 @@ where
             .collect()
     }
 
-    /// Returns the root of the tree.
-    /// Hashes are recomputed from the storage tip.
+    /// Updates the cached left-most branch from the storage tip to the root.
     fn recompute_root(&mut self) -> H::Hash {
-        let hash = self.compute_from_storage_tip(0);
-        self.root = hash;
-        hash
+        self.recompute_tip_column();
+        self.root()
     }
 
-    /// Recomputes hashess from the storage tip up to the given depth.
-    /// The hash returned is the hash of the left most branch of the tree.
-    fn compute_from_storage_tip(&self, depth: usize) -> H::Hash {
-        let storage_root = self.storage.storage_root();
+    /// Recomputes the cached left-most branch from the storage tip to the root.
+    fn recompute_tip_column(&mut self) {
         let storage_depth = self.storage.storage_depth();
-        let mut hash = storage_root;
-        for i in storage_depth..(self.depth - depth) {
-            hash = H::hash_node(&hash, &self.sparse_column[i]);
+        self.tip_column.resize(self.depth + 1, self.empty_value);
+        self.tip_column.fill(self.empty_value);
+
+        for height in 0..=storage_depth {
+            self.tip_column[height] = self.storage[1 << height];
         }
-        hash
+
+        for height in storage_depth..self.depth {
+            self.tip_column[height + 1] =
+                H::hash_node(&self.tip_column[height], &self.sparse_column[height]);
+        }
     }
 
     /// Validates all elements of the storage, ensuring that they
     /// correspond to a valid tree.
     pub fn validate(&self) -> Result<()> {
-        debug_assert_eq!(
-            self.root,
-            self.compute_from_storage_tip(0),
-            "Root hash does not match recomputed root hash"
-        );
         self.storage.validate(&self.empty_value)
     }
 
@@ -745,9 +736,9 @@ mod tests {
         let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 10, &0, &leaves);
         let expected = CascadingMerkleTree::<TestHasher> {
             depth: 10,
-            root: 5,
             empty_value: 0,
             sparse_column: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            tip_column: vec![1, 2, 4, 5, 5, 5, 5, 5, 5, 5, 5],
             storage: vec![5, 1, 2, 1, 4, 2, 1, 1, 5, 1, 1, 0, 1, 0, 0, 0],
             _marker: std::marker::PhantomData,
         };
@@ -764,9 +755,9 @@ mod tests {
         let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 10, &empty, &leaves);
         let expected = CascadingMerkleTree::<TestHasher> {
             depth: 10,
-            root: 8,
             empty_value: 0,
             sparse_column: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            tip_column: vec![1, 2, 4, 8, 8, 8, 8, 8, 8, 8, 8],
             storage: vec![8, 1, 2, 1, 4, 2, 1, 1, 8, 4, 2, 2, 1, 1, 1, 1],
             _marker: std::marker::PhantomData,
         };
@@ -782,9 +773,9 @@ mod tests {
         let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 10, &empty, &leaves);
         let expected = CascadingMerkleTree::<TestHasher> {
             depth: 10,
-            root: 0,
             empty_value: 0,
             sparse_column: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            tip_column: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             storage: vec![0, 0],
             _marker: std::marker::PhantomData,
         };
@@ -800,9 +791,9 @@ mod tests {
         let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 10, &empty, &leaves);
         let expected = CascadingMerkleTree::<TestHasher> {
             depth: 10,
-            root: 1024,
             empty_value: 1,
             sparse_column: vec![1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024],
+            tip_column: vec![1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024],
             storage: vec![0, 1],
             _marker: std::marker::PhantomData,
         };
@@ -819,9 +810,9 @@ mod tests {
         let tree = CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 4, &empty, &leaves);
         let expected = CascadingMerkleTree::<TestHasher> {
             depth: 4,
-            root: 8,
             empty_value: 1,
             sparse_column: vec![1, 2, 4, 8, 16],
+            tip_column: vec![0, 0, 0, 0, 8],
             storage: vec![8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             _marker: std::marker::PhantomData,
         };
