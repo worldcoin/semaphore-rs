@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.4](https://github.com/worldcoin/semaphore-rs/compare/semaphore-rs-v0.5.3...semaphore-rs-v0.5.4) - 2026-05-20
+
+### Added
+
+- Tip column for more efficient proof retrievals ([#140](https://github.com/worldcoin/semaphore-rs/pull/140))
+
+### Other
+
+- Remove otto-review-gate workflow ([#138](https://github.com/worldcoin/semaphore-rs/pull/138))
+
 ## [0.5.3](https://github.com/worldcoin/semaphore-rs/compare/semaphore-rs-v0.5.2...semaphore-rs-v0.5.3) - 2026-03-20
 
 ### Other
