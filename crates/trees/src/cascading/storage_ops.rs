@@ -132,25 +132,61 @@ where
     /// correspond to a valid tree.
     fn validate(&self, empty_value: &H::Hash) -> Result<()> {
         self.validate_const()?;
-        let len = self.len();
-        let width = len >> 1;
+        let num_leaves = self.num_leaves();
+
+        // The logical tree size is the size a freshly-built tree of
+        // `num_leaves` would have.  The backing storage may be larger
+        // (pop does not shrink it), so we validate only within the
+        // logical bounds.
+        let logical_len = if num_leaves == 0 {
+            2
+        } else {
+            num_leaves.next_power_of_two() << 1
+        };
+
+        ensure!(
+            self.len() >= logical_len,
+            "Storage length ({}) is smaller than the logical tree size ({logical_len})",
+            self.len()
+        );
+
+        let width = logical_len >> 1;
         let depth = width.ilog2() as usize;
 
-        let num_leaves = self.num_leaves();
         let first_empty = index_from_leaf(num_leaves);
 
-        if first_empty < len {
-            self[first_empty..].par_iter().try_for_each(|hash| {
-                if hash != empty_value {
-                    bail!("Storage contains non-empty values past the last leaf");
-                }
-                Ok(())
-            })?;
+        if first_empty < logical_len {
+            self[first_empty..logical_len]
+                .par_iter()
+                .try_for_each(|hash| {
+                    if hash != empty_value {
+                        bail!("Storage contains non-empty values past the last leaf");
+                    }
+                    Ok(())
+                })?;
         }
 
+        // Validate hash relationships within the logical tree only.
+        let logical_slice = &self[..logical_len];
         for height in 0..=depth {
-            let row = self.row(height);
-            let parents = self.row(height + 1);
+            let logical_storage_height = (logical_len.ilog2() - 1) as usize;
+            let row_width = if height > logical_storage_height {
+                0
+            } else {
+                1 << (logical_storage_height - height)
+            };
+            let row = row_indices(height)
+                .take(row_width)
+                .map(|i| logical_slice[i]);
+            let parent_height = height + 1;
+            let parent_width = if parent_height > logical_storage_height {
+                0
+            } else {
+                1 << (logical_storage_height - parent_height)
+            };
+            let parents = row_indices(parent_height)
+                .take(parent_width)
+                .map(|i| logical_slice[i]);
             let row_couple = itertools::Itertools::tuples(row);
 
             parents

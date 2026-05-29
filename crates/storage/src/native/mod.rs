@@ -17,7 +17,4 @@ impl<T: Send + Sync + Pod> super::GenericStorage<T> for MmapVec<T> {
         self.clear();
     }
 
-    fn truncate(&mut self, len: usize) {
-        self.truncate(len);
-    }
 }

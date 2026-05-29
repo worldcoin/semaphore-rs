@@ -250,18 +250,6 @@ where
         self.storage.set_num_leaves(new_num_leaves);
         self.storage.propagate_up(index);
 
-        // Shrink the storage back to the size a freshly built tree of
-        // `new_num_leaves` would have, so the "empty past the last leaf"
-        // invariant holds and stale upper-subtree nodes are dropped.
-        let target_len = if new_num_leaves == 0 {
-            2
-        } else {
-            new_num_leaves.next_power_of_two() << 1
-        };
-        if self.storage.len() > target_len {
-            self.storage.truncate(target_len);
-        }
-
         self.recompute_root();
 
         Some(value)
@@ -1222,7 +1210,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_pop_mmap_backed() {
-        // Exercises pop (and the storage truncate path) on mmap-backed storage.
+        // Exercises pop on mmap-backed storage.
         let tempfile = tempfile::tempfile().unwrap();
         let mmap_vec: MmapVec<usize> = unsafe { MmapVec::restore(tempfile).unwrap() };
 
