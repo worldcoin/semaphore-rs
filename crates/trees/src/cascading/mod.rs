@@ -230,10 +230,10 @@ where
     /// Removes and returns the last leaf, decreasing the number of leaves by one.
     ///
     /// This is the inverse of [`push`](Self::push): the freed slot is reset to
-    /// the empty value, the root is updated to reflect a tree with one fewer
-    /// leaf, and the slot is reused by the next `push`. The backing storage is
-    /// shrunk back to the canonical size whenever the leaf count crosses a
-    /// power-of-two boundary downward, mirroring how `push` grows it.
+    /// the empty value and the root is updated to reflect a tree with one fewer
+    /// leaf. The backing storage is left at its current (power-of-two) size
+    /// rather than shrunk, so the freed capacity is reused by the next `push`
+    /// without reallocating.
     ///
     /// Returns `None` if the tree has no leaves.
     pub fn pop(&mut self) -> Option<H::Hash> {

@@ -8,7 +8,6 @@ pub trait GenericStorage<T>:
     fn extend_from_slice(&mut self, slice: &[T]);
 
     fn clear(&mut self);
-
 }
 
 impl<T: Send + Sync + Copy> GenericStorage<T> for Vec<T> {
@@ -23,7 +22,6 @@ impl<T: Send + Sync + Copy> GenericStorage<T> for Vec<T> {
     fn clear(&mut self) {
         self.clear();
     }
-
 }
 
 #[cfg(not(target_arch = "wasm32"))]

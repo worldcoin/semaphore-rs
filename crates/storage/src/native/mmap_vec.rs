@@ -122,16 +122,6 @@ impl<T: Pod> MmapVec<T> {
         self.set_storage_len(0);
     }
 
-    /// Shortens the vector to `len`, dropping the trailing elements.
-    ///
-    /// Has no effect if `len` is greater than or equal to the current length.
-    /// The allocated capacity (and backing file size) is left unchanged.
-    pub fn truncate(&mut self, len: usize) {
-        if len < self.storage_len() {
-            self.set_storage_len(len);
-        }
-    }
-
     pub fn push(&mut self, v: T) {
         let len = self.storage_len();
         let capacity = self.capacity;
