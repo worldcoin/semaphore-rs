@@ -52,7 +52,7 @@ where
         self.set_num_leaves(num_leaves);
     }
 
-    /// Returns an iterator over all leaves including those that have not been
+    /// Returns an iterator over all leaves including those that have noe been
     /// set.
     fn leaves(&self) -> impl Iterator<Item = H::Hash> + '_ {
         self.row_indices(0)
@@ -61,11 +61,18 @@ where
     }
 
     fn row_indices(&self, height: usize) -> impl Iterator<Item = usize> + Send + '_ {
-        row_indices(height).take(row_width(self.len(), height))
+        let storage_height = (self.len().ilog2() - 1) as usize;
+        let width = if height > storage_height {
+            0
+        } else {
+            let height_diff = storage_height - height;
+            1 << height_diff
+        };
+        row_indices(height).take(width)
     }
 
     fn row(&self, height: usize) -> impl Iterator<Item = H::Hash> + Send + '_ {
-        row_hashes::<H>(self, self.len(), height)
+        self.row_indices(height).map(move |i| self[i])
     }
 
     /// Returns the root hash of the growable storage, not the top level root.
@@ -125,45 +132,24 @@ where
     /// correspond to a valid tree.
     fn validate(&self, empty_value: &H::Hash) -> Result<()> {
         self.validate_const()?;
-        let num_leaves = self.num_leaves();
-
-        // The logical tree size is the size a freshly-built tree of
-        // `num_leaves` would have.  The backing storage may be larger
-        // (pop does not shrink it), so we validate only within the
-        // logical bounds.
-        let logical_len = if num_leaves == 0 {
-            2
-        } else {
-            num_leaves.next_power_of_two() << 1
-        };
-
-        ensure!(
-            self.len() >= logical_len,
-            "Storage length ({}) is smaller than the logical tree size ({logical_len})",
-            self.len()
-        );
-
-        let width = logical_len >> 1;
+        let len = self.len();
+        let width = len >> 1;
         let depth = width.ilog2() as usize;
 
-        let first_empty = index_from_leaf(num_leaves);
+        let num_leaves = self.num_leaves();
+        self.row(0)
+            .skip(num_leaves)
+            .par_bridge()
+            .try_for_each(|hash| {
+                if hash != *empty_value {
+                    bail!("Storage contains non-empty values past the last leaf");
+                }
+                Ok(())
+            })?;
 
-        if first_empty < logical_len {
-            self[first_empty..logical_len]
-                .par_iter()
-                .try_for_each(|hash| {
-                    if hash != empty_value {
-                        bail!("Storage contains non-empty values past the last leaf");
-                    }
-                    Ok(())
-                })?;
-        }
-
-        // Validate hash relationships within the logical tree only.
-        let valid_tree_slice = &self[..logical_len];
         for height in 0..=depth {
-            let row = row_hashes::<H>(valid_tree_slice, logical_len, height);
-            let parents = row_hashes::<H>(valid_tree_slice, logical_len, height + 1);
+            let row = self.row(height);
+            let parents = self.row(height + 1);
             let row_couple = itertools::Itertools::tuples(row);
 
             parents
@@ -478,33 +464,6 @@ where
     }
 
     subtree[1]
-}
-
-/// Number of nodes in the row at `height` for a storage of `len` (a power of
-/// two). Returns 0 for heights above the storage root.
-fn row_width(len: usize, height: usize) -> usize {
-    let storage_height = (len.ilog2() - 1) as usize;
-    if height > storage_height {
-        0
-    } else {
-        1 << (storage_height - height)
-    }
-}
-
-/// Iterates over the hashes of the row at `height`, reading from `slice` but
-/// bounding the row width by `len` (which may be smaller than `slice.len()`).
-fn row_hashes<H>(
-    slice: &[H::Hash],
-    len: usize,
-    height: usize,
-) -> impl Iterator<Item = H::Hash> + Send + '_
-where
-    H: Hasher,
-    <H as Hasher>::Hash: Copy + Send + Sync,
-{
-    row_indices(height)
-        .take(row_width(len, height))
-        .map(move |i| slice[i])
 }
 
 fn row_indices(height: usize) -> impl Iterator<Item = usize> + Send {
