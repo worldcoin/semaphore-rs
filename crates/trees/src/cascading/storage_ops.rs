@@ -137,16 +137,15 @@ where
         let depth = width.ilog2() as usize;
 
         let num_leaves = self.num_leaves();
-        let first_empty = index_from_leaf(num_leaves);
-
-        if first_empty < len {
-            self[first_empty..].par_iter().try_for_each(|hash| {
-                if hash != empty_value {
+        self.row(0)
+            .skip(num_leaves)
+            .par_bridge()
+            .try_for_each(|hash| {
+                if hash != *empty_value {
                     bail!("Storage contains non-empty values past the last leaf");
                 }
                 Ok(())
             })?;
-        }
 
         for height in 0..=depth {
             let row = self.row(height);

@@ -227,6 +227,34 @@ where
         Ok(())
     }
 
+    /// Removes and returns the last leaf, decreasing the number of leaves by one.
+    ///
+    /// This is the inverse of [`push`](Self::push): the freed slot is reset to
+    /// the empty value and the root is updated to reflect a tree with one fewer
+    /// leaf. The backing storage is left at its current (power-of-two) size
+    /// rather than shrunk, so the freed capacity is reused by the next `push`
+    /// without reallocating.
+    ///
+    /// Returns `None` if the tree has no leaves.
+    pub fn pop(&mut self) -> Option<H::Hash> {
+        let num_leaves = self.num_leaves();
+        if num_leaves == 0 {
+            return None;
+        }
+        let new_num_leaves = num_leaves - 1;
+
+        let index = storage_ops::index_from_leaf(new_num_leaves);
+        let value = self.storage[index];
+
+        self.storage[index] = self.empty_value;
+        self.storage.set_num_leaves(new_num_leaves);
+        self.storage.propagate_up(index);
+
+        self.recompute_root();
+
+        Some(value)
+    }
+
     /// Returns the Merkle proof for the given leaf.
     ///
     /// # Panics
@@ -1086,6 +1114,160 @@ mod tests {
             tree.validate().unwrap();
             assert_eq!(tree.leaves().collect::<Vec<usize>>(), vec);
         }
+    }
+
+    #[test]
+    fn test_pop_empty() {
+        let mut tree = CascadingMerkleTree::<TestHasher>::new(vec![], 4, &0);
+        let empty_root = tree.root();
+        assert_eq!(tree.pop(), None);
+        assert_eq!(tree.num_leaves(), 0);
+        assert_eq!(tree.root(), empty_root);
+        tree.validate().unwrap();
+    }
+
+    #[test]
+    fn test_push_pop_roundtrip() {
+        let mut tree = CascadingMerkleTree::<TestHasher>::new(vec![], 10, &0);
+        let empty_root = tree.root();
+
+        tree.push(5).unwrap();
+        assert_eq!(tree.num_leaves(), 1);
+
+        assert_eq!(tree.pop(), Some(5));
+        assert_eq!(tree.num_leaves(), 0);
+        assert_eq!(tree.root(), empty_root);
+        tree.validate().unwrap();
+    }
+
+    #[test]
+    fn test_pop_returns_leaves_in_reverse() {
+        let mut tree = CascadingMerkleTree::<TestHasher>::new(vec![], 10, &0);
+        for i in 0..10 {
+            tree.push(i + 1).unwrap();
+        }
+        for i in (0..10).rev() {
+            assert_eq!(tree.pop(), Some(i + 1));
+            tree.validate().unwrap();
+        }
+        assert_eq!(tree.pop(), None);
+    }
+
+    /// Popping down to `keep` leaves must yield the exact same root and leaves
+    /// as building a tree with `keep` leaves directly. Covers many sizes so
+    /// that storage power-of-two boundaries are crossed in both directions.
+    #[test]
+    fn test_pop_matches_freshly_built_tree() {
+        for total in 1..40usize {
+            let mut tree = CascadingMerkleTree::<TestHasher>::new(vec![], 10, &0);
+            for i in 0..total {
+                tree.push(i + 1).unwrap();
+            }
+
+            for keep in (0..=total).rev() {
+                let expected_leaves: Vec<usize> = (0..keep).map(|i| i + 1).collect();
+                let expected = CascadingMerkleTree::<TestHasher>::new_with_leaves(
+                    vec![],
+                    10,
+                    &0,
+                    &expected_leaves,
+                );
+
+                tree.validate().unwrap();
+                assert_eq!(tree.num_leaves(), keep);
+                assert_eq!(tree.root(), expected.root());
+                assert_eq!(
+                    tree.leaves().collect::<Vec<usize>>(),
+                    expected.leaves().collect::<Vec<usize>>()
+                );
+
+                if keep > 0 {
+                    assert_eq!(tree.pop(), Some(keep));
+                }
+            }
+
+            assert_eq!(tree.pop(), None);
+        }
+    }
+
+    #[test]
+    fn test_pop_then_push_reuses_slot() {
+        let mut tree = CascadingMerkleTree::<TestHasher>::new(vec![], 10, &0);
+        for i in 0..5 {
+            tree.push(i + 1).unwrap();
+        }
+        let root5 = tree.root();
+
+        tree.pop().unwrap();
+        tree.push(99).unwrap();
+        tree.validate().unwrap();
+
+        let expected =
+            CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 10, &0, &[1, 2, 3, 4, 99]);
+        assert_eq!(tree.num_leaves(), 5);
+        assert_eq!(tree.root(), expected.root());
+        assert_ne!(tree.root(), root5);
+        assert_eq!(tree.leaves().collect::<Vec<usize>>(), vec![1, 2, 3, 4, 99]);
+    }
+
+    #[test]
+    #[serial]
+    fn test_pop_mmap_backed() {
+        // Exercises pop on mmap-backed storage.
+        let tempfile = tempfile::tempfile().unwrap();
+        let mmap_vec: MmapVec<usize> = unsafe { MmapVec::restore(tempfile).unwrap() };
+
+        let leaves = (1..=20usize).collect::<Vec<_>>();
+        let mut tree = CascadingMerkleTree::<TestHasher, MmapVec<_>>::new_with_leaves(
+            mmap_vec, 10, &0, &leaves,
+        );
+
+        for keep in (0..leaves.len()).rev() {
+            assert_eq!(tree.pop(), Some(leaves[keep]));
+            let expected =
+                CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 10, &0, &leaves[..keep]);
+            tree.validate().unwrap();
+            assert_eq!(tree.num_leaves(), keep);
+            assert_eq!(tree.root(), expected.root());
+        }
+        assert_eq!(tree.pop(), None);
+    }
+
+    #[test]
+    fn test_pop_keeps_oversized_storage_restorable() {
+        let leaves = (0..9u64)
+            .map(|n| {
+                let b = n.to_be_bytes();
+                let mut hash = [0u8; 32];
+                hash[..8].copy_from_slice(&b);
+                hash
+            })
+            .collect::<Vec<_>>();
+
+        let mut tree =
+            CascadingMerkleTree::<Keccak256>::new_with_leaves(vec![], 10, &[0; 32], &leaves);
+        assert_eq!(tree.pop(), Some(leaves[8]));
+
+        let expected =
+            CascadingMerkleTree::<Keccak256>::new_with_leaves(vec![], 10, &[0; 32], &leaves[..8]);
+        tree.validate().unwrap();
+        assert_eq!(tree.root(), expected.root());
+
+        let restored =
+            CascadingMerkleTree::<Keccak256>::restore(tree.storage.clone(), 10, &[0; 32]).unwrap();
+        assert_eq!(restored.root(), expected.root());
+    }
+
+    #[test]
+    fn test_restore_rejects_corrupt_oversized_storage() {
+        let leaves = (1..=9usize).collect::<Vec<_>>();
+        let mut tree = CascadingMerkleTree::<TestHasher>::new_with_leaves(vec![], 10, &0, &leaves);
+        tree.pop();
+
+        let mut storage = tree.storage.clone();
+        storage[17] = 123;
+
+        let _ = CascadingMerkleTree::<TestHasher>::restore(storage, 10, &0).unwrap_err();
     }
 
     #[test]
