@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.5](https://github.com/worldcoin/semaphore-rs/compare/semaphore-rs-v0.5.4...semaphore-rs-v0.5.5) - 2026-06-18
+
+### Added
+
+- add pop to cascading merkle tree ([#149](https://github.com/worldcoin/semaphore-rs/pull/149))
+
 ## [0.5.4](https://github.com/worldcoin/semaphore-rs/compare/semaphore-rs-v0.5.3...semaphore-rs-v0.5.4) - 2026-05-20
 
 ### Added
