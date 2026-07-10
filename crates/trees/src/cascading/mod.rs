@@ -509,7 +509,7 @@ where
 #[cfg(test)]
 mod tests {
 
-    use rand::{thread_rng, Rng};
+    use rand::Rng;
     use semaphore_rs_hasher::Hasher;
     use semaphore_rs_keccak::keccak::Keccak256;
     use semaphore_rs_storage::{GenericStorage, MmapVec};
@@ -1295,7 +1295,7 @@ mod tests {
                     .map(|_| {
                         let mut hash = [0; 32];
 
-                        let mut rng = thread_rng();
+                        let mut rng = rand::rng();
                         rng.fill(&mut hash);
 
                         hash
@@ -1355,7 +1355,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_restore_from_cache() -> color_eyre::Result<()> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let leaves: Vec<Hash> = (0..1 << 2)
             .map(|_| {

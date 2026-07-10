@@ -1,4 +1,4 @@
-use rand::{thread_rng, Rng};
+use rand::Rng;
 use ruint::aliases::U256;
 use semaphore_rs_poseidon::Poseidon;
 use semaphore_rs_trees::cascading::CascadingMerkleTree;
@@ -29,13 +29,13 @@ fn equivalent() {
     assert_eq!(lazy.root(), cascading.root());
     assert_eq!(lazy.root(), imt.root());
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     let random_leaves = (0..NUM_LEAVES)
         .map(|_| {
             let mut limbs = [0u64; 4];
             for limb in limbs.iter_mut() {
-                *limb = rng.gen();
+                *limb = rng.random();
             }
             // zero last to fit in field
             limbs[3] &= 0x0FFFFFFFFFFFFFFF;

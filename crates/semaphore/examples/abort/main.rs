@@ -103,8 +103,8 @@ fn cascade_init() -> Result<()> {
         }
     });
 
-    let mut rng = rand::thread_rng();
-    let millis: u64 = rng.gen_range(0..50);
+    let mut rng = rand::rng();
+    let millis: u64 = rng.random_range(0..50);
     std::thread::sleep(std::time::Duration::from_millis(millis));
 
     panic!("");
@@ -141,8 +141,8 @@ fn lazy_init() -> Result<()> {
         }
     });
 
-    let mut rng = rand::thread_rng();
-    let millis: u64 = rng.gen_range(0..50);
+    let mut rng = rand::rng();
+    let millis: u64 = rng.random_range(0..50);
     std::thread::sleep(std::time::Duration::from_millis(millis));
 
     panic!("");

@@ -7,7 +7,7 @@ use ark_relations::r1cs::SynthesisError;
 use ark_std::UniformRand;
 use color_eyre::Result;
 use once_cell::sync::Lazy;
-use rand::{thread_rng, Rng};
+use rand::Rng;
 use semaphore_rs_ark_circom::ethereum::AffineError;
 use semaphore_rs_ark_circom::CircomReduction;
 use semaphore_rs_depth_config::{get_depth_index, get_supported_depth_count};
@@ -86,7 +86,7 @@ pub fn generate_proof(
         merkle_proof,
         external_nullifier_hash,
         signal_hash,
-        &mut thread_rng(),
+        &mut rand::rng(),
     )
 }
 
@@ -228,7 +228,7 @@ mod test {
         let mut rng = ChaChaRng::seed_from_u64(seed);
 
         // generate identity
-        let mut seed: [u8; 16] = rng.gen();
+        let mut seed: [u8; 16] = rng.random();
         let id = Identity::from_secret(seed.as_mut(), None);
 
         // generate merkle tree
@@ -238,10 +238,10 @@ mod test {
 
         let merkle_proof = tree.proof(0);
 
-        let external_nullifier: [u8; 16] = rng.gen();
+        let external_nullifier: [u8; 16] = rng.random();
         let external_nullifier_hash = hash_to_field(&external_nullifier);
 
-        let signal: [u8; 16] = rng.gen();
+        let signal: [u8; 16] = rng.random();
         let signal_hash = hash_to_field(&signal);
 
         generate_proof_rng(

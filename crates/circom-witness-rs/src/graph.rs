@@ -229,7 +229,7 @@ pub fn tree_shake(nodes: &mut Vec<Node>, outputs: &mut [usize]) {
 
 /// Randomly evaluate the graph
 fn random_eval(nodes: &mut [Node]) -> Vec<U256> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut values = Vec::with_capacity(nodes.len());
     let mut inputs = HashMap::new();
     let mut prfs = HashMap::new();
@@ -247,11 +247,11 @@ fn random_eval(nodes: &mut [Node]) -> Vec<U256> {
             Node::Op(op @ (Add | Sub | Mul), a, b) => op.eval(values[*a], values[*b]),
 
             // Input and non-algebraic ops are random functions
-            // TODO: https://github.com/recmo/uint/issues/95 and use .gen_range(..M)
-            Node::Input(i) => *inputs.entry(*i).or_insert_with(|| rng.gen::<U256>() % M),
+            // TODO: https://github.com/recmo/uint/issues/95 and use .random_range(..M)
+            Node::Input(i) => *inputs.entry(*i).or_insert_with(|| rng.random::<U256>() % M),
             Node::Op(op, a, b) => *prfs
                 .entry((*op, values[*a], values[*b]))
-                .or_insert_with(|| rng.gen::<U256>() % M),
+                .or_insert_with(|| rng.random::<U256>() % M),
         };
         values.push(value);
     }
