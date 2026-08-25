@@ -120,13 +120,16 @@ mod test {
 
     #[test]
     fn test_serialize_bytes_bin() {
-        let bytes = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
-        let mut bin: Vec<u8> = Vec::new();
-        {
-            let mut ser = bincode::Serializer::new(&mut bin, bincode::options());
-            serialize_bytes::<16, 34, _>(&mut ser, &bytes).unwrap();
+        struct Bytes([u8; 16]);
+        impl serde::Serialize for Bytes {
+            fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                serialize_bytes::<16, 34, _>(serializer, &self.0)
+            }
         }
-        // Bincode appears to prefix with a length.
+
+        let bytes = Bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+        let bin = postcard::to_stdvec(&bytes).unwrap();
+        // Postcard prefixes byte sequences with a varint length.
         assert_eq!(
             bin,
             [16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
