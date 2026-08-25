@@ -5,10 +5,9 @@ use std::path::PathBuf;
 use ark_bn254::{Bn254, Fr};
 use ark_ff::Field;
 use ark_groth16::ProvingKey;
-use ark_relations::r1cs::ConstraintMatrices;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use color_eyre::eyre::{Result, WrapErr};
-use semaphore_rs_ark_circom::read_zkey;
+use semaphore_rs_ark_circom::{read_zkey, ConstraintMatrices};
 
 #[derive(CanonicalSerialize, CanonicalDeserialize, Clone, Debug, PartialEq)]
 pub struct SerializableProvingKey(pub ProvingKey<Bn254>);
@@ -54,9 +53,11 @@ pub fn read_arkzkey_from_bytes(
         a_num_non_zero: serialized_constraint_matrices.a_num_non_zero,
         b_num_non_zero: serialized_constraint_matrices.b_num_non_zero,
         c_num_non_zero: serialized_constraint_matrices.c_num_non_zero,
-        a: serialized_constraint_matrices.a.data,
-        b: serialized_constraint_matrices.b.data,
-        c: serialized_constraint_matrices.c.data,
+        matrices: [
+            serialized_constraint_matrices.a.data,
+            serialized_constraint_matrices.b.data,
+            serialized_constraint_matrices.c.data,
+        ],
     };
 
     Ok((proving_key, constraint_matrices))
@@ -74,6 +75,7 @@ pub fn read_proving_key_and_matrices_from_zkey(
         read_zkey(&mut buf_reader).wrap_err("Failed to read zkey file")?;
 
     let serializable_proving_key = SerializableProvingKey(proving_key);
+    let [a, b, c] = matrices.matrices;
     let serializable_constrain_matrices = SerializableConstraintMatrices {
         num_instance_variables: matrices.num_instance_variables,
         num_witness_variables: matrices.num_witness_variables,
@@ -81,9 +83,9 @@ pub fn read_proving_key_and_matrices_from_zkey(
         a_num_non_zero: matrices.a_num_non_zero,
         b_num_non_zero: matrices.b_num_non_zero,
         c_num_non_zero: matrices.c_num_non_zero,
-        a: SerializableMatrix { data: matrices.a },
-        b: SerializableMatrix { data: matrices.b },
-        c: SerializableMatrix { data: matrices.c },
+        a: SerializableMatrix { data: a },
+        b: SerializableMatrix { data: b },
+        c: SerializableMatrix { data: c },
     };
 
     Ok((serializable_proving_key, serializable_constrain_matrices))

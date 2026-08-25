@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use ark_bn254::Fr;
 use ark_ff::PrimeField;
 use ark_groth16::{prepare_verifying_key, Groth16};
-use ark_relations::r1cs::SynthesisError;
+use ark_relations::gr1cs::SynthesisError;
 use ark_std::UniformRand;
 use color_eyre::Result;
 use once_cell::sync::Lazy;
@@ -129,7 +129,7 @@ fn generate_proof_rs(
         &zkey.0,
         r,
         s,
-        &zkey.1,
+        &zkey.1.matrices,
         zkey.1.num_instance_variables,
         zkey.1.num_constraints,
         full_assignment.as_slice(),
