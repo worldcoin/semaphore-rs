@@ -35,7 +35,6 @@ semaphore-rs-witness = { version = "0.5.4", path = "crates/circom-witness-rs" }
 alloy-core = { version = "1.0", default-features = false, features = [
   "sol-types",
 ] }
-bincode = "1.3.3"
 bytemuck = "1.18"
 byteorder = "1"
 color-eyre = "0.6"
@@ -51,7 +50,8 @@ mmap-rs = "0.6.1"
 num-bigint = { version = "0.4", default-features = false, features = ["rand"] }
 num-traits = "0.2.19"
 once_cell = "1.8"
-postcard = "1"
+# Default features pull in heapless 0.7 -> atomic-polyfill (RUSTSEC-2023-0089).
+postcard = { version = "1", default-features = false }
 proptest = "1.0"
 rand = { version = "0.8.4", features = ["small_rng"] }
 rand_chacha = "0.3.1"
@@ -65,7 +65,7 @@ ruint = { version = "1.12.3", features = [
   "bytemuck",
   "serde",
   "num-bigint",
-  "ark-ff-05",
+  "ark-ff-06",
 ] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.79"
@@ -95,22 +95,22 @@ proc-macro2 = "1.0.53"
 quote = "1.0.26"
 
 # Ark
-ark-bn254 = { version = "0.5.0" }
-ark-ec = { version = "0.5.0", default-features = false, features = [
+ark-bn254 = { version = "0.6.0" }
+ark-ec = { version = "0.6.0", default-features = false, features = [
   "parallel",
 ] }
-ark-ff = { version = "0.5.0", default-features = false, features = [
+ark-ff = { version = "0.6.0", default-features = false, features = [
   "parallel",
   "asm",
 ] }
-ark-groth16 = { version = "0.5.0", features = ["parallel"] }
-ark-relations = { version = "0.5.0", default-features = false }
-ark-std = { version = "0.5.0", default-features = false, features = [
+ark-groth16 = { version = "0.6.0", features = ["parallel"] }
+ark-relations = { version = "0.6.0", default-features = false }
+ark-std = { version = "0.6.0", default-features = false, features = [
   "parallel",
 ] }
-ark-serialize = { version = "0.5.0", features = ["derive"] }
-ark-poly = { version = "0.5.0" }
-ark-crypto-primitives = { version = "0.5.0" }
+ark-serialize = { version = "0.6.0", features = ["derive"] }
+ark-poly = { version = "0.6.0" }
+ark-crypto-primitives = { version = "0.6.0" }
 
 [profile.release]
 codegen-units = 1

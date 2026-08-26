@@ -17,5 +17,5 @@ hex.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
-bincode.workspace = true
+postcard = { workspace = true, features = ["use-std"] }
 

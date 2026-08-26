@@ -112,31 +112,25 @@ jobs:
       - name: Check (semaphore-rs)
         run: cargo check --target wasm32-unknown-unknown -p semaphore-rs --features depth_16
 
-  # vet:
-  #   name: Vet Dependencies
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #   - uses: actions/checkout@master
-  #   - name: Install Rust
-  #     uses: actions-rs/toolchain@v1
-  #     with:
-  #       profile: minimal
-  #       toolchain: ${{ env.RUST_VERSION }}
-  #       override: true
-  #   - uses: actions-rs/cargo@v1
-  #     with:
-  #       command: build
-  #   - uses: actions/cache@v3
-  #     with:
-  #       path: |
-  #         ~/.cargo/registry/index/
-  #         ~/.cargo/registry/cache/
-  #         ~/.cargo/git/db/
-  #         target/
-  #       key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-  #   - name: Install cargo-vet
-  #     run: cargo install cargo-vet --version ${{ env.CARGO_VET_VERSION }} --git ${{ env.CARGO_VET_REPO }}
-  #   - name: Prune (If some import got updated)
-  #     run: cargo vet prune
-  #   - name: Invoke cargo-vet
-  #     run: cargo vet
+  deny:
+    name: Cargo deny
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        checks:
+          - advisories
+          - bans licenses sources
+    continue-on-error: ${{ matrix.checks == 'advisories' }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 https://github.com/actions/checkout/releases/tag/v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1 (https://github.com/EmbarkStudios/cargo-deny-action/releases/tag/v2.1.1)
+        with:
+          command: check ${{ matrix.checks }}
+          rust-version: stable

@@ -1,5 +1,5 @@
-use ark_ff::{BigInteger256, PrimeField};
-use ark_relations::r1cs::ConstraintMatrices;
+use ark_ff::{BigInteger256, Field, PrimeField};
+use ark_relations::gr1cs::Matrix;
 use ark_serialize::{CanonicalDeserialize, SerializationError};
 use ark_std::log2;
 use byteorder::{LittleEndian, ReadBytesExt};
@@ -20,6 +20,23 @@ struct Section {
     position: u64,
     #[allow(dead_code)]
     size: usize,
+}
+
+/// The R1CS constraint matrices of a circuit, plus the shape needed to prove it.
+///
+/// `ark-relations` dropped `ConstraintMatrices` in 0.6 when it generalized to GR1CS
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ConstraintMatrices<F: Field> {
+    pub num_instance_variables: usize,
+    pub num_witness_variables: usize,
+    pub num_constraints: usize,
+
+    pub a_num_non_zero: usize,
+    pub b_num_non_zero: usize,
+    pub c_num_non_zero: usize,
+
+    /// `[a, b, c]`, in the order `ark-groth16` expects them.
+    pub matrices: [Matrix<F>; 3],
 }
 
 /// Reads a SnarkJS ZKey file into an Arkworks ProvingKey.
@@ -160,9 +177,7 @@ impl<'a, R: Read + Seek> BinFile<'a, R> {
             b_num_non_zero,
             c_num_non_zero: 0,
 
-            a,
-            b,
-            c: vec![],
+            matrices: [a, b, vec![]],
         };
 
         Ok(matrices)

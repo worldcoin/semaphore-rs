@@ -41,11 +41,7 @@ impl TryFrom<G1> for G1Affine {
         if x.is_zero() && y.is_zero() {
             Ok(G1Affine::identity())
         } else {
-            let point = G1Affine {
-                x,
-                y,
-                infinity: false,
-            };
+            let point = G1Affine::new_unchecked(x, y);
             if !point.is_on_curve() {
                 return Err(AffineError::NotOnCurve);
             }
@@ -95,11 +91,7 @@ impl TryFrom<G2> for G2Affine {
         if x.is_zero() && y.is_zero() {
             Ok(G2Affine::identity())
         } else {
-            let point = G2Affine {
-                x,
-                y,
-                infinity: false,
-            };
+            let point = G2Affine::new_unchecked(x, y);
             if !point.is_on_curve() {
                 return Err(AffineError::NotOnCurve);
             }
