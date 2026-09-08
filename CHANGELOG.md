@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/worldcoin/semaphore-rs/compare/semaphore-rs-v0.5.4...semaphore-rs-v0.6.0) - 2026-09-08
+
+### Added
+
+- Add pop to cascading merkle tree ([#149](https://github.com/worldcoin/semaphore-rs/pull/149))
+
+### Changed
+
+- Bump to arkworks 0.6 ([#152](https://github.com/worldcoin/semaphore-rs/pull/152))
+
+### Fixed
+
+- Vendor proving keys for all supported depths ([#153](https://github.com/worldcoin/semaphore-rs/pull/153))
+
 ## [0.5.4](https://github.com/worldcoin/semaphore-rs/compare/semaphore-rs-v0.5.3...semaphore-rs-v0.5.4) - 2026-05-20
 
 ### Added
