@@ -7,11 +7,6 @@ fallback.
 
 ## Sources and integrity
 
-- Depth 16: the existing `crates/ark-zkey/src/semaphore.16.arkzkey` test fixture.
-- Depth 20: a previous `signup-sequencer` build's converted key, with matching
-  hashes in two separate local build output directories.
-- Depth 30: a previous `world-chain` build's converted key.
-
 The cached artifacts were produced by the existing Semaphore build pipeline,
 which downloaded from
 `https://www.trusted-setup-pse.org/semaphore/{depth}/semaphore.zkey`.
