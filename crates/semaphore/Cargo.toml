@@ -63,9 +63,7 @@ tiny-keccak.workspace = true
 tracing-test.workspace = true
 
 [build-dependencies]
-semaphore-rs-ark-zkey.workspace = true
 color-eyre.workspace = true
-reqwest.workspace = true
 semaphore-rs-depth-config.workspace = true
 
 [[bench]]
