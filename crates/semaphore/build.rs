@@ -7,6 +7,7 @@ extern crate reqwest;
 
 const SEMAPHORE_FILES_PATH: &str = "semaphore_files";
 const SEMAPHORE_DOWNLOAD_URL: &str = "https://www.trusted-setup-pse.org/semaphore";
+const VENDORED_ARKZKEY_DIR: &str = "assets";
 
 fn download_and_store_binary(url: &str, path: impl AsRef<Path>) -> Result<()> {
     let path = path.as_ref();
@@ -39,6 +40,37 @@ fn create_arkzkey(path: PathBuf) -> Result<PathBuf> {
 }
 
 fn build_circuit(depth: usize) -> Result<()> {
+    let manifest_dir =
+        PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").expect("Missing CARGO_MANIFEST_DIR var"));
+    let vendored_arkzkey_path = manifest_dir
+        .join(VENDORED_ARKZKEY_DIR)
+        .join(depth.to_string())
+        .join("semaphore.arkzkey");
+
+    if vendored_arkzkey_path.exists() {
+        let arkzkey_file = absolute(&vendored_arkzkey_path)?;
+        let graph_file = absolute(
+            manifest_dir
+                .join("graphs")
+                .join(depth.to_string())
+                .join("graph.bin"),
+        )?;
+
+        println!("cargo:rerun-if-changed={}", arkzkey_file.display());
+        println!("cargo:rerun-if-changed={}", graph_file.display());
+        println!(
+            "cargo:rustc-env=BUILD_RS_ARKZKEY_FILE_{}={}",
+            depth,
+            arkzkey_file.display()
+        );
+        println!(
+            "cargo:rustc-env=BUILD_RS_GRAPH_FILE_{}={}",
+            depth,
+            graph_file.display()
+        );
+        return Ok(());
+    }
+
     let out_dir = std::env::var("OUT_DIR").expect("Missing out dir var");
     let base_path = Path::new(&out_dir).join(SEMAPHORE_FILES_PATH);
 
@@ -63,7 +95,8 @@ fn build_circuit(depth: usize) -> Result<()> {
     // Compute absolute paths
     let arkzkey_file = absolute(ark_zkey_path)?;
     let graph_file = absolute(
-        Path::new("graphs")
+        manifest_dir
+            .join("graphs")
             .join(depth.to_string())
             .join("graph.bin"),
     )?;
