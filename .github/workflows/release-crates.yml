@@ -1,3 +1,6 @@
+# The filename of this workflow is part of the crates.io trusted publishing
+# config of every semaphore-rs crate. Renaming it breaks publishing until each
+# crate's "Trusted Publishing" setting is updated to match.
 name: Release Crates
 
 on:
@@ -6,31 +9,69 @@ on:
       - main
   workflow_dispatch:
 
-# Prevent concurrent release runs — release-plz is not safe to run in parallel
-# against the same repo state. Keep in-progress runs; don't cancel them.
-concurrency:
-  group: release-plz
-  cancel-in-progress: false
+permissions: {}
 
 jobs:
-  release-crates:
+  # Publishes unpublished crates to crates.io, then pushes the git tags and
+  # GitHub releases. Authenticates via crates.io trusted publishing (OIDC), so
+  # `id-token: write` is required and no CARGO_REGISTRY_TOKEN is set.
+  #
+  # Intentionally has no concurrency group: GitHub keeps only one pending run per
+  # group, so a burst of merges would silently drop a release. release-plz skips
+  # already-published versions, so overlapping runs are safe.
+  release-plz-release:
     name: Release Crates
     runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'worldcoin' }}
     permissions:
-      contents: write
-      pull-requests: write
-      id-token: write
+      contents: write # push tags and create GitHub releases
+      pull-requests: read # read the merged release PR to build release notes
+      id-token: write # mint the crates.io trusted publishing token
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        with:
+          toolchain: stable
 
       - name: Run release-plz
-        uses: release-plz/action@1efcf74dfcd6e500990dad806e286899ae384064 # v0.5.119 (https://github.com/release-plz/action/releases/tag/v0.5.119)
+        uses: release-plz/action@aec534bbd8631793b9b3b8f1ee6cd886c322e17f # v0.5.133
+        with:
+          command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Opens or updates the release PR with the next versions and changelog.
+  release-plz-pr:
+    name: Release PR
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'worldcoin' }}
+    permissions:
+      contents: write # push the release PR branch
+      pull-requests: write # open and update the release PR
+    concurrency:
+      group: release-plz-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        with:
+          toolchain: stable
+
+      - name: Run release-plz
+        uses: release-plz/action@aec534bbd8631793b9b3b8f1ee6cd886c322e17f # v0.5.133
+        with:
+          command: release-pr
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
