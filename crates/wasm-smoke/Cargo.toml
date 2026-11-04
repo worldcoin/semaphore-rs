@@ -1,0 +1,11 @@
+[package]
+name = "semaphore-rs-wasm-smoke"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Generates and verifies Semaphore proofs on single-threaded WASM in CI"
+
+[dependencies]
+# Without default features, so arkworks `parallel` stays off as it must on wasm32.
+semaphore-rs = { path = "../semaphore", default-features = false, features = ["depth_16"] }

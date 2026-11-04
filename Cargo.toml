@@ -91,19 +91,14 @@ proc-macro2 = "1.0.53"
 quote = "1.0.26"
 
 # Ark
+# `parallel` is opt-in per crate (see `semaphore-rs`'s `parallel` feature) so single-threaded
+# targets such as wasm32 can build provers without rayon thread pools.
 ark-bn254 = { version = "0.6.0" }
-ark-ec = { version = "0.6.0", default-features = false, features = [
-  "parallel",
-] }
-ark-ff = { version = "0.6.0", default-features = false, features = [
-  "parallel",
-  "asm",
-] }
-ark-groth16 = { version = "0.6.0", features = ["parallel"] }
+ark-ec = { version = "0.6.0", default-features = false, features = ["std"] }
+ark-ff = { version = "0.6.0", default-features = false, features = ["std", "asm"] }
+ark-groth16 = { version = "0.6.0", default-features = false, features = ["std"] }
 ark-relations = { version = "0.6.0", default-features = false }
-ark-std = { version = "0.6.0", default-features = false, features = [
-  "parallel",
-] }
+ark-std = { version = "0.6.0", default-features = false, features = ["std"] }
 ark-serialize = { version = "0.6.0", features = ["derive"] }
 ark-poly = { version = "0.6.0" }
 ark-crypto-primitives = { version = "0.6.0" }

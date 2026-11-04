@@ -112,6 +112,18 @@ jobs:
       - name: Check (semaphore-rs)
         run: cargo check --target wasm32-unknown-unknown -p semaphore-rs --features depth_16
 
+      - name: Check (semaphore-rs, without parallel)
+        run: cargo check --target wasm32-unknown-unknown -p semaphore-rs --no-default-features --features depth_16
+
+      # `cargo check` cannot catch arkworks panicking at runtime without threads, so prove and
+      # verify on single-threaded WASM.
+      - name: Prove and verify on wasm32-wasip1
+        run: |
+          rustup target add wasm32-wasip1
+          curl -sSf https://wasmtime.dev/install.sh | bash
+          cargo build --release --target wasm32-wasip1 -p semaphore-rs-wasm-smoke
+          "$HOME/.wasmtime/bin/wasmtime" run target/wasm32-wasip1/release/semaphore-rs-wasm-smoke.wasm
+
   deny:
     name: Cargo deny
     runs-on: ubuntu-latest
