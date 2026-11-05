@@ -120,9 +120,15 @@ jobs:
       - name: Prove and verify on wasm32-wasip1
         run: |
           rustup target add wasm32-wasip1
-          curl -sSf https://wasmtime.dev/install.sh | bash
+          wasmtime_dir="$(mktemp -d "$RUNNER_TEMP/wasmtime.XXXXXX")"
+          archive="$wasmtime_dir/wasmtime.tar.xz"
+          curl --fail --silent --show-error --location --connect-timeout 10 --max-time 120 \
+            --output "$archive" \
+            https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.1/wasmtime-v50.0.1-x86_64-linux.tar.xz
+          printf '%s  %s\n' '685466455dd42a14774a86c36c8f2e45cbb9bd6d92a850139315df60a75498a5' "$archive" | sha256sum -c -
+          tar -xJf "$archive" -C "$wasmtime_dir" --strip-components=1
           cargo build --release --target wasm32-wasip1 -p semaphore-rs-wasm-smoke
-          "$HOME/.wasmtime/bin/wasmtime" run target/wasm32-wasip1/release/semaphore-rs-wasm-smoke.wasm
+          "$wasmtime_dir/wasmtime" run target/wasm32-wasip1/release/semaphore-rs-wasm-smoke.wasm
 
   deny:
     name: Cargo deny
