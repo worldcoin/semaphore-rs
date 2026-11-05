@@ -75,7 +75,16 @@ name = "lazy_merkle_tree"
 harness = false
 
 [features]
-default = []
+default = ["parallel"]
+# Multi-threaded arkworks proving (MSM, FFT). Disable with `default-features = false` on
+# targets without threads, e.g. wasm32-unknown-unknown, where arkworks would otherwise panic
+# building a rayon thread pool during proof generation.
+parallel = [
+    "ark-ec/parallel",
+    "ark-ff/parallel",
+    "ark-std/parallel",
+    "ark-groth16/parallel",
+]
 depth_16 = [
     "semaphore-rs-depth-config/depth_16",
     "semaphore-rs-depth-macros/depth_16",
