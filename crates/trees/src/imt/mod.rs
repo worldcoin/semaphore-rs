@@ -151,7 +151,7 @@ where
 
     #[must_use]
     pub fn leaves(&self) -> &[H::Hash] {
-        &self.nodes[(self.num_leaves() - 1)..]
+        &self.nodes[self.num_leaves()..]
     }
 }
 
@@ -236,5 +236,14 @@ pub mod test {
             467068234150758165281816522946040748310650451788100792957402532717155514893_U256
         );
         assert_eq!(tree.root(), expected_root);
+    }
+
+    #[test]
+    fn leaves() {
+        let mut tree = MerkleTree::<Keccak256>::new(2, [0; 32]);
+        tree.set_range(1, [[1; 32], [2; 32], [3; 32]]);
+
+        assert_eq!(tree.leaves(), &[[0; 32], [1; 32], [2; 32], [3; 32]]);
+        assert_eq!(tree.leaves().len(), tree.num_leaves());
     }
 }
