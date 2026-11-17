@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1](https://github.com/worldcoin/semaphore-rs/compare/semaphore-rs-v0.6.0...semaphore-rs-v0.6.1) - 2026-11-17
+
+### Fixed
+
+- *(trees)* MerkleTree::leaves returns only the leaves ([#156](https://github.com/worldcoin/semaphore-rs/pull/156))
+
 ## [0.6.0](https://github.com/worldcoin/semaphore-rs/compare/semaphore-rs-v0.5.4...semaphore-rs-v0.6.0) - 2026-09-08
 
 ### Added
